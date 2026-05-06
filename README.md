@@ -20,7 +20,7 @@ v2.3.52 — Stage-Based Workflow with Implementation Completeness:
 ### Claude Code
 
 ```bash
-claude plugin add jenningsloy318/super-dev-plugin
+claude plugin marketplace add jenningsloy318/super-dev-plugin
 claude plugin enable super-dev@super-dev
 ```
 
