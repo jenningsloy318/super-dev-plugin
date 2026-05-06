@@ -140,7 +140,7 @@ The Coordinator Agent will orchestrate all 14 stages automatically.
 
 ## Plugin Structure
 
-All instruction files (agents, commands, rules, contexts, skills, reference docs) use a unified XML-tagged format with a three-tier tag schema (`<meta>`, semantic content blocks, type-specific tags). README files and JSON/shell files remain in their original formats.
+All instruction files (agents, commands, rules, skills, reference docs) use a unified XML-tagged format with a three-tier tag schema (`<meta>`, semantic content blocks, type-specific tags). README files and JSON/shell files remain in their original formats.
 
 ```
 super-dev-plugin/
@@ -248,11 +248,6 @@ super-dev-plugin/
 │   ├── performance.md            # Model selection, context management
 │   ├── security.md               # Mandatory security checks
 │   └── testing.md                # TDD, coverage requirements
-│
-├── contexts/                   # Dynamic system prompt injection (XML-tagged)
-│   ├── dev.md                    # Development mode context
-│   ├── review.md                 # Code review mode context
-│   └── research.md               # Research/exploration mode context
 │
 ├── hooks/                     # Automated hooks (10 total)
 │   ├── hooks.json                  # Hook configuration (PreToolUse/PostToolUse/Stop)
@@ -529,14 +524,6 @@ The `rules/` directory contains modular always-follow guidelines:
 - performance.md - Model selection (Haiku/Sonnet/Opus), context window management
 - security.md - Mandatory security checks
 - testing.md - TDD, 80% coverage requirement
-
-## Contexts
-
-The `contexts/` directory provides dynamic system prompt injection:
-
-- dev.md - Development mode (write code first, prefer working solutions)
-- review.md - Code review mode (critical analysis, specification validation)
-- research.md - Research mode (gather information, explore options)
 
 ## Output Documents
 

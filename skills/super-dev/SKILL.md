@@ -189,7 +189,7 @@ license: MIT
 </rules>
 
 <references>
-  <ref>Plugin root: `${CLAUDE_PLUGIN_ROOT}` — agents, commands, rules, contexts, skills, templates, scripts</ref>
+  <ref>Plugin root: `${CLAUDE_PLUGIN_ROOT}` — agents, commands, rules, skills, templates, scripts</ref>
   <ref>Plugin data: `${CLAUDE_PLUGIN_DATA}` — global stats, learned patterns, autoresearch results</ref>
   <ref>Compatibility: Requires Claude Code CLI with Task tool and agent teams (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1). Git required for worktree management.</ref>
 </references>
