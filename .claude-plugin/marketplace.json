@@ -12,7 +12,7 @@
   "plugins": [
     {
       "name": "super-dev",
-      "source": ".",
+      "source": "./",
       "description": "Team-lead-driven development workflow with parallel agent execution for implementing features, fixing bugs, and refactoring code",
       "version": "2.3.90",
       "author": {
