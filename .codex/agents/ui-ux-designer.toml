@@ -57,6 +57,6 @@ developer_instructions = """
 </quality-gates>
 
 <references>
-  <ref>Produces `[XX]-design-spec.md` (and optionally `.pen` files). Template: `${CLAUDE_PLUGIN_ROOT}/templates/reference/design-spec-template.md`.</ref>
+  <ref>Produces `[XX]-design-spec.md` (and optionally `.pen` files). Template: `${CLAUDE_PLUGIN_ROOT}/reference/design-spec-template.md`.</ref>
 </references>
 """

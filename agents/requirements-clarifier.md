@@ -27,7 +27,7 @@ model: inherit
   <step n="0" name="Invoke Clarify Skill">Invoke `clarify` skill to decompose raw request into Facts, Desires, and Confusions. Drill down ambiguous terms via Socratic questioning (max 3 rounds). Apply Polanyi extraction if tacit knowledge detected.</step>
   <step n="1" name="Multi-Layer Questioning">Layer 1 Surface: What exactly is requested? Current behavior? Success criteria? Layer 2 Root Cause (5 Whys): Why need this? Why insufficient? Why now? Why this approach? Why business matters? Layer 3 JTBD: What job? When needed? What used currently? Frustrations? Perfect done? Layer 4 Workflow: Before/after/who else/data flow/edge cases. Layer 5 Impact: Business outcome, beneficiaries, behavior change, metrics. Layer 6 Alternatives: Other solutions, assumptions, minimum viable.</step>
   <step n="2" name="Proactive Anticipation">After gathering requirements, probe for: downstream effects, integration needs, sharing/collaboration, automation opportunities, analytics/reporting, error handling, scale considerations.</step>
-  <step n="3" name="Write Requirements Document">Load `${CLAUDE_PLUGIN_ROOT}/templates/reference/requirements-template.md`. Include 5 Whys analysis, JTBD, workflow context, solution options, acceptance criteria, recommendations.</step>
+  <step n="3" name="Write Requirements Document">Load `${CLAUDE_PLUGIN_ROOT}/reference/requirements-template.md`. Include 5 Whys analysis, JTBD, workflow context, solution options, acceptance criteria, recommendations.</step>
 </process>
 
 <process name="Bug Fix Requirements">
@@ -35,7 +35,7 @@ model: inherit
 </process>
 
 <output>
-  <template>Load `${CLAUDE_PLUGIN_ROOT}/templates/reference/requirements-template.md` and fill in all placeholders.</template>
+  <template>Load `${CLAUDE_PLUGIN_ROOT}/reference/requirements-template.md` and fill in all placeholders.</template>
   <filename>Write output to `{spec_directory}/{output_filename}` as provided by Team Lead. Do NOT rename or use a different filename.</filename>
 </output>
 

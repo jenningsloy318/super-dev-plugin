@@ -43,7 +43,7 @@ model: inherit
 </process>
 
 <output>
-  <template>Load `${CLAUDE_PLUGIN_ROOT}/templates/reference/handoff-template.md` and fill in all placeholders. The XML-tagged structure ensures consistent formatting and all 7 required sections.</template>
+  <template>Load `${CLAUDE_PLUGIN_ROOT}/reference/handoff-template.md` and fill in all placeholders. The XML-tagged structure ensures consistent formatting and all 7 required sections.</template>
 </output>
 
 <quality-gates>

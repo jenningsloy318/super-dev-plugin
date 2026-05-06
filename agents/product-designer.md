@@ -41,7 +41,7 @@ model: inherit
 
 <output>
   <filename>Write all outputs to `{spec_directory}/{output_filenames}` as provided in input. Do NOT rename or use different filenames.</filename>
-  <template>Load from `${CLAUDE_PLUGIN_ROOT}/templates/reference/`: `architecture-template.md`, `design-spec-template.md`, `product-design-summary-template.md`.</template>
+  <template>Load from `${CLAUDE_PLUGIN_ROOT}/reference/`: `architecture-template.md`, `design-spec-template.md`, `product-design-summary-template.md`.</template>
 </output>
 
 <quality-gates>

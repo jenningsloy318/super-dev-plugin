@@ -37,7 +37,7 @@ developer_instructions = """
 </examples>
 
 <output>
-  <template>Load `${CLAUDE_PLUGIN_ROOT}/templates/reference/bdd-scenarios-template.md` and fill in all placeholders.</template>
+  <template>Load `${CLAUDE_PLUGIN_ROOT}/reference/bdd-scenarios-template.md` and fill in all placeholders.</template>
   <filename>Write output to `{spec_directory}/{output_filename}` as provided in input. Do NOT rename or use a different filename.</filename>
 </output>
 

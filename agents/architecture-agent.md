@@ -63,7 +63,7 @@ model: inherit
 </constraint>
 
 <output>
-  <template>Load `${CLAUDE_PLUGIN_ROOT}/templates/reference/architecture-template.md` and fill in all placeholders.</template>
+  <template>Load `${CLAUDE_PLUGIN_ROOT}/reference/architecture-template.md` and fill in all placeholders.</template>
   <filename>Write output to `{spec_directory}/{output_filename}` as provided by Team Lead. Do NOT rename or use a different filename.</filename>
 </output>
 

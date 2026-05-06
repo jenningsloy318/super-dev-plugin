@@ -10,7 +10,7 @@
 
 3. ✅ **COMPLETED**: BDD (Behavior-Driven Development) integration into super-dev workflow.
    - New agent: `agents/bdd-scenario-writer.md`
-   - New template: `templates/reference/bdd-patterns.md`
+   - New template: `reference/bdd-patterns.md`
    - Mandatory Phase 2.5 between requirements (Phase 2) and research (Phase 3)
    - 100% BDD scenario coverage hard gate in Phase 9
    - V8 Behavior Coverage attack vector + D9 pre-check in adversarial reviewer
@@ -28,14 +28,14 @@
    - Implemented 2026-03-24
 
 6. ✅ **COMPLETED**: Add config.json first-time setup pattern.
-   - New template: `templates/config-template.json`
+   - New template: `reference/config-template.json`
    - First-Run Configuration section in super-dev skill
    - Auto-detection of language, framework, package manager, test runner
    - `${CLAUDE_PLUGIN_DATA}/config.json` for persistence
    - Implemented 2026-03-24
 
 7. ✅ **COMPLETED**: Add persistent state via `${CLAUDE_PLUGIN_DATA}`.
-   - New reference: `templates/reference/state-management.md`
+   - New reference: `reference/state-management.md`
    - Session history log (append-only JSONL)
    - Pattern learning across sessions
    - Usage statistics tracking

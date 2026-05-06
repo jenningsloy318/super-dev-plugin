@@ -471,7 +471,7 @@ Security checklist and validation:
 
 ## Reference Materials
 
-The `templates/reference/` directory contains reference documentation (XML-tagged format):
+The `reference/` directory contains reference documentation (XML-tagged format):
 
 ### architecture-patterns
 
@@ -491,7 +491,7 @@ Multi-source research, option presentation, Time MCP integration, and synthesis 
 
 ### Document Templates (XML-tagged)
 
-14 XML-tagged document templates in `templates/reference/*-template.md`. Each agent loads its template at runtime for consistent document formatting. Templates cover: requirements, bdd-scenarios, specification, implementation-plan, task-list, handoff, code-review, adversarial-review, implementation-summary, architecture, design-spec, product-design-summary, spec-review, qa-report.
+14 XML-tagged document templates in `reference/*-template.md`. Each agent loads its template at runtime for consistent document formatting. Templates cover: requirements, bdd-scenarios, specification, implementation-plan, task-list, handoff, code-review, adversarial-review, implementation-summary, architecture, design-spec, product-design-summary, spec-review, qa-report.
 
 ### testing-patterns
 

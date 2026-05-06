@@ -19,7 +19,7 @@ developer_instructions = """
 <output name="Documents to Update">
   MANDATORY (spec directory):
   - Task List (`*-task-list.md`): Mark tasks complete, update progress tracking, add file change details
-  - Implementation Summary (`*-implementation-summary.md`): Compile complete development story (CREATE if not exists). Template: `${CLAUDE_PLUGIN_ROOT}/templates/reference/implementation-summary-template.md`
+  - Implementation Summary (`*-implementation-summary.md`): Compile complete development story (CREATE if not exists). Template: `${CLAUDE_PLUGIN_ROOT}/reference/implementation-summary-template.md`
   - Specification (`*-specification.md`): Update deviations from original spec. Use change log format: original text, changed text, reason, impact
   - Implementation Plan (`*-implementation-plan.md`): Update phase statuses, mark completed phases, note any plan changes
   - Workflow Tracking JSON (`*-workflow-tracking.json`): Update stage statuses, task completions, timestamps
