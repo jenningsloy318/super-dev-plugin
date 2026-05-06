@@ -27,7 +27,7 @@ license: MIT
   <stage n="10" name="Code Review + Adversarial Review">Spawn code-reviewer + adversarial-reviewer + 2x doc-validator (4 parallel). Gate: gate-review.sh. On failure: follow Implementation Iteration Loop.</stage>
   <stage n="11" name="Documentation Update">Spawn docs-executor. WAIT for `DOCS_STAGE_11_COMPLETE` signal or agent termination — do NOT proceed while docs-executor is still running. Then run gate-docs-drift.sh. MANDATORY — do not skip.</stage>
   <stage n="11.5" name="Handoff Writing">Spawn handoff-writer. WAIT for completion before Stage 12. MANDATORY — do not skip.</stage>
-  <stage n="12" name="Team Cleanup">Verify all teammates terminated, worktree preserved.</stage>
+  <stage n="12" name="Team Cleanup">Verify all teammates terminated. Spawn build-cleaner agent to detect project type and clean build artifacts/caches (e.g., cargo clean, rm node_modules, etc.). Worktree preserved.</stage>
   <stage n="12.5" name="User Confirmation">Present summary to user for confirmation before merge.</stage>
   <stage n="13" name="Commit and Merge">Git operations: commit spec directory + code, merge to main.</stage>
   <stage n="14" name="Final Verification">Verify completion, worktree preserved for reference.</stage>
