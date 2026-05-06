@@ -50,6 +50,7 @@ Alternatively, install agents manually:
 
 ```bash
 gemini extensions install https://github.com/jenningsloy318/super-dev-plugin
+gemini extensions enable super-dev
 ```
 
 Or link locally for development:
