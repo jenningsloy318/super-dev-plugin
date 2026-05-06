@@ -20,7 +20,7 @@ v2.3.52 — Stage-Based Workflow with Implementation Completeness:
 ### Claude Code
 
 ```bash
-claude plugin add jenningsloy318/claude-skill-artifacts
+claude plugin add jenningsloy318/super-dev-plugin
 ```
 
 Then enable the super-dev plugin in your project or globally.
@@ -28,7 +28,7 @@ Then enable the super-dev plugin in your project or globally.
 ### OpenAI Codex
 
 ```bash
-codex plugin marketplace add jenningsloy318/claude-skill-artifacts
+codex plugin marketplace add jenningsloy318/super-dev-plugin
 ```
 
 Then inside Codex, enable the plugin:
@@ -50,13 +50,12 @@ Alternatively, install agents manually:
 ### Gemini CLI
 
 ```bash
-gemini extensions install jenningsloy318/claude-skill-artifacts
+gemini extensions install https://github.com/jenningsloy318/super-dev-plugin
 ```
 
 Or link locally for development:
 
 ```bash
-cd super-dev-plugin
 gemini extensions link .
 ```
 
