@@ -31,7 +31,7 @@ developer_instructions = """
 
 <process>
   <step n="1" name="GATHER (30s)">Read error (exact message, stack trace, exit code). Read code where error occurs plus immediate callers. Check recent changes (`git diff`, `git log`). Check environment (versions, configs). Reproduce the failing command once.</step>
-  <step n="2" name="SEARCH (60s)">Search for precedent/docs/known issues. Priority: project docs first → library docs → issue trackers → web search. Max 3 sources, 3 tool calls. Use MCP scripts: `${CLAUDE_PLUGIN_ROOT}/scripts/deepwiki/deepwiki_ask.sh`, `${CLAUDE_PLUGIN_ROOT}/scripts/context7/context7_docs.sh`, `${CLAUDE_PLUGIN_ROOT}/scripts/exa/exa_search.sh`.</step>
+  <step n="2" name="SEARCH (60s)">Search for precedent/docs/known issues. Priority: project docs first → library docs → issue trackers → web search. Max 3 sources, 3 tool calls. Use MCP tools directly: `mcp__deepwiki__ask_question`, `mcp__context7__query-docs`, `mcp__exa__web_search_exa`.</step>
   <step n="3" name="HYPOTHESIZE (30s)">Form hypothesis: IF [condition] THEN [observable effect] BECAUSE [evidence]. Validate with lightest method (temp log, assertion, minimal reproduction, config check, dependency source read). Verified → step 4. Rejected → next hypothesis (max 3). All failed → ESCALATE.</step>
   <step n="4" name="RESOLVE">Root cause confirmed. Mode A (Fix Available): Write fix description with exact file paths, line numbers, code changes. Calling agent applies the fix. Mode B (Architectural Discovery): Document finding, recommend Team Lead re-evaluate spec/architecture.</step>
 </process>

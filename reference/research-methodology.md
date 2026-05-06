@@ -24,13 +24,13 @@
 <tools name="Search Tools">
   Firecrawl MCP (MANDATORY — run first): Run before any other search. No source limits. Use `firecrawl_search` for discovery, `firecrawl_scrape` for content extraction, `firecrawl_extract` for structured data.
 
-  Exa (Web and Code Search — Supplementary): Web search via `${CLAUDE_PLUGIN_ROOT}/scripts/exa/exa_search.sh`, code context search via `${CLAUDE_PLUGIN_ROOT}/scripts/exa/exa_code.sh`.
+  Exa (Web and Code Search — Supplementary): Use `mcp__exa__web_search_exa` for web search, use with type "code" for code context search.
 
-  DeepWiki (GitHub Repo Documentation): Get repo docs structure via `${CLAUDE_PLUGIN_ROOT}/scripts/deepwiki/deepwiki_structure.sh`, contents via `${CLAUDE_PLUGIN_ROOT}/scripts/deepwiki/deepwiki_contents.sh`, ask questions via `${CLAUDE_PLUGIN_ROOT}/scripts/deepwiki/deepwiki_ask.sh`.
+  DeepWiki (GitHub Repo Documentation): Get repo docs structure via `mcp__deepwiki__read_wiki_structure`, contents via `mcp__deepwiki__read_wiki_contents`, ask questions via `mcp__deepwiki__ask_question`.
 
-  Context7 (Library Documentation): Resolve library ID via `${CLAUDE_PLUGIN_ROOT}/scripts/context7/context7_resolve.sh`, get docs via `${CLAUDE_PLUGIN_ROOT}/scripts/context7/context7_docs.sh`.
+  Context7 (Library Documentation): Resolve library ID via `mcp__context7__resolve-library-id`, get docs via `mcp__context7__query-docs`.
 
-  GitHub (Code and Repo Search): Search code via `${CLAUDE_PLUGIN_ROOT}/scripts/github/github_search_code.sh`, search repos via `${CLAUDE_PLUGIN_ROOT}/scripts/github/github_search_repos.sh`, get file contents via `${CLAUDE_PLUGIN_ROOT}/scripts/github/github_file_contents.sh`.
+  GitHub (Code and Repo Search): Search code via `mcp__github__search_code`, search repos via `mcp__github__search_repositories`, get file contents via `mcp__github__get_file_contents`.
 </tools>
 
 <process name="Time MCP Integration">

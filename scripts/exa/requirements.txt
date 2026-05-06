@@ -1,4 +1,0 @@
-# Exa MCP Script Dependencies
-# Install with: pip install -r requirements.txt
-
-mcp-use>=0.1.0

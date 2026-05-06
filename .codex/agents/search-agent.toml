@@ -31,22 +31,22 @@ developer_instructions = """
   <field name="expandQuery" required="false">Boolean, default true</field>
 </input>
 
-<code-sample lang="bash" concept="Supplementary script arguments by mode">
+<code-sample lang="text" concept="MCP tools by mode">
 # Code search
-${CLAUDE_PLUGIN_ROOT}/scripts/exa/exa_code.sh --query "[query]" --tokens 5000
-${CLAUDE_PLUGIN_ROOT}/scripts/github/github_search_code.sh --query "[query]" --per-page 10
-${CLAUDE_PLUGIN_ROOT}/scripts/context7/context7_docs.sh --library-id "[id]" --mode code --topic "[topic]"
+mcp__exa__web_search_exa (query: "[query]", type: "code")
+mcp__github__search_code (query: "[query]")
+mcp__context7__query-docs (libraryId: "[id]", topic: "[topic]")
 # Docs search
-${CLAUDE_PLUGIN_ROOT}/scripts/deepwiki/deepwiki_ask.sh --repo "[owner/repo]" --question "[question]"
+mcp__deepwiki__ask_question (repo: "[owner/repo]", question: "[question]")
 # Web/Social search
-${CLAUDE_PLUGIN_ROOT}/scripts/exa/exa_search.sh --query "[query]" --type auto --results 10
+mcp__exa__web_search_exa (query: "[query]", type: "auto")
 </code-sample>
 
 <process>
   <step n="1" name="Analyze Query">Identify intent, entities, and best mode</step>
   <step n="2" name="Expand Query">Generate 3-5 variations for improved recall (e.g., "React state management" → "React useState useReducer best practices 2024", "Redux vs Zustand vs Jotai comparison")</step>
   <step n="3" name="Firecrawl MCP First">Run `firecrawl_search` with year context, `firecrawl_scrape` top results</step>
-  <step n="4" name="Supplementary Scripts by Mode">Code: `exa_code.sh`, `github_search_code.sh`, `context7_resolve.sh`, `context7_docs.sh`, `deepwiki_ask.sh`. Docs: `context7_resolve.sh`, `context7_docs.sh`, `deepwiki_structure.sh`, `deepwiki_contents.sh`, `exa_search.sh`. Academic/Web/Social: `exa_search.sh` with site filters. GitHub: `github_search_repos.sh`, `github_file_contents.sh`. All scripts at `${CLAUDE_PLUGIN_ROOT}/scripts/`. All mode: Execute relevant scripts in parallel.</step>
+  <step n="4" name="MCP Tools by Mode">Code: `mcp__exa__web_search_exa`, `mcp__github__search_code`, `mcp__context7__resolve-library-id`, `mcp__context7__query-docs`, `mcp__deepwiki__ask_question`. Docs: `mcp__context7__resolve-library-id`, `mcp__context7__query-docs`, `mcp__deepwiki__read_wiki_structure`, `mcp__deepwiki__read_wiki_contents`, `mcp__exa__web_search_exa`. Academic/Web/Social: `mcp__exa__web_search_exa` with site filters. GitHub: `mcp__github__search_repositories`, `mcp__github__get_file_contents`. All mode: Execute relevant tools in parallel.</step>
   <step n="5" name="Execute and Collect">Run scripts concurrently. Capture output JSON and metadata for provenance.</step>
   <step n="6" name="Normalize and Re-rank">Deduplicate by URL. Score: `confidence = (semantic * 0.5) + (authority * 0.25) + (freshness * 0.15) + (citations * 0.1)`. Authority weights: Official docs 1.0, GitHub 0.9, Academic 0.9, StackOverflow 0.7, Reddit 0.65, YouTube 0.6, Blog 0.6, Twitter/X 0.55, Firecrawl 0.8. Filter below minConfidence.</step>
   <step n="7" name="Return Results">Output includes title, url, snippet (200-500 chars), confidence (0-1), and provenance (source, query, timestamp, SHA256 hash).</step>
