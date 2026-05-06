@@ -1,0 +1,40 @@
+{
+  "name": "super-dev-plugin",
+  "owner": {
+    "name": "Jennings Liu",
+    "email": "jenningsloy318@gmail.com",
+    "url": "https://github.com/jenningsloy318"
+  },
+  "metadata": {
+    "description": "Team-lead-driven development workflow with parallel agent execution",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "super-dev",
+      "source": ".",
+      "description": "Team-lead-driven development workflow with parallel agent execution for implementing features, fixing bugs, and refactoring code",
+      "version": "2.3.88",
+      "author": {
+        "name": "Jennings Liu",
+        "url": "https://github.com/jenningsloy318"
+      },
+      "homepage": "https://github.com/jenningsloy318/super-dev-plugin",
+      "repository": "https://github.com/jenningsloy318/super-dev-plugin",
+      "license": "MIT",
+      "keywords": [
+        "development",
+        "workflow",
+        "coordinator",
+        "parallel",
+        "debugging",
+        "implementation",
+        "refactoring",
+        "specification",
+        "code-review"
+      ],
+      "category": "development",
+      "strict": false
+    }
+  ]
+}
