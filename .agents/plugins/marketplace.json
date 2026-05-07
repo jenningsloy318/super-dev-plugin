@@ -7,11 +7,12 @@
     {
       "name": "super-dev",
       "source": {
-        "source": "local",
-        "path": "."
+        "source": "url",
+        "url": "https://github.com/jenningsloy318/super-dev-plugin"
       },
       "policy": {
-        "installation": "AVAILABLE"
+        "installation": "AVAILABLE",
+	"authentication": "ON_INSTALL"
       },
       "category": "Development"
     }
