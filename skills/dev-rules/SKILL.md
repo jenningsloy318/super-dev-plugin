@@ -18,7 +18,7 @@ description: Core development rules and philosophy for coding standards, git pra
 </process>
 
 <constraints>
-  <constraint name="MCP Scripts">Use wrapper scripts via Bash (Exa, DeepWiki, Context7, GitHub) per `${CLAUDE_PLUGIN_ROOT}/scripts/README.md` (Claude) or `${extensionPath}/scripts/README.md` (Gemini). Exception: `mcp__time-mcp__current_time` allowed directly.</constraint>
+  <constraint name="MCP Scripts">Use wrapper scripts via Bash (Exa, DeepWiki, Context7, GitHub) per `${CLAUDE_PLUGIN_ROOT}/scripts/README.md`. Exception: `mcp__time-mcp__current_time` allowed directly.</constraint>
   <constraint name="Time MCP">Always add current date/time as context</constraint>
   <constraint name="ast-grep">Prefer AST-based pattern matching for structural code searches</constraint>
   <constraint name="Git Rules">Never create GitHub Actions. Don't `git add -A` — selective staging only. Only commit files you edited. Always generate proper commit messages.</constraint>

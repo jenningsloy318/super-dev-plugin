@@ -13,8 +13,6 @@ if git diff --quiet && git diff --cached --quiet && [ -z "$(git ls-files --other
   exit 0
 fi
 
-source "$(dirname "$0")/../scripts/env-resolve.sh"
-
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 BRANCH=$(git branch --show-current 2>/dev/null || echo "detached")
 
@@ -23,7 +21,7 @@ STASH_SHA=$(git stash create "super-dev checkpoint: ${BRANCH} at ${TIMESTAMP}" 2
 
 if [ -n "$STASH_SHA" ]; then
   # Store the checkpoint SHA in a log file for recovery
-  LOG_DIR="$PLUGIN_DATA"
+  LOG_DIR="${CLAUDE_PLUGIN_DATA:-/tmp}"
   LOG_FILE="${LOG_DIR}/checkpoints.log"
   echo "${TIMESTAMP} ${BRANCH} ${STASH_SHA}" >> "$LOG_FILE" 2>/dev/null || true
 

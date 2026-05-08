@@ -22,7 +22,7 @@ model: inherit
 </input>
 
 <reference name="Gate Script Map">
-  `gate-requirements` → `${CLAUDE_PLUGIN_ROOT}/scripts/gates/gate-requirements.sh`, `gate-bdd` → `${CLAUDE_PLUGIN_ROOT}/scripts/gates/gate-bdd.sh`, `gate-spec-trace` → `${CLAUDE_PLUGIN_ROOT}/scripts/gates/gate-spec-trace.sh`, `gate-spec-review` → `${CLAUDE_PLUGIN_ROOT}/scripts/gates/gate-spec-review.sh`, `gate-review` → `${CLAUDE_PLUGIN_ROOT}/scripts/gates/gate-review.sh`. All take `<spec_directory>` as argument. On Gemini CLI, substitute `${extensionPath}` for `${CLAUDE_PLUGIN_ROOT}`. If neither is set, use the path provided by Team Lead.
+  `gate-requirements` → `${CLAUDE_PLUGIN_ROOT}/scripts/gates/gate-requirements.sh`, `gate-bdd` → `${CLAUDE_PLUGIN_ROOT}/scripts/gates/gate-bdd.sh`, `gate-spec-trace` → `${CLAUDE_PLUGIN_ROOT}/scripts/gates/gate-spec-trace.sh`, `gate-spec-review` → `${CLAUDE_PLUGIN_ROOT}/scripts/gates/gate-spec-review.sh`, `gate-review` → `${CLAUDE_PLUGIN_ROOT}/scripts/gates/gate-review.sh`. All take `<spec_directory>` as argument. If `CLAUDE_PLUGIN_ROOT` is not set, use the path provided by Team Lead.
 </reference>
 
 <process>

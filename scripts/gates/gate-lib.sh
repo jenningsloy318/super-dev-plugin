@@ -1,8 +1,6 @@
 #!/bin/bash
 # Shared gate utilities — sourced by all gate-*.sh scripts
 
-source "$(dirname "$0")/../env-resolve.sh"
-
 PASS=0
 FAIL=0
 ERRORS=""

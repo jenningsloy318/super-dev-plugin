@@ -42,5 +42,5 @@ license: MIT
 </gotchas>
 
 <config name="Data Storage">
-  Results stored in `${PLUGIN_DATA}/autoresearch/`: `[agent-name]-results.json` and `[agent-name]-changelog.md`. Resolve `PLUGIN_DATA` from `${CLAUDE_PLUGIN_DATA}` (Claude) or `${extensionPath}/.plugin-data` (Gemini).
+  Results stored in `${CLAUDE_PLUGIN_DATA}/autoresearch/`: `[agent-name]-results.json` and `[agent-name]-changelog.md`.
 </config>
