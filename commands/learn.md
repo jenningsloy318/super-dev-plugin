@@ -9,7 +9,7 @@ description: Extract reusable patterns from the current session and save as skil
   <step n="1" name="Review">Review the session for extractable patterns</step>
   <step n="2" name="Identify">Identify the most valuable/reusable insight: error resolution patterns (what error, root cause, fix), debugging techniques (non-obvious steps, tool combinations), workarounds (library quirks, API limitations), project-specific patterns (conventions, architecture decisions)</step>
   <step n="3" name="Draft">Draft the skill file with: pattern name, context, problem, solution, example, trigger conditions</step>
-  <step n="4" name="Save">Ask user to confirm. Save to `${CLAUDE_PLUGIN_DATA}/learned/[pattern-name].md`</step>
+  <step n="4" name="Save">Ask user to confirm. Save to `${PLUGIN_DATA}/learned/[pattern-name].md` where `PLUGIN_DATA` = `${CLAUDE_PLUGIN_DATA}` (Claude) or `${extensionPath}/.plugin-data` (Gemini)</step>
 </process>
 
 <constraints>

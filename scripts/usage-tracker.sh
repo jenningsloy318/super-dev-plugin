@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Usage tracker for super-dev plugin
-# Logs skill and agent invocations to ${CLAUDE_PLUGIN_DATA}/global/usage.log
+# Logs skill and agent invocations to ${PLUGIN_DATA}/global/usage.log
 #
 # Called by PreToolUse hook when Skill or Agent tools are invoked.
 # Input: JSON via stdin with tool_name, tool_input fields
@@ -8,7 +8,9 @@
 
 set -euo pipefail
 
-GLOBAL_DATA="${CLAUDE_PLUGIN_DATA:-/tmp}/global"
+source "$(dirname "$0")/env-resolve.sh"
+
+GLOBAL_DATA="${PLUGIN_DATA}/global"
 mkdir -p "$GLOBAL_DATA"
 USAGE_LOG="${GLOBAL_DATA}/usage.log"
 STATS_FILE="${GLOBAL_DATA}/stats.json"
