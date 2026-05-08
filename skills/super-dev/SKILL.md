@@ -86,6 +86,19 @@ license: MIT
     This applies to ALL stages ≥3, not just agent spawning. File reads, greps, builds, commits — everything must happen inside the worktree. Wrong pwd means wrong relative paths for gate scripts, specs, and agent work.
   </process>
 
+  <process name="Stage Transition Protocol (MANDATORY)">
+    At EVERY stage transition, the Team Lead MUST update the workflow tracking JSON with BOTH status changes atomically:
+
+    <step n="1" name="Terminate Previous Agents">Terminate ALL sub-agents spawned during the finishing stage. Verify none are still running before proceeding. Exception: Stage 9/10 parallel agents — wait for ALL to complete first, then terminate together.</step>
+    <step n="2" name="Complete Previous">Set the finishing stage's `status` to `"complete"` and `completedAt` to the current ISO 8601 timestamp (seconds precision). Exception: if the stage was skipped, set `status` to `"skipped"` instead.</step>
+    <step n="3" name="Start Next">Set the next stage's `status` to `"in_progress"` and `startedAt` to the current ISO 8601 timestamp (seconds precision).</step>
+    <step n="4" name="Single Update">Both changes MUST happen in a single JSON write — never leave the tracking file in a state where the previous stage is still `"in_progress"` while the new stage has also started.</step>
+
+    This applies to ALL stage transitions (1→2, 2→3, 3→3.5, etc.), not just implementation phases. Skipping a stage (e.g., Stage 5 for non-bug work) still requires marking it `"skipped"` before advancing.
+
+    Violation: If a new stage begins without the previous stage being marked `"complete"` or `"skipped"`, the workflow tracking is INVALID and must be corrected immediately.
+  </process>
+
   <process name="Domain-Aware Agent Routing">
     For Stage 9, spawn domain specialists directly instead of dev-executor:
     <route domain="Rust" agent="rust-developer" />
