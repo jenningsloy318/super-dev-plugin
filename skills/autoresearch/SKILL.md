@@ -6,6 +6,17 @@ version: 1.0.0
 license: MIT
 ---
 
+<platform-paths>
+  PLUGIN_ROOT:
+    claude: ${CLAUDE_PLUGIN_ROOT}
+    gemini: ${extensionPath}
+  PLUGIN_DATA:
+    claude: ${CLAUDE_PLUGIN_DATA}
+    gemini: ${extensionPath}/.data
+  PLUGIN_SCRIPTS: ${PLUGIN_ROOT}/scripts
+  Use whichever value resolved to an actual path (not a literal variable name).
+</platform-paths>
+
 <purpose>Based on Andrej Karpathy's autoresearch method. Instead of manually improving agent prompts, run an iterative loop: try a small change, score the result, keep improvements, revert regressions. Systematically increase agent output quality.</purpose>
 
 <triggers>Triggers on: "autoresearch", "auto-improve", "optimize agent", "tune prompt", "improve skill quality"</triggers>
@@ -42,5 +53,5 @@ license: MIT
 </gotchas>
 
 <config name="Data Storage">
-  Results stored in `${CLAUDE_PLUGIN_DATA}/autoresearch/`: `[agent-name]-results.json` and `[agent-name]-changelog.md`.
+  Results stored in `${PLUGIN_DATA}/autoresearch/`: `[agent-name]-results.json` and `[agent-name]-changelog.md`.
 </config>

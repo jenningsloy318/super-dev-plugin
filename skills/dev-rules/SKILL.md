@@ -3,6 +3,17 @@ name: dev-rules
 description: Core development rules and philosophy for coding standards, git practices, and quality guidelines
 ---
 
+<platform-paths>
+  PLUGIN_ROOT:
+    claude: ${CLAUDE_PLUGIN_ROOT}
+    gemini: ${extensionPath}
+  PLUGIN_DATA:
+    claude: ${CLAUDE_PLUGIN_DATA}
+    gemini: ${extensionPath}/.data
+  PLUGIN_SCRIPTS: ${PLUGIN_ROOT}/scripts
+  Use whichever value resolved to an actual path (not a literal variable name).
+</platform-paths>
+
 <purpose>Define coding standards and practices that MUST be followed for all development work. Establish session continuity, git safety, documentation discipline, and development philosophy at the start of any task.</purpose>
 
 <triggers>Triggers on any implementation, fix, or refactoring task</triggers>
@@ -18,7 +29,7 @@ description: Core development rules and philosophy for coding standards, git pra
 </process>
 
 <constraints>
-  <constraint name="MCP Scripts">Use wrapper scripts via Bash (Exa, DeepWiki, Context7, GitHub) per `${CLAUDE_PLUGIN_ROOT}/scripts/README.md`. Exception: `mcp__time-mcp__current_time` allowed directly.</constraint>
+  <constraint name="MCP Scripts">Use wrapper scripts via Bash (Exa, DeepWiki, Context7, GitHub) per `${PLUGIN_SCRIPTS}/README.md`. Exception: `mcp__time-mcp__current_time` allowed directly.</constraint>
   <constraint name="Time MCP">Always add current date/time as context</constraint>
   <constraint name="ast-grep">Prefer AST-based pattern matching for structural code searches</constraint>
   <constraint name="Git Rules">Never create GitHub Actions. Don't `git add -A` — selective staging only. Only commit files you edited. Always generate proper commit messages.</constraint>

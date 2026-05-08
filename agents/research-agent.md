@@ -23,7 +23,7 @@ model: inherit
 <tools name="Search Tools">
   Firecrawl MCP (MANDATORY first): `firecrawl_search` for discovery, `firecrawl_scrape` for content, `firecrawl_extract` for structured data, `firecrawl_agent` for industry standards. `firecrawl_crawl` only for full docs-site traversal.
 
-  Supplementary Bash Scripts (after Firecrawl): Exa, DeepWiki, Context7, GitHub. All at `${CLAUDE_PLUGIN_ROOT}/scripts/`.
+  Supplementary Bash Scripts (after Firecrawl): Exa, DeepWiki, Context7, GitHub. All at `${PLUGIN_SCRIPTS}/`.
 </tools>
 
 <constraints>
@@ -56,6 +56,7 @@ model: inherit
 </process>
 
 <input>
+  <field name="plugin_root" required="true">Absolute path to the plugin root directory (passed by Team Lead)</field>
   <field name="spec_directory" required="true">Path to specification directory inside worktree</field>
   <field name="output_filename" required="true">Exact output filename (e.g., `[XX]-research-report.md` where XX is computed index)</field>
   <field name="requirements" required="true">Path to requirements document</field>

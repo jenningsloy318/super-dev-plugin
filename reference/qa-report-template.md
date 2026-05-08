@@ -247,7 +247,7 @@ When rendering this template to markdown:
 
 ## Usage Notes
 
-- Load this template via `${CLAUDE_PLUGIN_ROOT}/reference/qa-report-template.md`
+- Load this template via `${PLUGIN_ROOT}/reference/qa-report-template.md`
 - Write to the EXACT filename given by Team Lead in the spawn prompt's `OUTPUT FILENAME` field
 - Every BDD scenario from `[doc-index]-bdd-scenarios.md` MUST appear in the BDD Scenario Coverage table
 - Omit Browser Smoke Test and CodeRabbit sections when not applicable (do not leave empty tables)

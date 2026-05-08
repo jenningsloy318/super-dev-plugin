@@ -18,6 +18,7 @@ model: inherit
 </capabilities>
 
 <input>
+  <field name="plugin_root" required="true">Absolute path to the plugin root directory (passed by Team Lead)</field>
   <field name="spec_directory" required="true">Path to specification directory inside worktree</field>
   <field name="output_filenames" required="true">Exact output filenames for architecture and design docs (provided by Team Lead)</field>
   <field name="feature_name" required="true">Name of the feature being designed</field>
@@ -41,7 +42,7 @@ model: inherit
 
 <output>
   <filename>Write all outputs to `{spec_directory}/{output_filenames}` as provided in input. Do NOT rename or use different filenames.</filename>
-  <template>Load from `${CLAUDE_PLUGIN_ROOT}/reference/`: `architecture-template.md`, `design-spec-template.md`, `product-design-summary-template.md`.</template>
+  <template>Load from `${PLUGIN_ROOT}/reference/`: `architecture-template.md`, `design-spec-template.md`, `product-design-summary-template.md`.</template>
 </output>
 
 <quality-gates>

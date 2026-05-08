@@ -1,11 +1,24 @@
 # State Management Reference
 
-Super-dev uses `${CLAUDE_PLUGIN_DATA}` for persistent state that survives plugin upgrades. Data is organized per-project using the git repository basename as the directory key.
+Super-dev uses `${PLUGIN_DATA}` for persistent state that survives plugin upgrades. Data is organized per-project using the git repository basename as the directory key.
+
+## Platform Path Resolution
+
+| Concept | Claude Code / Codex CLI | Gemini CLI |
+|---------|------------------------|------------|
+| `PLUGIN_ROOT` | `${CLAUDE_PLUGIN_ROOT}` | `${extensionPath}` |
+| `PLUGIN_DATA` | `${CLAUDE_PLUGIN_DATA}` | `${extensionPath}/.data` |
+
+Shell scripts resolve via:
+```bash
+PLUGIN_DATA="${CLAUDE_PLUGIN_DATA:-${extensionPath:+${extensionPath}/.data}}"
+PLUGIN_DATA="${PLUGIN_DATA:-/tmp/super-dev-data}"
+```
 
 ## Storage Location
 
 ```
-${CLAUDE_PLUGIN_DATA}/
+${PLUGIN_DATA}/
 ├── global/
 │   └── stats.json               # Cross-project usage statistics
 └── projects/
@@ -20,8 +33,8 @@ ${CLAUDE_PLUGIN_DATA}/
 ```bash
 # Derive project key from git root directory name
 PROJECT_NAME="$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")"
-PROJECT_DATA="${CLAUDE_PLUGIN_DATA}/projects/${PROJECT_NAME}"
-GLOBAL_DATA="${CLAUDE_PLUGIN_DATA}/global"
+PROJECT_DATA="${PLUGIN_DATA}/projects/${PROJECT_NAME}"
+GLOBAL_DATA="${PLUGIN_DATA}/global"
 ```
 
 **Path verification:** Every `config.json` stores the full project path in `project.path`. On load, verify the stored path matches the current working directory's git root. If mismatched (name collision from different projects with the same basename), append a short hash suffix (first 6 chars of SHA-256 of the full path) to create a new directory.

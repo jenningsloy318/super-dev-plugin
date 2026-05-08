@@ -24,6 +24,7 @@ model: inherit
 </gotchas>
 
 <input>
+  <field name="plugin_root" required="true">Absolute path to the plugin root directory (passed by Team Lead)</field>
   <field name="spec_directory" required="true">Path to specification directory inside worktree</field>
   <field name="output_filename" required="true">Exact output filename (e.g., `[XX]-code-review.md` where XX is computed index)</field>
   <field name="specification" required="true">Path to technical spec</field>
@@ -50,7 +51,7 @@ model: inherit
 </process>
 
 <output>
-  <template>Load `${CLAUDE_PLUGIN_ROOT}/reference/code-review-template.md` and fill in all placeholders.</template>
+  <template>Load `${PLUGIN_ROOT}/reference/code-review-template.md` and fill in all placeholders.</template>
   <filename>Write output to `{spec_directory}/{output_filename}` as provided by Team Lead. Do NOT rename or use a different filename.</filename>
 </output>
 

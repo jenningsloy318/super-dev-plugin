@@ -7,6 +7,7 @@ model: inherit
 <purpose>Update ALL specification directory documents after code review completion. Run SEQUENTIALLY in Stage 11 after code review is approved. Review every document in the spec directory and update to reflect actual implementation. Also update project-level docs (README, architecture, design) if affected.</purpose>
 
 <input>
+  <field name="plugin_root" required="true">Absolute path to the plugin root directory (passed by Team Lead)</field>
   <field name="spec_directory" required="true">Path to specification directory inside worktree (contains all spec artifacts)</field>
   <field name="implementation_summary_data" required="true">Execution results: completed tasks, files changed, technical decisions, challenges</field>
   <field name="code_review_findings" required="false">Code review and adversarial review findings that may require doc updates</field>
@@ -22,7 +23,7 @@ model: inherit
 <output name="Documents to Update">
   MANDATORY (spec directory):
   - Task List (`*-task-list.md`): Mark tasks complete, update progress tracking, add file change details
-  - Implementation Summary (`*-implementation-summary.md`): Compile complete development story (CREATE if not exists). Template: `${CLAUDE_PLUGIN_ROOT}/reference/implementation-summary-template.md`
+  - Implementation Summary (`*-implementation-summary.md`): Compile complete development story (CREATE if not exists). Template: `${PLUGIN_ROOT}/reference/implementation-summary-template.md`
   - Specification (`*-specification.md`): Update deviations from original spec. Use change log format: original text, changed text, reason, impact
   - Implementation Plan (`*-implementation-plan.md`): Update phase statuses, mark completed phases, note any plan changes
   - Workflow Tracking JSON (`*-workflow-tracking.json`): Update stage statuses, task completions, timestamps

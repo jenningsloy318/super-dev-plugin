@@ -7,6 +7,7 @@ model: inherit
 <purpose>Create comprehensive technical documentation for software implementation: technical specifications, implementation plans, and task lists. Cross-reference documents from requirements-clarifier, research-agent, debug-analyzer, code-assessor, architecture-agent, and ui-ux-designer.</purpose>
 
 <input>
+  <field name="plugin_root" required="true">Absolute path to the plugin root directory (passed by Team Lead)</field>
   <field name="spec_directory" required="true">Path to specification directory inside worktree</field>
   <field name="output_filenames" required="true">Exact filenames for all 3 outputs (e.g., `[XX]-specification.md`, `[XX+1]-implementation-plan.md`, `[XX+2]-task-list.md` where XX is computed index)</field>
   <field name="feature_name" required="true">Name of the feature or fix</field>
@@ -21,9 +22,9 @@ model: inherit
 
 <process>
   <step n="1" name="Synthesize Inputs">Read ALL input documents. For requirements: extract every AC-ID and its acceptance criteria. For BDD scenarios: extract every SCENARIO-ID. For architecture/design: extract key decisions and constraints. These form the coverage baseline — the spec MUST address every one.</step>
-  <step n="2" name="Create Technical Specification">Document all technical decisions and architecture. Every AC must map to a spec section. Every BDD scenario must be addressable by the design. Architecture decisions must be reflected in the technical approach. WRITE to disk immediately before proceeding. Template: `${CLAUDE_PLUGIN_ROOT}/reference/specification-template.md`.</step>
-  <step n="3" name="Create Implementation Plan">Break specification into implementable milestones. Tag every task with `domain` attribute. Identify cross-domain dependencies. Document spawn ordering (parallel vs staggered). WRITE to disk immediately. Template: `${CLAUDE_PLUGIN_ROOT}/reference/implementation-plan-template.md`.</step>
-  <step n="4" name="Create Task List">Generate granular tasks from implementation plan. WRITE to disk immediately. Template: `${CLAUDE_PLUGIN_ROOT}/reference/task-list-template.md`.</step>
+  <step n="2" name="Create Technical Specification">Document all technical decisions and architecture. Every AC must map to a spec section. Every BDD scenario must be addressable by the design. Architecture decisions must be reflected in the technical approach. WRITE to disk immediately before proceeding. Template: `${PLUGIN_ROOT}/reference/specification-template.md`.</step>
+  <step n="3" name="Create Implementation Plan">Break specification into implementable milestones. Tag every task with `domain` attribute. Identify cross-domain dependencies. Document spawn ordering (parallel vs staggered). WRITE to disk immediately. Template: `${PLUGIN_ROOT}/reference/implementation-plan-template.md`.</step>
+  <step n="4" name="Create Task List">Generate granular tasks from implementation plan. WRITE to disk immediately. Template: `${PLUGIN_ROOT}/reference/task-list-template.md`.</step>
   <step n="5" name="Pre-Output Self-Check">Verify: (1) Specification MUST contain a section titled "Testing Strategy" (exact phrase — gate-spec-trace.sh greps for it). If missing, add it before completing. (2) Every SCENARIO-ID from BDD doc is referenced in the spec. (3) Every AC-ID from requirements is addressed by at least one spec section. (4) Architecture/design decisions are not contradicted. (5) All three output files produced. If any check fails, fix before signaling completion.</step>
 </process>
 

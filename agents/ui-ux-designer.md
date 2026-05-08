@@ -20,6 +20,7 @@ model: inherit
 </constraints>
 
 <input>
+  <field name="plugin_root" required="true">Absolute path to the plugin root directory (passed by Team Lead)</field>
   <field name="spec_directory" required="true">Path to specification directory inside worktree</field>
   <field name="output_filename" required="true">Exact output filename (e.g., `[XX]-ui-ux-design.md` where XX is computed index)</field>
   <field name="feature_name" required="true">Name of the feature</field>
@@ -60,5 +61,5 @@ model: inherit
 </quality-gates>
 
 <references>
-  <ref>Produces `[XX]-design-spec.md` (and optionally `.pen` files). Template: `${CLAUDE_PLUGIN_ROOT}/reference/design-spec-template.md`.</ref>
+  <ref>Produces `[XX]-design-spec.md` (and optionally `.pen` files). Template: `${PLUGIN_ROOT}/reference/design-spec-template.md`.</ref>
 </references>

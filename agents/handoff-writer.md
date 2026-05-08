@@ -31,6 +31,7 @@ model: inherit
 </constraints>
 
 <input>
+  <field name="plugin_root" required="true">Absolute path to the plugin root directory (passed by Team Lead)</field>
   <field name="spec_directory" required="true">Path to the specification directory</field>
   <field name="feature_name" required="true">Name of the feature or fix</field>
   <field name="workflow_tracking_json" required="true">Path to the workflow tracking JSON file</field>
@@ -43,7 +44,7 @@ model: inherit
 </process>
 
 <output>
-  <template>Load `${CLAUDE_PLUGIN_ROOT}/reference/handoff-template.md` and fill in all placeholders. The XML-tagged structure ensures consistent formatting and all 7 required sections.</template>
+  <template>Load `${PLUGIN_ROOT}/reference/handoff-template.md` and fill in all placeholders. The XML-tagged structure ensures consistent formatting and all 7 required sections.</template>
 </output>
 
 <quality-gates>

@@ -6,7 +6,7 @@ description: Agent orchestration rules for usage, parallel execution, and termin
 <purpose>Define rules for agent usage, parallel task execution, immediate termination after completion, and multi-perspective analysis.</purpose>
 
 <reference name="Available Agents">
-  Located in `${CLAUDE_PLUGIN_ROOT}/agents/`:
+  Located in `${PLUGIN_ROOT}/agents/`:
   Writers: requirements-clarifier, bdd-scenario-writer, spec-writer, handoff-writer.
   Reviewers: spec-reviewer, code-reviewer, adversarial-reviewer.
   Researchers: research-agent, search-agent, investigator.

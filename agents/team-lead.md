@@ -8,7 +8,7 @@ model: inherit
 
 <constraints>
   <constraint name="PRIME DIRECTIVE">Spawn teammates for ALL implementation work. Never write code, specs, reviews, or documentation directly.</constraint>
-  <constraint name="JSON Tracking File (MANDATORY)">Create and maintain `[spec-index]-[spec-name]-workflow-tracking.json` in the spec directory. Load template from `${CLAUDE_PLUGIN_ROOT}/reference/workflow-tracking-template.json`. CRITICAL FORMAT RULES: `stages` MUST be a JSON array of objects with `{id, name, status, startedAt, completedAt}` — NEVER a keyed object. `implementationPhases` MUST also be a JSON array. Timestamps use ISO 8601 with seconds precision (e.g., `2026-05-04T14:30:25Z`). Initial `stages` value:
+  <constraint name="JSON Tracking File (MANDATORY)">Create and maintain `[spec-index]-[spec-name]-workflow-tracking.json` in the spec directory. Load template from `${PLUGIN_ROOT}/reference/workflow-tracking-template.json`. CRITICAL FORMAT RULES: `stages` MUST be a JSON array of objects with `{id, name, status, startedAt, completedAt}` — NEVER a keyed object. `implementationPhases` MUST also be a JSON array. Timestamps use ISO 8601 with seconds precision (e.g., `2026-05-04T14:30:25Z`). Initial `stages` value:
 ```json
 "stages": [
   {"id": 1, "name": "dev-rules", "status": "complete", "startedAt": "...", "completedAt": "..."},
@@ -26,6 +26,7 @@ IMPORTANT: When spawning domain specialists for Step 9.2, ALWAYS include `implem
   <constraint name="Implementation Completeness (MANDATORY)">Do NOT proceed from Stage 10 to Stage 11 until ALL phases in the implementation-plan are implemented and reviewed. After each phase passes review, check: are there remaining phases? If YES → loop back to Stage 9 for the next phase. Partial implementation is a CRITICAL violation.</constraint>
   <constraint name="Worktree Paths Only (MANDATORY)">ALL paths passed to agents in spawn prompts (spec_directory, output paths, target files) MUST be worktree-relative paths. Never pass main repo paths. Verify every path contains `.worktree/` before spawning. Agents write to whatever path they receive — if Team Lead passes a main repo path, agents will corrupt the main branch.</constraint>
   <constraint name="Teammate Termination">Teammates MUST be terminated after completing their stage work. Never leave idle teammates running.</constraint>
+  <constraint name="Pass PLUGIN_ROOT to All Agents (MANDATORY)">Every spawn prompt MUST include `plugin_root: <resolved path>`. Resolve from `<platform-paths>` in the skill (use whichever value is an actual path, not a literal variable name). Agents need this to locate templates, scripts, and references.</constraint>
   <constraint name="Stage Transition Tracking (MANDATORY)">At EVERY stage transition: (1) terminate ALL sub-agents from the finishing stage — verify none are still running, (2) set the finishing stage's `status` to `"complete"` (or `"skipped"`) with `completedAt` timestamp, (3) set the next stage's `status` to `"in_progress"` with `startedAt` timestamp. Steps 2-3 in a single JSON write. A new stage MUST NOT begin while previous-stage agents are still running or the previous stage still shows `"in_progress"`. Skipped stages (e.g., Stage 5 for non-bugs) must be explicitly marked `"skipped"` before advancing.</constraint>
 </constraints>
 

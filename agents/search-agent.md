@@ -27,6 +27,7 @@ model: inherit
 </process>
 
 <input>
+  <field name="plugin_root" required="true">Absolute path to the plugin root directory (passed by Team Lead)</field>
   <field name="query" required="true">Search string</field>
   <field name="mode" required="false">code | docs | academic | web | social | github | all (default: all)</field>
   <field name="maxResults" required="false">Default 10</field>
@@ -60,6 +61,6 @@ mcp__exa__web_search_exa (query: "[query]", type: "auto")
 </constraint>
 
 <references>
-  <ref>Script location: `${CLAUDE_PLUGIN_ROOT}/scripts/` — includes Exa, DeepWiki, Context7, GitHub wrappers</ref>
-  <ref>See `research-agent.md` and `${CLAUDE_PLUGIN_ROOT}/scripts/README.md` for details</ref>
+  <ref>Script location: `${PLUGIN_SCRIPTS}/` — includes Exa, DeepWiki, Context7, GitHub wrappers</ref>
+  <ref>See `research-agent.md` and `${PLUGIN_SCRIPTS}/README.md` for details</ref>
 </references>

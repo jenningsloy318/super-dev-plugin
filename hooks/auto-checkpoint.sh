@@ -21,7 +21,9 @@ STASH_SHA=$(git stash create "super-dev checkpoint: ${BRANCH} at ${TIMESTAMP}" 2
 
 if [ -n "$STASH_SHA" ]; then
   # Store the checkpoint SHA in a log file for recovery
-  LOG_DIR="${CLAUDE_PLUGIN_DATA:-/tmp}"
+  PLUGIN_DATA="${CLAUDE_PLUGIN_DATA:-${extensionPath:+${extensionPath}/.data}}"
+  PLUGIN_DATA="${PLUGIN_DATA:-/tmp/super-dev-data}"
+  LOG_DIR="$PLUGIN_DATA"
   LOG_FILE="${LOG_DIR}/checkpoints.log"
   echo "${TIMESTAMP} ${BRANCH} ${STASH_SHA}" >> "$LOG_FILE" 2>/dev/null || true
 

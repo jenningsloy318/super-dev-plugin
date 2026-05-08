@@ -14,6 +14,7 @@ model: inherit
 </principles>
 
 <input>
+  <field name="plugin_root" required="true">Absolute path to the plugin root directory (passed by Team Lead)</field>
   <field name="expected_filename" required="true">EXACT filename assigned by Team Lead (e.g., `[XX]-research-report.md` where XX is computed index)</field>
   <field name="doc_type" required="true">Document type identifier (e.g., `requirements`, `bdd-scenarios`)</field>
   <field name="gate_profile" required="true">Which gate to run (e.g., `gate-requirements`, `gate-bdd`)</field>
@@ -22,7 +23,7 @@ model: inherit
 </input>
 
 <reference name="Gate Script Map">
-  `gate-requirements` → `${CLAUDE_PLUGIN_ROOT}/scripts/gates/gate-requirements.sh`, `gate-bdd` → `${CLAUDE_PLUGIN_ROOT}/scripts/gates/gate-bdd.sh`, `gate-spec-trace` → `${CLAUDE_PLUGIN_ROOT}/scripts/gates/gate-spec-trace.sh`, `gate-spec-review` → `${CLAUDE_PLUGIN_ROOT}/scripts/gates/gate-spec-review.sh`, `gate-review` → `${CLAUDE_PLUGIN_ROOT}/scripts/gates/gate-review.sh`. All take `<spec_directory>` as argument. If `CLAUDE_PLUGIN_ROOT` is not set, use the path provided by Team Lead.
+  `gate-requirements` → `${PLUGIN_SCRIPTS}/gates/gate-requirements.sh`, `gate-bdd` → `${PLUGIN_SCRIPTS}/gates/gate-bdd.sh`, `gate-spec-trace` → `${PLUGIN_SCRIPTS}/gates/gate-spec-trace.sh`, `gate-spec-review` → `${PLUGIN_SCRIPTS}/gates/gate-spec-review.sh`, `gate-review` → `${PLUGIN_SCRIPTS}/gates/gate-review.sh`. All take `<spec_directory>` as argument. If `PLUGIN_ROOT` is not resolved, use the path provided by Team Lead.
 </reference>
 
 <process>
