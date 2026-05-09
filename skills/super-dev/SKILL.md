@@ -12,8 +12,7 @@ license: MIT
     gemini: ${extensionPath}
   PLUGIN_DATA:
     claude: ${CLAUDE_PLUGIN_DATA}
-    gemini: ${extensionPath}/.data
-  PLUGIN_SCRIPTS: ${PLUGIN_ROOT}/scripts
+    gemini: ${extensionPath}/data
   Use whichever value resolved to an actual path (not a literal variable name).
 </platform-paths>
 
@@ -62,7 +61,7 @@ license: MIT
   </process>
 
   <process name="Verification Gates">
-    Gate scripts in `${PLUGIN_SCRIPTS}/gates/` exit 0 (PASS) or 1 (FAIL). Gates are NON-NEGOTIABLE — if a gate fails, loop back and fix.
+    Gate scripts in `${PLUGIN_ROOT}/scripts/gates/` exit 0 (PASS) or 1 (FAIL). Gates are NON-NEGOTIABLE — if a gate fails, loop back and fix.
 
     <step n="1" name="Gate Map">
       <gate after="3 → 3.5" script="gate-requirements.sh" run_by="doc-validator" checks="Acceptance criteria, NFRs, summary" />
@@ -74,7 +73,7 @@ license: MIT
       <gate after="10 → 11" script="gate-implementation-complete.sh" run_by="team-lead" checks="ALL implementation-plan phases complete in tracking JSON" />
       <gate after="11 → 11.5" script="gate-docs-drift.sh" run_by="team-lead" checks="Docs exist, no excessive TODOs" />
     </step>
-    <step n="2" name="Execution">`bash ${PLUGIN_SCRIPTS}/gates/<gate-name>.sh <spec-dir>`</step>
+    <step n="2" name="Execution">`bash ${PLUGIN_ROOT}/scripts/gates/<gate-name>.sh <spec-dir>`</step>
     <step n="3" name="Failure Handling">Gate fails → report which checks failed → spawn appropriate agent to fix → re-run gate → proceed only on PASS (exit 0).</step>
   </process>
 

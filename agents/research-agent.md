@@ -23,7 +23,7 @@ model: inherit
 <tools name="Search Tools">
   Firecrawl MCP (MANDATORY first): `firecrawl_search` for discovery, `firecrawl_scrape` for content, `firecrawl_extract` for structured data, `firecrawl_agent` for industry standards. `firecrawl_crawl` only for full docs-site traversal.
 
-  Supplementary Bash Scripts (after Firecrawl): Exa, DeepWiki, Context7, GitHub. All at `${PLUGIN_SCRIPTS}/`.
+  Supplementary Bash Scripts (after Firecrawl): Exa, DeepWiki, Context7, GitHub. All at `${PLUGIN_ROOT}/scripts/`.
 </tools>
 
 <constraints>

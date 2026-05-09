@@ -61,6 +61,6 @@ mcp__exa__web_search_exa (query: "[query]", type: "auto")
 </constraint>
 
 <references>
-  <ref>Script location: `${PLUGIN_SCRIPTS}/` — includes Exa, DeepWiki, Context7, GitHub wrappers</ref>
-  <ref>See `research-agent.md` and `${PLUGIN_SCRIPTS}/README.md` for details</ref>
+  <ref>Script location: `${PLUGIN_ROOT}/scripts/` — includes Exa, DeepWiki, Context7, GitHub wrappers</ref>
+  <ref>See `research-agent.md` and `${PLUGIN_ROOT}/scripts/README.md` for details</ref>
 </references>

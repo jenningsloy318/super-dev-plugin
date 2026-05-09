@@ -1,6 +1,20 @@
 {
   "name": "super-dev",
-  "version": "2.3.96",
+  "version": "2.3.97",
   "description": "Team-lead-driven development workflow with parallel agent execution for implementing features, fixing bugs, and refactoring code",
-  "contextFileName": "GEMINI.md"
+  "contextFileName": "GEMINI.md",
+  "settings": [
+    {
+      "name": "PLUGIN_ROOT",
+      "description": "the default PLUGIN_ROOT directory",
+      "envVar": "PLUGIN_ROOT",
+      "sensitive": false
+    },
+    {
+      "name": "PLUGIN_DATA",
+      "description": "the default PLUGIN_DATA directory",
+      "envVar": "PLUGIN_DATA",
+      "sensitive": false
+    }
+  ]
 }

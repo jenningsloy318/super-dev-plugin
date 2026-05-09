@@ -12,8 +12,7 @@ license: MIT
     gemini: ${extensionPath}
   PLUGIN_DATA:
     claude: ${CLAUDE_PLUGIN_DATA}
-    gemini: ${extensionPath}/.data
-  PLUGIN_SCRIPTS: ${PLUGIN_ROOT}/scripts
+    gemini: ${extensionPath}/data
   Use whichever value resolved to an actual path (not a literal variable name).
 </platform-paths>
 

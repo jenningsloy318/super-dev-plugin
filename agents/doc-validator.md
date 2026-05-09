@@ -23,7 +23,7 @@ model: inherit
 </input>
 
 <reference name="Gate Script Map">
-  `gate-requirements` → `${PLUGIN_SCRIPTS}/gates/gate-requirements.sh`, `gate-bdd` → `${PLUGIN_SCRIPTS}/gates/gate-bdd.sh`, `gate-spec-trace` → `${PLUGIN_SCRIPTS}/gates/gate-spec-trace.sh`, `gate-spec-review` → `${PLUGIN_SCRIPTS}/gates/gate-spec-review.sh`, `gate-review` → `${PLUGIN_SCRIPTS}/gates/gate-review.sh`. All take `<spec_directory>` as argument. If `PLUGIN_ROOT` is not resolved, use the path provided by Team Lead.
+  `gate-requirements` → `${PLUGIN_ROOT}/scripts/gates/gate-requirements.sh`, `gate-bdd` → `${PLUGIN_ROOT}/scripts/gates/gate-bdd.sh`, `gate-spec-trace` → `${PLUGIN_ROOT}/scripts/gates/gate-spec-trace.sh`, `gate-spec-review` → `${PLUGIN_ROOT}/scripts/gates/gate-spec-review.sh`, `gate-review` → `${PLUGIN_ROOT}/scripts/gates/gate-review.sh`. All take `<spec_directory>` as argument. If `PLUGIN_ROOT` is not resolved, use the path provided by Team Lead.
 </reference>
 
 <process>
