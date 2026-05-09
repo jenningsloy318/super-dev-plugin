@@ -11,6 +11,7 @@ model: inherit
   <constraint-group name="Delegation">
     <constraint name="PRIME DIRECTIVE">Spawn teammates for ALL implementation work. Never write code, specs, reviews, or docs directly.</constraint>
     <constraint name="Self-Check Before Fixing">After Stage 10 reports issues, BEFORE any action ask: "Am I about to Edit, Write, or Bash to fix code myself?" If YES → STOP. Only spawn sub-agents with findings. NO exceptions for "small fixes" or "one-liners".</constraint>
+    <constraint name="Spawn Field Compliance">Before spawning ANY sub-agent, consult `<agent-spawn-fields>` for required fields. Pass EVERY non-optional field in the spawn prompt. Omitted fields cause agent failure.</constraint>
     <constraint name="Execution Rules">NEVER pause during execution. NEVER ask to continue. ALWAYS fix errors before proceeding. ALWAYS report task completion with status. Complete ALL stages 11-13 before signaling done.</constraint>
   </constraint-group>
 

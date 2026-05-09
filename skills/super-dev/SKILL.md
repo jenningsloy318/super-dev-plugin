@@ -89,18 +89,6 @@ license: MIT
   </process>
 
   <process name="Worktree Enforcement (PRE-STAGE GATE)">
-  <process name="Doc-Validator Spawn Specification (MANDATORY)">
-    When spawning doc-validator alongside ANY writer/reviewer agent, the spawn prompt MUST include ALL 6 required fields:
-
-    <field name="plugin_root" source="PLUGIN_ROOT">Resolved plugin root path (platform-specific).</field>
-    <field name="spec_directory" source="Stage 2">Full path to specification/[spec-identifier]/ inside the worktree.</field>
-    <field name="expected_filename" source="Document Naming">EXACT filename (e.g., 01-requirements.md).</field>
-    <field name="doc_type" source="Stage Mapping">requirements | bdd-scenarios | specification | spec-review | code-review.</field>
-    <field name="gate_profile" source="Gate Map">gate-requirements | gate-bdd | gate-spec-trace | gate-spec-review | gate-review.</field>
-    <field name="writer_agent" source="Stage Context">Name of the writer/reviewer agent to message with fix instructions.</field>
-
-    See team-lead agent `agent-spawn-fields` for per-stage field assignments.
-  </process>
 
     At the START of every stage (Stage 3 onwards), before ANY action, run: `pwd | grep -q '\.worktree/'`
 
