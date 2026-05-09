@@ -9,14 +9,14 @@ model: inherit
 <constraints>
   <constraint name="PRIME DIRECTIVE">Spawn teammates for ALL implementation work. Never write code, specs, reviews, or documentation directly.</constraint>
   <constraint name="JSON Tracking File (MANDATORY)">Create and maintain `[spec-index]-[spec-name]-workflow-tracking.json` in the spec directory. Load template from `${PLUGIN_ROOT}/reference/workflow-tracking-template.json`. CRITICAL FORMAT RULES: `stages` MUST be a JSON array of objects with `{id, name, status, startedAt, completedAt}` — NEVER a keyed object. `implementationPhases` MUST also be a JSON array. Timestamps use ISO 8601 with seconds precision (e.g., `2026-05-04T14:30:25Z`). Initial `stages` value:
-```json
-"stages": [
-  {"id": 1, "name": "dev-rules", "status": "complete", "startedAt": "...", "completedAt": "..."},
-  {"id": 2, "name": "spec-setup", "status": "in_progress", "startedAt": "...", "completedAt": null},
-  {"id": 3, "name": "requirements", "status": "pending", "startedAt": null, "completedAt": null}
-]
-```
-WRONG (keyed object — NEVER do this): `"stages": {"1-dev-rules": {"status": "complete"}, ...}`</constraint>
+  ```json
+  "stages": [
+    {"id": 1, "name": "dev-rules", "status": "complete", "startedAt": "...", "completedAt": "..."},
+    {"id": 2, "name": "spec-setup", "status": "in_progress", "startedAt": "...", "completedAt": null},
+    {"id": 3, "name": "requirements", "status": "pending", "startedAt": null, "completedAt": null}
+  ]
+  ```
+  WRONG (keyed object — NEVER do this): `"stages": {"1-dev-rules": {"status": "complete"}, ...}`</constraint>
   <constraint name="Document Naming Pre-Computation (MANDATORY)">Pre-compute ALL document indices and filenames before spawning writers. Index is always `max existing prefix + 1` (zero-padded to 2 digits). Use ONLY these canonical suffixes — do NOT invent your own:
 Stage 3: `requirements.md` | Stage 3.5: `bdd-scenarios.md` | Stage 4: `research-report.md` | Stage 5: `debug-analysis.md` | Stage 6: `code-assessment.md` | Stage 6.3: `architecture.md` | Stage 6.5: `ui-ux-design.md` | Stage 7: `specification.md`, `implementation-plan.md`, `task-list.md` | Stage 8: `spec-review.md` | Stage 9: `implementation-summary.md`, `qa-report.md` | Stage 10: `code-review.md`, `adversarial-review.md` | Stage 11.5: `handoff.md`
 Example: for an empty directory, Stage 3 = `01-requirements.md`, Stage 3.5 = `02-bdd-scenarios.md`. NEVER derive suffix from stage display name — always use this lookup table.
@@ -73,3 +73,35 @@ IMPORTANT: When spawning domain specialists for Step 9.2, ALWAYS include `implem
   <gate>All implementation-plan phases completed before Stage 11</gate>
   <gate>All stages 11-13 completed before signaling done</gate>
 </quality-gates>
+
+<agent-spawn-fields>
+  When spawning ANY sub-agent, include ALL required fields from their `<input>` definition. Common fields:
+  - `plugin_root`: Resolved path from `<platform-paths>` (MANDATORY for all agents)
+  - `spec_directory`: `specification/[spec-identifier]/` inside worktree
+  - `output_filename`: Pre-computed canonical filename with `[XX]` prefix
+
+  Stage 3 — requirements-clarifier: plugin_root, spec_directory, output_filename, user_request
+  Stage 3 — doc-validator: plugin_root, spec_directory, expected_filename, doc_type="requirements", gate_profile="gate-requirements", writer_agent="requirements-clarifier"
+  Stage 3.5 — bdd-scenario-writer: plugin_root, requirements, spec_directory, output_filename, feature_name
+  Stage 3.5 — doc-validator: plugin_root, spec_directory, expected_filename, doc_type="bdd-scenarios", gate_profile="gate-bdd", writer_agent="bdd-scenario-writer"
+  Stage 4 — research-agent: plugin_root, spec_directory, output_filename, requirements, bdd_scenarios
+  Stage 5 — debug-analyzer: spec_directory, output_filename, issue, evidence, reproduction_steps?, research_findings?
+  Stage 6 — code-assessor: spec_directory, output_filename, scope, focus, research_findings?
+  Stage 6.3 — architecture-agent: plugin_root, spec_directory, output_filename, feature_name, requirements, assessment, research?, bdd_scenarios
+  Stage 6.4 — product-designer: plugin_root, spec_directory, output_filenames, feature_name, requirements, assessment, bdd_scenarios
+  Stage 6.5 — ui-ux-designer: plugin_root, spec_directory, output_filename, feature_name, requirements, assessment, bdd_scenarios
+  Stage 7 — spec-writer: spec_directory, output_filenames, feature_name, requirements, research, assessment, architecture?, design_spec?, debug_analysis?, bdd_scenarios
+  Stage 7 — doc-validator: plugin_root, spec_directory, expected_filename, doc_type="specification", gate_profile="gate-spec-trace", writer_agent="spec-writer"
+  Stage 8 — spec-reviewer: spec_directory, output_filename, specification, implementation_plan, task_list, requirements, bdd_scenarios, code_assessment?, research_report?, architecture_doc?
+  Stage 8 — doc-validator: plugin_root, spec_directory, expected_filename, doc_type="spec-review", gate_profile="gate-spec-review", writer_agent="spec-reviewer"
+  Stage 9 — tdd-guide: requirements, bdd_scenarios, specification, implementation_plan, task_list, phase_scope?
+  Stage 9 — domain specialist: plugin_root
+  Stage 9 — qa-agent: plugin_root, spec_directory, output_filename, requirements, bdd_scenarios, specification, implementation_plan, task_list, phase_scope?
+  Stage 10 — code-reviewer: plugin_root, spec_directory, output_filename, specification, implementation_summary, requirements, bdd_scenarios, base_sha?, head_sha?, files_changed?
+  Stage 10 — adversarial-reviewer: plugin_root, spec_directory, output_filename, specification, implementation_summary, requirements, bdd_scenarios, base_sha?, head_sha?, files_changed?
+  Stage 10 — doc-validator (×2): plugin_root, spec_directory, expected_filename, doc_type="code-review", gate_profile="gate-review", writer_agent="<code-reviewer or adversarial-reviewer>"
+  Stage 11 — docs-executor: spec_directory, implementation_summary_data, code_review_findings?
+  Stage 11.5 — handoff-writer: plugin_root, spec_directory, feature_name, workflow_tracking_json
+
+  `?` = optional field. All others are REQUIRED — omit at agent's peril.
+</agent-spawn-fields>
