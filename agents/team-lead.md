@@ -28,7 +28,7 @@ model: inherit
 
   <!-- ===== TRACKING & STATE ===== -->
   <constraint-group name="Tracking & State">
-    <constraint name="JSON Tracking File">Maintain `[spec-id]-workflow-tracking.json` in spec directory. Load from `${PLUGIN_ROOT}/reference/workflow-tracking-template.json`. CRITICAL: `stages` and `implementationPhases` MUST be JSON arrays of objects — NEVER keyed objects. Timestamps: ISO 8601 with seconds precision. See `<tracking-json-example>` for correct format.</constraint>
+    <constraint name="JSON Tracking File">Maintain `[spec-id]-workflow-tracking.json` in spec directory. Load from `${PLUGIN_ROOT}/reference/workflow-tracking-template.json`. CRITICAL: `stages` and `implementationPhases` MUST be JSON arrays of objects — NEVER keyed objects. Timestamps: ISO 8601 with seconds precision. See `<tracking-json-format>` for correct format.</constraint>
     <constraint name="Stage Transitions">At EVERY transition: (1) terminate all agents from finishing stage, (2) mark stage `complete`/`skipped` with `completedAt`, (3) set next stage `in_progress` with `startedAt`. Steps 2-3 in single JSON write. Never start a new stage while previous shows `in_progress`. Skipped stages must be explicitly marked `skipped`.</constraint>
   </constraint-group>
 
@@ -90,18 +90,14 @@ model: inherit
   Agents in the same stage communicate directly (not through Team Lead): `FINDING_SHARE` for sharing discoveries, `FINDING_ACK` for acknowledgment, `REVIEW_COMPLETE` for completion signal, `VALIDATION FAILED`/`VALIDATED: PASS` for doc-validator loops.
 </protocol>
 
-<reference name="Tracking JSON Example">
-  CORRECT (array of objects):
-  ```json
-  "stages": [
-    {"id": 1, "name": "dev-rules", "status": "complete", "startedAt": "2026-05-04T14:30:25Z", "completedAt": "2026-05-04T14:30:30Z"},
-    {"id": 2, "name": "spec-setup", "status": "in_progress", "startedAt": "2026-05-04T14:31:00Z", "completedAt": null}
-  ]
-  ```
-  WRONG (keyed object — NEVER do this):
-  ```json
-  "stages": {"1-dev-rules": {"status": "complete"}, "2-spec-setup": {"status": "in_progress"}}
-  ```
+<reference name="Tracking JSON Format">
+  CRITICAL: `stages` and `implementationPhases` MUST be JSON arrays of objects — NEVER keyed objects.
+
+  Stage object: `{ id, name, status (pending|in_progress|complete|skipped), startedAt, completedAt, docs[], files: {created[], modified[], deleted[]} }`
+  ImplementationPhase object: `{ phaseNumber, name, status (pending|in_progress|complete), startedAt, completedAt, reviewIterations }`
+
+  All timestamps: ISO 8601 with seconds precision.
+  Full schema: `${PLUGIN_ROOT}/reference/workflow-tracking-template.json`
 </reference>
 
 <reference name="Document Suffixes">
@@ -141,33 +137,39 @@ model: inherit
 </quality-gates>
 
 <agent-spawn-fields>
-  When spawning ANY sub-agent, include ALL required fields from their `<input>` definition. Common fields:
-  - `plugin_root`: Resolved path from `<platform-paths>` (MANDATORY for all agents)
-  - `spec_directory`: `specification/[spec-identifier]/` inside worktree
-  - `output_filename`: Pre-computed canonical filename with `[XX]` prefix
+  Common fields: `plugin_root` (MANDATORY), `spec_directory` = specification/[spec-id]/, `output_filename` = [XX]-name.md
 
-  Stage 3 — requirements-clarifier: plugin_root, spec_directory, output_filename, user_request
-  Stage 3 — doc-validator: plugin_root, spec_directory, expected_filename, doc_type="requirements", gate_profile="gate-requirements", writer_agent="requirements-clarifier"
-  Stage 3.5 — bdd-scenario-writer: plugin_root, requirements, spec_directory, output_filename, feature_name
-  Stage 3.5 — doc-validator: plugin_root, spec_directory, expected_filename, doc_type="bdd-scenarios", gate_profile="gate-bdd", writer_agent="bdd-scenario-writer"
-  Stage 4 — research-agent: plugin_root, spec_directory, output_filename, requirements, bdd_scenarios
-  Stage 5 — debug-analyzer: spec_directory, output_filename, issue, evidence, reproduction_steps?, research_findings?
-  Stage 6 — code-assessor: spec_directory, output_filename, scope, focus, research_findings?
-  Stage 6.3 — architecture-agent: plugin_root, spec_directory, output_filename, feature_name, requirements, assessment, research?, bdd_scenarios
-  Stage 6.4 — product-designer: plugin_root, spec_directory, output_filenames, feature_name, requirements, assessment, bdd_scenarios
-  Stage 6.5 — ui-ux-designer: plugin_root, spec_directory, output_filename, feature_name, requirements, assessment, bdd_scenarios
-  Stage 7 — spec-writer: spec_directory, output_filenames, feature_name, requirements, research, assessment, architecture?, design_spec?, debug_analysis?, bdd_scenarios
-  Stage 7 — doc-validator: plugin_root, spec_directory, expected_filename, doc_type="specification", gate_profile="gate-spec-trace", writer_agent="spec-writer"
-  Stage 8 — spec-reviewer: spec_directory, output_filename, specification, implementation_plan, task_list, requirements, bdd_scenarios, code_assessment?, research_report?, architecture_doc?
-  Stage 8 — doc-validator: plugin_root, spec_directory, expected_filename, doc_type="spec-review", gate_profile="gate-spec-review", writer_agent="spec-reviewer"
-  Stage 9 — tdd-guide: requirements, bdd_scenarios, specification, implementation_plan, task_list, phase_scope?
-  Stage 9 — domain specialist: plugin_root
-  Stage 9 — qa-agent: plugin_root, spec_directory, output_filename, requirements, bdd_scenarios, specification, implementation_plan, task_list, phase_scope?
-  Stage 10 — code-reviewer: plugin_root, spec_directory, output_filename, specification, implementation_summary, requirements, bdd_scenarios, base_sha?, head_sha?, files_changed?
-  Stage 10 — adversarial-reviewer: plugin_root, spec_directory, output_filename, specification, implementation_summary, requirements, bdd_scenarios, base_sha?, head_sha?, files_changed?
-  Stage 10 — doc-validator (×2): plugin_root, spec_directory, expected_filename, doc_type="code-review", gate_profile="gate-review", writer_agent="<code-reviewer or adversarial-reviewer>"
-  Stage 11 — docs-executor: spec_directory, implementation_summary_data, code_review_findings?
-  Stage 11.5 — handoff-writer: plugin_root, spec_directory, feature_name, workflow_tracking_json
+  <!-- Setup -->
+  Stage 3  — requirements-clarifier: + user_request
+  Stage 3  — doc-validator: expected_filename, doc_type="requirements", gate_profile="gate-requirements", writer_agent="requirements-clarifier"
+  Stage 3.5 — bdd-scenario-writer: + requirements, feature_name
+  Stage 3.5 — doc-validator: expected_filename, doc_type="bdd-scenarios", gate_profile="gate-bdd", writer_agent="bdd-scenario-writer"
+  Stage 4  — research-agent: + requirements, bdd_scenarios
 
-  `?` = optional field. All others are REQUIRED — omit at agent's peril.
+  <!-- Analysis & Design -->
+  Stage 5   — debug-analyzer: output_filename, issue, evidence, reproduction_steps?, research_findings?
+  Stage 6   — code-assessor: output_filename, scope, focus, research_findings?
+  Stage 6.3 — architecture-agent: + output_filename, feature_name, requirements, assessment, research?, bdd_scenarios
+  Stage 6.4 — product-designer: + output_filenames, feature_name, requirements, assessment, bdd_scenarios
+  Stage 6.5 — ui-ux-designer: + output_filename, feature_name, requirements, assessment, bdd_scenarios
+
+  <!-- Specification -->
+  Stage 7 — spec-writer: output_filenames, feature_name, requirements, research, assessment, architecture?, design_spec?, debug_analysis?, bdd_scenarios
+  Stage 7 — doc-validator: expected_filename, doc_type="specification", gate_profile="gate-spec-trace", writer_agent="spec-writer"
+  Stage 8 — spec-reviewer: output_filename, specification, implementation_plan, task_list, requirements, bdd_scenarios, code_assessment?, research_report?, architecture_doc?
+  Stage 8 — doc-validator: expected_filename, doc_type="spec-review", gate_profile="gate-spec-review", writer_agent="spec-reviewer"
+
+  <!-- Implementation -->
+  Stage 9  — tdd-guide: requirements, bdd_scenarios, specification, implementation_plan, task_list, phase_scope?
+  Stage 9  — domain specialist: plugin_root only
+  Stage 9  — qa-agent: + output_filename, requirements, bdd_scenarios, specification, implementation_plan, task_list, phase_scope?
+  Stage 10 — code-reviewer: + output_filename, specification, implementation_summary, requirements, bdd_scenarios, base_sha?, head_sha?, files_changed?
+  Stage 10 — adversarial-reviewer: + output_filename, specification, implementation_summary, requirements, bdd_scenarios, base_sha?, head_sha?, files_changed?
+  Stage 10 — doc-validator (×2): expected_filename, doc_type="code-review", gate_profile="gate-review", writer_agent="<reviewer>"
+
+  <!-- Finalization -->
+  Stage 11   — docs-executor: spec_directory, implementation_summary_data, code_review_findings?
+  Stage 11.5 — handoff-writer: + feature_name, workflow_tracking_json
+
+  `+` = common fields + listed extras. `?` = optional. All others REQUIRED — omit at agent peril.
 </agent-spawn-fields>

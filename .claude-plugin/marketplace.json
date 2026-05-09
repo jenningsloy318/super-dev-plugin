@@ -7,14 +7,14 @@
   },
   "metadata": {
     "description": "Team-lead-driven development workflow with parallel agent execution",
-    "version": "2.3.99"
+    "version": "2.4.0"
   },
   "plugins": [
     {
       "name": "super-dev",
       "source": "./",
       "description": "Team-lead-driven development workflow with parallel agent execution for implementing features, fixing bugs, and refactoring code",
-      "version": "2.3.99",
+      "version": "2.4.0",
       "author": {
         "name": "Jennings Liu",
         "url": "https://github.com/jenningsloy318"
