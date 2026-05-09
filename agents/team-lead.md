@@ -137,39 +137,163 @@ model: inherit
 </quality-gates>
 
 <agent-spawn-fields>
-  Common fields: `plugin_root` (MANDATORY), `spec_directory` = specification/[spec-id]/, `output_filename` = [XX]-name.md
+  <common>
+    <field name="plugin_root" note="MANDATORY for all agents">Resolved from <platform-paths></field>
+    <field name="spec_directory">specification/[spec-id]/ inside worktree</field>
+    <field name="output_filename">Pre-computed canonical [XX]-name.md</field>
+  </common>
 
-  <!-- Setup -->
-  Stage 3  — requirements-clarifier: + user_request
-  Stage 3  — doc-validator: expected_filename, doc_type="requirements", gate_profile="gate-requirements", writer_agent="requirements-clarifier"
-  Stage 3.5 — bdd-scenario-writer: + requirements, feature_name
-  Stage 3.5 — doc-validator: expected_filename, doc_type="bdd-scenarios", gate_profile="gate-bdd", writer_agent="bdd-scenario-writer"
-  Stage 4  — research-agent: + requirements, bdd_scenarios
+  <phase name="Setup">
+    <agent name="requirements-clarifier" stage="3">
+      <field>user_request</field>
+    </agent>
+    <agent name="doc-validator" stage="3">
+      <field name="expected_filename">01-requirements.md</field>
+      <field name="doc_type">requirements</field>
+      <field name="gate_profile">gate-requirements</field>
+      <field name="writer_agent">requirements-clarifier</field>
+    </agent>
+    <agent name="bdd-scenario-writer" stage="3.5">
+      <field>requirements</field>
+      <field>feature_name</field>
+    </agent>
+    <agent name="doc-validator" stage="3.5">
+      <field name="expected_filename">02-bdd-scenarios.md</field>
+      <field name="doc_type">bdd-scenarios</field>
+      <field name="gate_profile">gate-bdd</field>
+      <field name="writer_agent">bdd-scenario-writer</field>
+    </agent>
+    <agent name="research-agent" stage="4">
+      <field>requirements</field>
+      <field>bdd_scenarios</field>
+    </agent>
+  </phase>
 
-  <!-- Analysis & Design -->
-  Stage 5   — debug-analyzer: output_filename, issue, evidence, reproduction_steps?, research_findings?
-  Stage 6   — code-assessor: output_filename, scope, focus, research_findings?
-  Stage 6.3 — architecture-agent: + output_filename, feature_name, requirements, assessment, research?, bdd_scenarios
-  Stage 6.4 — product-designer: + output_filenames, feature_name, requirements, assessment, bdd_scenarios
-  Stage 6.5 — ui-ux-designer: + output_filename, feature_name, requirements, assessment, bdd_scenarios
+  <phase name="Analysis &amp; Design">
+    <agent name="debug-analyzer" stage="5" has="plugin_root?">
+      <field>issue</field>
+      <field>evidence</field>
+      <field optional="true">reproduction_steps</field>
+      <field optional="true">research_findings</field>
+    </agent>
+    <agent name="code-assessor" stage="6" has="plugin_root?">
+      <field>scope</field>
+      <field>focus</field>
+      <field optional="true">research_findings</field>
+    </agent>
+    <agent name="architecture-agent" stage="6.3">
+      <field>feature_name</field>
+      <field>requirements</field>
+      <field>assessment</field>
+      <field optional="true">research</field>
+      <field>bdd_scenarios</field>
+    </agent>
+    <agent name="product-designer" stage="6.4">
+      <field>output_filenames</field>
+      <field>feature_name</field>
+      <field>requirements</field>
+      <field>assessment</field>
+      <field>bdd_scenarios</field>
+    </agent>
+    <agent name="ui-ux-designer" stage="6.5">
+      <field>feature_name</field>
+      <field>requirements</field>
+      <field>assessment</field>
+      <field>bdd_scenarios</field>
+    </agent>
+  </phase>
 
-  <!-- Specification -->
-  Stage 7 — spec-writer: output_filenames, feature_name, requirements, research, assessment, architecture?, design_spec?, debug_analysis?, bdd_scenarios
-  Stage 7 — doc-validator: expected_filename, doc_type="specification", gate_profile="gate-spec-trace", writer_agent="spec-writer"
-  Stage 8 — spec-reviewer: output_filename, specification, implementation_plan, task_list, requirements, bdd_scenarios, code_assessment?, research_report?, architecture_doc?
-  Stage 8 — doc-validator: expected_filename, doc_type="spec-review", gate_profile="gate-spec-review", writer_agent="spec-reviewer"
+  <phase name="Specification">
+    <agent name="spec-writer" stage="7" has="plugin_root?">
+      <field>output_filenames</field>
+      <field>feature_name</field>
+      <field>requirements</field>
+      <field>research</field>
+      <field>assessment</field>
+      <field optional="true">architecture</field>
+      <field optional="true">design_spec</field>
+      <field optional="true">debug_analysis</field>
+      <field>bdd_scenarios</field>
+    </agent>
+    <agent name="doc-validator" stage="7">
+      <field name="expected_filename">specification.md</field>
+      <field name="doc_type">specification</field>
+      <field name="gate_profile">gate-spec-trace</field>
+      <field name="writer_agent">spec-writer</field>
+    </agent>
+    <agent name="spec-reviewer" stage="8" has="plugin_root?">
+      <field>specification</field>
+      <field>implementation_plan</field>
+      <field>task_list</field>
+      <field>requirements</field>
+      <field>bdd_scenarios</field>
+      <field optional="true">code_assessment</field>
+      <field optional="true">research_report</field>
+      <field optional="true">architecture_doc</field>
+    </agent>
+    <agent name="doc-validator" stage="8">
+      <field name="expected_filename">spec-review.md</field>
+      <field name="doc_type">spec-review</field>
+      <field name="gate_profile">gate-spec-review</field>
+      <field name="writer_agent">spec-reviewer</field>
+    </agent>
+  </phase>
 
-  <!-- Implementation -->
-  Stage 9  — tdd-guide: requirements, bdd_scenarios, specification, implementation_plan, task_list, phase_scope?
-  Stage 9  — domain specialist: plugin_root only
-  Stage 9  — qa-agent: + output_filename, requirements, bdd_scenarios, specification, implementation_plan, task_list, phase_scope?
-  Stage 10 — code-reviewer: + output_filename, specification, implementation_summary, requirements, bdd_scenarios, base_sha?, head_sha?, files_changed?
-  Stage 10 — adversarial-reviewer: + output_filename, specification, implementation_summary, requirements, bdd_scenarios, base_sha?, head_sha?, files_changed?
-  Stage 10 — doc-validator (×2): expected_filename, doc_type="code-review", gate_profile="gate-review", writer_agent="<reviewer>"
+  <phase name="Implementation">
+    <agent name="td-guide" stage="9" has="plugin_root?">
+      <field>requirements</field>
+      <field>bdd_scenarios</field>
+      <field>specification</field>
+      <field>implementation_plan</field>
+      <field>task_list</field>
+      <field optional="true">phase_scope</field>
+    </agent>
+    <agent name="domain-specialist" stage="9" has="spec_directory?">
+      <field>plugin_root</field>
+    </agent>
+    <agent name="qa-agent" stage="9">
+      <field>requirements</field>
+      <field>bdd_scenarios</field>
+      <field>specification</field>
+      <field>implementation_plan</field>
+      <field>task_list</field>
+      <field optional="true">phase_scope</field>
+    </agent>
+    <agent name="code-reviewer" stage="10">
+      <field>specification</field>
+      <field>implementation_summary</field>
+      <field>requirements</field>
+      <field>bdd_scenarios</field>
+      <field optional="true">base_sha</field>
+      <field optional="true">head_sha</field>
+      <field optional="true">files_changed</field>
+    </agent>
+    <agent name="adversarial-reviewer" stage="10">
+      <field>specification</field>
+      <field>implementation_summary</field>
+      <field>requirements</field>
+      <field>bdd_scenarios</field>
+      <field optional="true">base_sha</field>
+      <field optional="true">head_sha</field>
+      <field optional="true">files_changed</field>
+    </agent>
+    <agent name="doc-validator" stage="10" count="2">
+      <field name="expected_filename">code-review.md</field>
+      <field name="doc_type">code-review</field>
+      <field name="gate_profile">gate-review</field>
+      <field name="writer_agent">code-reviewer</field>
+    </agent>
+  </phase>
 
-  <!-- Finalization -->
-  Stage 11   — docs-executor: spec_directory, implementation_summary_data, code_review_findings?
-  Stage 11.5 — handoff-writer: + feature_name, workflow_tracking_json
-
-  `+` = common fields + listed extras. `?` = optional. All others REQUIRED — omit at agent peril.
+  <phase name="Finalization">
+    <agent name="docs-executor" stage="11" has="plugin_root?">
+      <field>spec_directory</field>
+      <field>implementation_summary_data</field>
+      <field optional="true">code_review_findings</field>
+    </agent>
+    <agent name="handoff-writer" stage="11.5">
+      <field>feature_name</field>
+      <field>workflow_tracking_json</field>
+    </agent>
+  </phase>
 </agent-spawn-fields>
