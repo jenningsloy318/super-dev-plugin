@@ -44,7 +44,7 @@ model: inherit
 
   <!-- ===== FLOW CONTROL ===== -->
   <constraint-group name="Flow Control">
-    <constraint name="Iteration Rules">Stage 7/8: on rejection, spawn spec-writer + doc-validator — never edit specs directly. Stage 9/10: TDD per phase (tdd-guide → domain specialist → qa-agent), then review. On rejection: STOP → extract findings → fix tests (tdd-guide) → fix code (domain specialist) → verify (qa-agent) → re-review. Never fix code directly. Max 3 iterations per loop, escalate to user after 3.</constraint>
+    <constraint name="Iteration Rules">Stage 7/8: on rejection, spawn spec-writer + doc-validator — never edit specs directly. Stage 9/10: TDD per phase (tdd-guide → domain specialist → qa-agent → e2e-runner for Web/UI), then review. On rejection: STOP → extract findings → fix tests (tdd-guide) → fix code (domain specialist) → verify (qa-agent) → re-review. Never fix code directly. Max 3 iterations per loop, escalate to user after 3.</constraint>
     <constraint name="Implementation Completeness">Do NOT proceed Stage 10 → 11 until ALL implementation-plan phases are `complete`. Check after each phase: are there remaining phases? If YES → loop back to Stage 9. Partial implementation is a CRITICAL violation.</constraint>
     <constraint name="Stage 11-13 Sequence">EXECUTE IN ORDER: Stage 11 (docs-executor → WAIT for signal → gate-docs-drift.sh) → Stage 11.5 (handoff-writer → WAIT) → Stage 12 (terminate all, verify files) → Stage 12.5 (user confirmation) → Stage 13 (commit + merge). Each MUST complete before next begins. Skipping is a CRITICAL violation.</constraint>
   </constraint-group>
@@ -78,7 +78,7 @@ model: inherit
   </phase>
   <phase n="5" name="Implementation">
     Stage 9: Sequential per-phase TDD loop across ALL plan phases:
-    Step 9.1: tdd-guide (RED) → Step 9.2: domain specialist (GREEN) → Step 9.3: qa-agent (VERIFY)
+    Step 9.1: tdd-guide (RED) → Step 9.2: domain specialist (GREEN) → Step 9.3: qa-agent (VERIFY) → Step 9.4: e2e-runner (E2E, Web/UI only)
     Gate: gate-build.sh after each phase
     Stage 10: code-reviewer + adversarial-reviewer + 2× doc-validator (gate-review)
     On failure: Implementation Iteration Loop (max 3 per phase)
@@ -93,7 +93,7 @@ model: inherit
 </process>
 
 <criteria name="Skip Conditions">
-  Stage 4 (Research): Skip for trivial bugs with clear root cause. Stage 5 (Debug): Skip for features (not bugs). Stage 6.3 (Architecture): Skip for small changes with no architecture impact. Stage 6.5 (UI/UX): Skip for backend-only changes. Stage 11.5 (Handoff): Skip if all stages completed in single session.
+  Stage 4 (Research): Skip for trivial bugs with clear root cause. Stage 5 (Debug): Skip for features (not bugs). Stage 6.3 (Architecture): Skip for small changes with no architecture impact. Stage 6.5 (UI/UX): Skip for backend-only changes. Stage 9.4 (E2E): Skip for backend-only, CLI-only, or library changes with no Web/Desktop UI. Stage 11.5 (Handoff): Skip if all stages completed in single session.
 </criteria>
 
 <protocol name="Direct Peer Communication">
@@ -122,7 +122,7 @@ model: inherit
   | 6.5 | `ui-ux-design.md` |
   | 7 | `specification.md`, `implementation-plan.md`, `task-list.md` |
   | 8 | `spec-review.md` |
-  | 9 | `implementation-summary.md`, `qa-report.md` |
+  | 9 | `implementation-summary.md`, `qa-report.md`, `e2e-report.md` |
   | 10 | `code-review.md`, `adversarial-review.md` |
   | 11.5 | `handoff.md` |
   Example: empty dir → Stage 3 = `01-requirements.md`, Stage 3.5 = `02-bdd-scenarios.md`
@@ -267,6 +267,13 @@ model: inherit
       <field>specification</field>
       <field>implementation_plan</field>
       <field>task_list</field>
+      <field optional="true">phase_scope</field>
+    </agent>
+    <agent name="e2e-runner" stage="9" condition="Web/UI features only">
+      <field>requirements</field>
+      <field>bdd_scenarios</field>
+      <field>specification</field>
+      <field>implementation_summary</field>
       <field optional="true">phase_scope</field>
     </agent>
     <agent name="code-reviewer" stage="10">
