@@ -1,7 +1,7 @@
 {
   "name": "super-dev",
   "displayName": "Super Dev",
-  "version": "2.4.3",
+  "version": "2.4.4",
   "description": "Team-lead-driven development workflow with parallel agent execution for implementing features, fixing bugs, and refactoring code",
   "shortDescription": "Orchestrate specialized agents through research, architecture, coding, QA, and documentation phases",
   "author": {
