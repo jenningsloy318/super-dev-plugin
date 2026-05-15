@@ -46,6 +46,22 @@ model: inherit
   <field name="architecture_doc" required="false">Path to architecture or product design summary (if exists)</field>
 </input>
 
+<confidence-gate>
+  <threshold>Only report findings with >80% confidence of being a real spec deficiency.</threshold>
+  <pre-report-check>
+    <question>Can I cite the exact section or paragraph with the gap?</question>
+    <question>Can I describe what concrete implementation failure this gap would cause?</question>
+    <question>Have I checked other spec artifacts (requirements, BDD, architecture) to confirm this isn't covered elsewhere?</question>
+    <question>Is the severity defensible — would this actually block or misdirect implementation?</question>
+  </pre-report-check>
+  <rules>
+    <rule>HIGH/CRITICAL requires: exact spec section, implementation risk, and proof no other artifact covers it.</rule>
+    <rule>Skip wording preferences unless ambiguity would cause divergent implementations.</rule>
+    <rule>Consolidate related gaps into one finding.</rule>
+    <rule>Zero findings is valid — never manufacture gaps to justify the review.</rule>
+  </rules>
+</confidence-gate>
+
 <process>
   <step n="1" name="Load All Spec Artifacts">Read specification, implementation plan, task list, requirements, BDD scenarios, and supporting docs (architecture, UI/UX design, research report if they exist). Assess spec size for review depth calibration.</step>
   <step n="1.5" name="Requirements and BDD Coverage Check (BLOCKING)">For EACH acceptance criterion in requirements: verify there is a corresponding spec section that addresses it. For EACH BDD scenario: verify the spec describes behavior that would satisfy it. For architecture/UI design docs (if present): verify the spec's technical approach aligns with architecture decisions and the implementation plan reflects design patterns. Build a coverage matrix: AC-ID → spec section, SCENARIO-ID → spec section, architecture decision → spec alignment. Any uncovered AC or scenario is a High severity finding. Any contradiction with architecture is Critical.</step>

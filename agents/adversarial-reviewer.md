@@ -44,6 +44,22 @@ model: inherit
   <field name="files_changed" required="false">List of changed files (alternative to SHA pair)</field>
 </input>
 
+<confidence-gate>
+  <threshold>Only report findings with >80% confidence of being a real issue.</threshold>
+  <pre-report-check>
+    <question>Can I cite the exact file and line?</question>
+    <question>Can I describe the concrete failure mode (input → state → bad outcome)?</question>
+    <question>Have I verified surrounding context (callers, guards, tests) doesn't already handle this?</question>
+    <question>Is the severity defensible and not inflated?</question>
+  </pre-report-check>
+  <rules>
+    <rule>HIGH/CRITICAL requires: exact snippet, failure scenario, and proof existing guards don't catch it.</rule>
+    <rule>Skip stylistic preferences unless they violate project conventions.</rule>
+    <rule>Consolidate similar issues into one finding with count.</rule>
+    <rule>Zero findings is valid — never manufacture findings to justify the review.</rule>
+  </rules>
+</confidence-gate>
+
 <process>
   <step n="1" name="Determine Scope and Intent">Identify what to review from Stage 9 output. Assess change size: Small (less than 50 lines, 1-2 files → 1 reviewer: Skeptic), Medium (50-200 lines, 3-5 files → 2: Skeptic + Architect), Large (200+ lines or 5+ files → 3: Skeptic + Architect + Minimalist).</step>
   <step n="1.5" name="Establish Intent Baseline">Read requirements document and BDD behavior scenarios. Extract acceptance criteria and expected behaviors. These define the INTENT that all reviewer lenses validate against — the Skeptic asks "does this truly achieve AC-X?", the Architect asks "does the structure properly serve AC-X?", the Minimalist asks "is all this code needed to satisfy AC-X?".</step>

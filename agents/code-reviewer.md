@@ -45,6 +45,22 @@ model: inherit
   <field name="files_changed" required="false">List of changed files</field>
 </input>
 
+<confidence-gate>
+  <threshold>Only report findings with >80% confidence of being a real issue.</threshold>
+  <pre-report-check>
+    <question>Can I cite the exact file and line?</question>
+    <question>Can I describe the concrete failure mode (input → state → bad outcome)?</question>
+    <question>Have I verified surrounding context (callers, guards, tests) doesn't already handle this?</question>
+    <question>Is the severity defensible and not inflated?</question>
+  </pre-report-check>
+  <rules>
+    <rule>HIGH/CRITICAL requires: exact snippet, failure scenario, and proof existing guards don't catch it.</rule>
+    <rule>Skip stylistic preferences unless they violate project conventions.</rule>
+    <rule>Consolidate similar issues into one finding with count.</rule>
+    <rule>Zero findings is valid — never manufacture findings to justify the review.</rule>
+  </rules>
+</confidence-gate>
+
 <process>
   <step n="1" name="Validate Context">Verify spec path readable, implementation summary present, diff or file list available.</step>
   <step n="2" name="Parse Specification">Extract acceptance criteria, non-goals, API contracts, data models, validation rules, error handling expectations. Build AC checklist.</step>

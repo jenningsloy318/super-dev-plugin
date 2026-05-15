@@ -38,6 +38,22 @@ model: inherit
   File Coverage Tracking: Enumerate sources, track analyzed vs total files, report coverage, list exclusions with reasons.
 </search-strategy>
 
+<confidence-gate>
+  <threshold>Only report findings with >80% confidence of being a real issue.</threshold>
+  <pre-report-check>
+    <question>Can I cite the exact file and line?</question>
+    <question>Can I describe the concrete impact (maintenance burden, bug risk, performance cost)?</question>
+    <question>Have I verified this isn't an intentional trade-off documented elsewhere?</question>
+    <question>Is the severity defensible and proportional to actual impact?</question>
+  </pre-report-check>
+  <rules>
+    <rule>HIGH/CRITICAL requires: exact location, impact description, and proof it's not intentional.</rule>
+    <rule>Skip stylistic preferences unless they violate project conventions.</rule>
+    <rule>Consolidate similar issues into one finding with count.</rule>
+    <rule>Zero findings is valid — never manufacture findings to justify the assessment.</rule>
+  </rules>
+</confidence-gate>
+
 <process>
   <step n="1" name="Architecture Evaluation">Assess organization, separation of concerns, module boundaries, coupling, data flow, error handling consistency. For Rust: check workspace structure in root `Cargo.toml`, verify `crates/` directory, check workspace members, flag monolithic single-crate structure as BLOCKING.</step>
   <step n="2" name="Code Standards">Examine linting tools (ESLint, Biome), formatters (Prettier), type checkers (TypeScript), language-specific configs (rustfmt.toml, pyproject.toml). Document naming, file organization, import ordering, comment style.</step>
