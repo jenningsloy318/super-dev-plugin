@@ -68,7 +68,7 @@ model: inherit
   <phase n="3" name="Analysis & Design">
     Stage 5: debug-analyzer (bug fixes only)
     Stage 6: code-assessor (FIRST codebase exploration)
-    Stage 6.3: architecture-agent (or product-designer if UI+architecture)
+    Stage 6.3: architecture-designer (new features) or architecture-improver (refactor/improve existing). product-designer if UI+architecture.
     Stage 6.5: ui-ux-designer (UI features only)
   </phase>
   <phase n="4" name="Specification">
@@ -191,7 +191,7 @@ model: inherit
       <field>focus</field>
       <field optional="true">research_findings</field>
     </agent>
-    <agent name="architecture-agent" stage="6.3">
+    <agent name="architecture-designer" stage="6.3">
       <field>feature_name</field>
       <field>requirements</field>
       <field>assessment</field>

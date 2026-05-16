@@ -95,5 +95,5 @@
 </reference>
 
 <references>
-  <ref>Extracted from `super-dev:architecture-agent`. For full agent behavior during Stage 6.3, invoke with subagent_type "super-dev:architecture-agent".</ref>
+  <ref>Extracted from `super-dev:architecture-designer`. For full agent behavior during Stage 6.3, invoke with subagent_type "super-dev:architecture-designer".</ref>
 </references>

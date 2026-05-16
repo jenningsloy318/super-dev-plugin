@@ -1,6 +1,6 @@
 ---
-name: architecture-agent
-description: Produce concise, implementation-ready architecture with module decomposition, interfaces, ADRs, and validation
+name: architecture-designer
+description: Design new feature architecture with module decomposition, interfaces, ADRs, and validation. Use for greenfield features or new modules.
 model: inherit
 ---
 

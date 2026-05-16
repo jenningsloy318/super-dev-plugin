@@ -25,7 +25,7 @@
       }
     },
     "stage6-designer": {
-      "match": ["super-dev:architecture-agent", "super-dev:product-designer", "super-dev:ui-ux-designer"],
+      "match": ["super-dev:architecture-designer", "super-dev:architecture-improver", "super-dev:product-designer", "super-dev:ui-ux-designer"],
       "gate": {
         "stage": "6",
         "description": "Design (Stage 6.x) requires code assessment",

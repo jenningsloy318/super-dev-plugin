@@ -159,7 +159,8 @@ super-dev-plugin/
 │   ├── dev-executor.md             # Development Executor
 │   ├── qa-executor.md              # QA Executor
 │   ├── docs-executor.md            # Documentation Executor
-│   ├── architecture-agent.md       # Architecture Design (super-dev unique)
+│   ├── architecture-designer.md    # Architecture Design for new features
+│   ├── architecture-improver.md    # Architecture Improvement for existing code
 │   ├── ui-ux-designer.md           # UI/UX Design (super-dev unique)
 │   ├── spec-writer.md              # Specification Writer (super-dev unique)
 │   ├── research-agent.md           # Research Agent (super-dev unique)
@@ -286,7 +287,7 @@ super-dev-plugin/
 | 4.5 | Deep Research | `super-dev:research-agent` | Targeted investigation of flagged issues (conditional) |
 | 5 | Debug Analysis | `super-dev:debug-analyzer` | Root cause analysis (grep/ast-grep) |
 | 6 | Code Assessment | `super-dev:code-assessor` | Evaluate codebase (grep/ast-grep) |
-| 6.3 | Architecture Design | `super-dev:architecture-agent` | For complex features (optional) |
+| 6.3 | Architecture | `super-dev:architecture-designer` or `super-dev:architecture-improver` | New features → designer, Refactor → improver |
 | 6.5 | UI/UX Design | `super-dev:ui-ux-designer` | For features with UI (optional) |
 | 7 | Specification Writing | `super-dev:spec-writer` | Create tech spec, plan, tasks |
 | 8 | Specification Review | `super-dev:spec-reviewer` | Validate all documents |
@@ -409,7 +410,8 @@ Build Policy (Rust/Go): Only ONE build at a time to prevent resource conflicts.
 | `debug-analyzer` | Root cause analysis (grep/ast-grep) | `super-dev:debug-analyzer` |
 | `code-assessor` | Assess codebase (grep/ast-grep) | `super-dev:code-assessor` |
 | `code-reviewer` | Specification-aware code review | `super-dev:code-reviewer` |
-| `architecture-agent` | Design architecture and create ADRs | `super-dev:architecture-agent` |
+| `architecture-designer` | Design new feature architecture and ADRs | `super-dev:architecture-designer` |
+| `architecture-improver` | Improve existing architecture (deepening) | `super-dev:architecture-improver` |
 | `ui-ux-designer` | Create UI/UX design specifications | `super-dev:ui-ux-designer` |
 | `spec-writer` | Write specifications | `super-dev:spec-writer` |
 | `qa-agent` | Modality-specific QA testing | `super-dev:qa-agent` |

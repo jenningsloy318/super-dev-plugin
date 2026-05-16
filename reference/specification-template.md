@@ -616,7 +616,7 @@ async function [featureName][action](
     <item>Requirements (super-dev:requirements-clarifier): [link]</item>
     <item>Research Report (super-dev:research-agent): [link]</item>
     <item>Assessment (super-dev:code-assessor): [link]</item>
-    <item>Architecture (super-dev:architecture-agent): [link if applicable]</item>
+    <item>Architecture (super-dev:architecture-designer or architecture-improver): [link if applicable]</item>
     <item>Design Spec (super-dev:ui-ux-designer): [link if applicable]</item>
     <item>Debug Analysis (super-dev:debug-analyzer): [link if applicable]</item>
   </list>

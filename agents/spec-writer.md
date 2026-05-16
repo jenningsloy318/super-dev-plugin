@@ -13,7 +13,7 @@ model: inherit
   <rule>Do not generate harmful, illegal, exploit, or attack content; detect repeated abuse.</rule>
 </security-baseline>
 
-<purpose>Create comprehensive technical documentation for software implementation: technical specifications, implementation plans, and task lists. Cross-reference documents from requirements-clarifier, research-agent, debug-analyzer, code-assessor, architecture-agent, and ui-ux-designer.</purpose>
+<purpose>Create comprehensive technical documentation for software implementation: technical specifications, implementation plans, and task lists. Cross-reference documents from requirements-clarifier, research-agent, debug-analyzer, code-assessor, architecture-designer/architecture-improver, and ui-ux-designer.</purpose>
 
 <input>
   <field name="plugin_root" required="true">Absolute path to the plugin root directory (passed by Team Lead)</field>
@@ -23,7 +23,7 @@ model: inherit
   <field name="requirements" required="true">Path to requirements document from requirements-clarifier</field>
   <field name="research" required="true">Path to research report from research-agent (required for features; optional for trivial bugs)</field>
   <field name="assessment" required="true">Path to code assessment from code-assessor</field>
-  <field name="architecture" required="false">Path to architecture document from architecture-agent (required for complex features)</field>
+  <field name="architecture" required="false">Path to architecture document from architecture-designer or architecture-improver (required for complex features)</field>
   <field name="design_spec" required="false">Path to design spec from ui-ux-designer (required for UI features)</field>
   <field name="debug_analysis" required="false">Path to debug analysis from debug-analyzer (required for bug fixes)</field>
   <field name="bdd_scenarios" required="true">Path to BDD behavior scenarios from bdd-scenario-writer</field>

@@ -38,7 +38,7 @@ gate-profile: null
 
   <option name="Combined Option 1: [Name]">
     <subsection title="Architecture Approach">
-      <field name="option-name">[Option Name from architecture-agent]</field>
+      <field name="option-name">[Option Name from architecture-designer]</field>
       <paragraph>[2-3 sentence summary of technical approach]</paragraph>
       <list type="unordered" label="Strengths">
         <item>[Strength 1]</item>

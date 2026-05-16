@@ -29,7 +29,14 @@ license: MIT
   <stage n="4.5" name="Deep Research">Conditional: only if Stage 4 report identifies issues, flaws, or ambiguities. Spawn research-agent in deep-research mode targeting specific issues. Loop until all issues are clearly understood (max 3 iterations).</stage>
   <stage n="5" name="Debug Analysis">Spawn debug-analyzer. Only for bug fixes — skip otherwise.</stage>
   <stage n="6" name="Code Assessment">Spawn code-assessor. FIRST stage allowed to read/grep/explore the codebase.</stage>
-  <stage n="6.3" name="Architecture Design">Spawn architecture-agent. Selection: Architecture ONLY → 6.3. UI ONLY → 6.5. BOTH → 6.4 (product-designer).</stage>
+  <stage n="6.3" name="Architecture">
+    Route based on task type:
+    - NEW feature/module → spawn architecture-designer (design from scratch: module decomposition, interfaces, ADRs, evaluation matrix)
+    - IMPROVE existing code (refactor, testability, structural optimization) → spawn architecture-improver (deepening analysis: find shallow modules, Design It Twice, migration path)
+    - UI ONLY → skip to 6.5
+    - BOTH architecture + UI → spawn product-designer (6.4)
+    Selection signal: requirements doc mentions "refactor", "improve", "testability", "restructure" → architecture-improver. Otherwise → architecture-designer.
+  </stage>
   <stage n="6.5" name="UI/UX Design">Spawn ui-ux-designer. Only if UI feature.</stage>
   <stage n="7" name="Specification Writing">Spawn spec-writer + doc-validator (parallel). Produces specification, implementation plan, task list. Gate: gate-spec-trace.sh.</stage>
   <stage n="8" name="Specification Review">Spawn spec-reviewer + doc-validator (parallel). Reviewer MUST verify spec covers ALL requirements ACs, ALL BDD scenarios, and aligns with architecture/UI design decisions. Gate: gate-spec-review.sh. On failure: follow Spec Iteration Loop.</stage>
