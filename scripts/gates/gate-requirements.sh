@@ -10,7 +10,7 @@ set -euo pipefail
 SPEC_DIR="${1:?Usage: gate-requirements.sh <spec-dir>}"
 source "$(dirname "$0")/gate-lib.sh"
 
-REQ_FILE=$(find "$SPEC_DIR" -maxdepth 1 -name '*-requirements.md' -type f 2>/dev/null | head -1)
+REQ_FILE=$(find_spec_file '*-requirements.md')
 if [ -z "$REQ_FILE" ]; then
     echo "GATE FAIL: No *-requirements.md file found in: ${SPEC_DIR}"
     exit 1

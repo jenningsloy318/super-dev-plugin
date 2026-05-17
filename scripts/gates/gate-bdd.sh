@@ -10,8 +10,8 @@ set -euo pipefail
 SPEC_DIR="${1:?Usage: gate-bdd.sh <spec-dir>}"
 source "$(dirname "$0")/gate-lib.sh"
 
-BDD_FILE=$(find "$SPEC_DIR" -maxdepth 1 -name '*-bdd-scenarios.md' -type f 2>/dev/null | head -1)
-REQ_FILE=$(find "$SPEC_DIR" -maxdepth 1 -name '*-requirements.md' -type f 2>/dev/null | head -1)
+BDD_FILE=$(find_spec_file '*-bdd-scenarios.md')
+REQ_FILE=$(find_spec_file '*-requirements.md')
 
 # Check BDD file exists (dynamic discovery)
 if [ -z "$BDD_FILE" ] || [ ! -f "$BDD_FILE" ]; then

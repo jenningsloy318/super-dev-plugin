@@ -252,7 +252,7 @@ model: inherit
   </phase>
 
   <phase name="Implementation">
-    <agent name="td-guide" stage="9" has="plugin_root?">
+    <agent name="tdd-guide" stage="9" has="plugin_root?">
       <field>requirements</field>
       <field>bdd_scenarios</field>
       <field>specification</field>

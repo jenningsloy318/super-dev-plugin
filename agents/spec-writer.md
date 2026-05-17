@@ -43,7 +43,7 @@ model: inherit
   <constraint name="Naming conventions">No generic names (data, item, value, result). Feature-specific prefixes. Verb-noun function names. UPPER_CASE constants. is/has/should boolean prefixes. No single-letter names except loop indices.</constraint>
   <constraint name="Ambiguity prevention">Single implementation guarantee. All names specified. All behaviors explicit. All error cases documented. No pronouns, "etc.", or vague words. All data structures fully defined.</constraint>
   <constraint name="File inventory">Complete lists of files to be created, modified, and deleted with specific names.</constraint>
-  <constraint name="Relative paths only">never use absolute paths</constraint>
+  <constraint name="Paths in spec content">Use relative paths inside specification documents (for portability). But all file I/O operations (Read/Write/Edit) MUST use absolute paths from worktree_path.</constraint>
 </constraints>
 
 <process name="Sub-Specification Split">

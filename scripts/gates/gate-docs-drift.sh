@@ -11,16 +11,16 @@ SPEC_DIR="${1:?Usage: gate-docs-drift.sh <spec-dir>}"
 source "$(dirname "$0")/gate-lib.sh"
 
 # Check key spec documents exist and are non-empty
-SPEC_FILE=$(find "$SPEC_DIR" -maxdepth 1 -name "*-specification.md" -type f 2>/dev/null | head -1)
+SPEC_FILE=$(find_spec_file "*-specification.md")
 check "Specification exists" "$([ -n "$SPEC_FILE" ] && [ -s "$SPEC_FILE" ] && echo true || echo false)"
 
-IMPL_PLAN=$(find "$SPEC_DIR" -maxdepth 1 -name "*-implementation-plan.md" -type f 2>/dev/null | head -1)
+IMPL_PLAN=$(find_spec_file "*-implementation-plan.md")
 check "Implementation plan exists" "$([ -n "$IMPL_PLAN" ] && [ -s "$IMPL_PLAN" ] && echo true || echo false)"
 
-TASK_LIST=$(find "$SPEC_DIR" -maxdepth 1 -name "*-task-list.md" -type f 2>/dev/null | head -1)
+TASK_LIST=$(find_spec_file "*-task-list.md")
 check "Task list exists" "$([ -n "$TASK_LIST" ] && [ -s "$TASK_LIST" ] && echo true || echo false)"
 
-IMPL_SUMMARY=$(find "$SPEC_DIR" -maxdepth 1 -name "*-implementation-summary.md" -type f 2>/dev/null | head -1)
+IMPL_SUMMARY=$(find_spec_file "*-implementation-summary.md")
 check "Implementation summary exists" "$([ -n "$IMPL_SUMMARY" ] && [ -s "$IMPL_SUMMARY" ] && echo true || echo false)"
 
 # Check spec directory markdown files for leftover TODOs/placeholders

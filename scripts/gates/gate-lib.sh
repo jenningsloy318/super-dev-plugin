@@ -5,6 +5,11 @@ PASS=0
 FAIL=0
 ERRORS=""
 
+find_spec_file() {
+    local pattern="$1"
+    find "$SPEC_DIR" -maxdepth 1 -name "$pattern" -type f 2>/dev/null | head -1
+}
+
 check() {
     local desc="$1"
     local result="$2"

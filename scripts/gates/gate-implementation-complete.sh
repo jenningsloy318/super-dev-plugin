@@ -11,7 +11,7 @@ SPEC_DIR="${1:?Usage: gate-implementation-complete.sh <spec-dir>}"
 source "$(dirname "$0")/gate-lib.sh"
 
 # Find implementation plan
-IMPL_PLAN=$(find "$SPEC_DIR" -name "*implementation-plan*" -type f 2>/dev/null | head -1)
+IMPL_PLAN=$(find_spec_file "*-implementation-plan.md")
 if [ -z "$IMPL_PLAN" ]; then
     check "Implementation plan exists" "false"
     gate_report "Implementation Completeness"

@@ -10,7 +10,7 @@ set -euo pipefail
 SPEC_DIR="${1:?Usage: gate-spec-review.sh <spec-dir>}"
 source "$(dirname "$0")/gate-lib.sh"
 
-REVIEW_FILE=$(find "$SPEC_DIR" -maxdepth 1 -name '*-spec-review.md' -type f 2>/dev/null | head -1)
+REVIEW_FILE=$(find_spec_file '*-spec-review.md')
 
 # Check review file exists
 if [ -z "$REVIEW_FILE" ] || [ ! -f "$REVIEW_FILE" ]; then

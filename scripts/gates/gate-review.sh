@@ -11,7 +11,7 @@ SPEC_DIR="${1:?Usage: gate-review.sh <spec-dir>}"
 source "$(dirname "$0")/gate-lib.sh"
 
 # Find code review file
-CODE_REVIEW=$(find "$SPEC_DIR" -name "*code-review*" -type f 2>/dev/null | head -1)
+CODE_REVIEW=$(find_spec_file "*code-review*")
 if [ -n "$CODE_REVIEW" ]; then
     # Check for approved verdict
     cr_verdict=$(grep -iE '(approved|changes requested|blocked)' "$CODE_REVIEW" | head -1 || echo "")
@@ -32,7 +32,7 @@ else
 fi
 
 # Find adversarial review file
-ADV_REVIEW=$(find "$SPEC_DIR" -name "*adversarial*" -type f 2>/dev/null | head -1)
+ADV_REVIEW=$(find_spec_file "*adversarial*")
 if [ -n "$ADV_REVIEW" ]; then
     # Check for PASS verdict
     adv_verdict=$(grep -iE '(PASS|REJECT|HALT)' "$ADV_REVIEW" | head -1 || echo "")
