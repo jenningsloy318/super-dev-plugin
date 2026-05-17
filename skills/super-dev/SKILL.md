@@ -55,10 +55,10 @@ license: MIT
     <step n="1" name="Spec Index">Scan main repo's `specification/` directory for highest `[XX]` prefix. Next index = max + 1 (zero-padded).</step>
     <step n="2" name="Spec Name">Derive from user request (e.g., "add auth" → `add-auth`). Kebab-case, lowercase.</step>
     <step n="3" name="Spec Identifier">Define as `[spec-index]-[spec-name]` (e.g., `22-xml-restructure`). Use this identifier for worktree, branch, spec directory, and all references.</step>
-    <step n="4" name="Worktree">Create worktree: `git worktree add .worktree/[spec-identifier] -b [spec-identifier]`. Branch name = spec-identifier. Then `cd .worktree/[spec-identifier]`. ALL subsequent file operations happen inside the worktree.</step>
-    <step n="5" name="Spec Directory">Create `specification/[spec-identifier]/` INSIDE the worktree.</step>
+    <step n="4" name="Worktree">Create worktree: `git worktree add .worktree/[spec-identifier] -b [spec-identifier]`. Immediately compute and store WORKTREE_PATH as the absolute path: `WORKTREE_PATH="$(cd .worktree/[spec-identifier] && pwd)"`. Store this value in the workflow tracking JSON under `worktreePath`. ALL subsequent operations use this absolute path.</step>
+    <step n="5" name="Spec Directory">Create `specification/[spec-identifier]/` INSIDE the worktree using absolute path: `mkdir -p $WORKTREE_PATH/specification/[spec-identifier]`.</step>
     <step n="6" name="Agent Team">Create team named `super-dev-[spec-name]` (e.g., `super-dev-xml-restructure`). All agents spawn into this team.</step>
-    <step n="7" name="Workflow JSON">Create `[spec-identifier]-workflow-tracking.json` in the worktree spec directory using template from `${PLUGIN_ROOT}/reference/workflow-tracking-template.json`. CRITICAL: `stages` MUST be a JSON array `[{id, name, status, startedAt, completedAt}, ...]` — NEVER a keyed object. Timestamps: ISO 8601 with seconds precision.</step>
+    <step n="7" name="Workflow JSON">Create `[spec-identifier]-workflow-tracking.json` in the worktree spec directory using template from `${PLUGIN_ROOT}/reference/workflow-tracking-template.json`. CRITICAL: `stages` MUST be a JSON array `[{id, name, status, startedAt, completedAt}, ...]` — NEVER a keyed object. Timestamps: ISO 8601 with seconds precision. Include `"worktreePath": "<absolute path>"` at the top level.</step>
   </process>
 
   <process name="First-Run Configuration">
@@ -97,9 +97,12 @@ license: MIT
 
   <process name="Worktree Enforcement (PRE-STAGE GATE)">
 
-    At the START of every stage (Stage 3 onwards), before ANY action, run: `pwd | grep -q '\.worktree/'`
+    At the START of every stage (Stage 3 onwards), before ANY action:
 
-    If check fails: ABORT immediately. Do not proceed, do not spawn agents, do not read/write files. Print error: "WORKTREE VIOLATION: pwd is not inside .worktree/. Either run Stage 2 to create a worktree, or cd to the existing worktree (cd .worktree/[spec-name])."
+    <step n="1" name="Read WORKTREE_PATH">Read `worktreePath` from the workflow tracking JSON. This is the absolute path (e.g., `/home/user/project/.worktree/22-add-auth`). Store as WORKTREE_PATH for this stage.</step>
+    <step n="2" name="Verify Exists">Run: `test -d "$WORKTREE_PATH"`. If fails → ABORT: "WORKTREE VIOLATION: $WORKTREE_PATH does not exist. Run Stage 2 first."</step>
+    <step n="3" name="Prefix All Commands">Every Bash command in Stage 3+ MUST use: `cd $WORKTREE_PATH && <command>`. No exceptions. This ensures even if shell state resets between calls, you always land in the worktree.</step>
+    <step n="4" name="Absolute Paths Only">ALL file paths passed to agents or used in Read/Write/Edit MUST be absolute paths starting with $WORKTREE_PATH. Relative paths are FORBIDDEN — they resolve against the wrong root.</step>
 
     This applies to ALL stages ≥3, not just agent spawning. File reads, greps, builds, commits — everything must happen inside the worktree. Wrong pwd means wrong relative paths for gate scripts, specs, and agent work.
   </process>
@@ -193,8 +196,9 @@ license: MIT
 </criteria>
 
 <constraints>
-  <constraint name="Worktree-Only Modifications">NEVER modify files in the main repo. ALL file operations MUST happen inside the worktree. Only exception: Stage 2 scanning main repo's specification/ for next index (read-only). Stage 13 merges to main.</constraint>
-  <constraint name="Worktree Paths in Spawn Prompts">ALL paths passed to agents MUST be worktree-relative. Verify every path contains `.worktree/` before spawning. Wrong paths corrupt the main branch.</constraint>
+  <constraint name="Worktree-Only Modifications">NEVER modify files in the main repo. ALL file operations MUST use absolute paths starting with WORKTREE_PATH. Only exception: Stage 2 scanning main repo's specification/ for next index (read-only). Stage 13 merges to main.</constraint>
+  <constraint name="Worktree Paths in Spawn Prompts">ALL paths passed to agents MUST be absolute paths starting with WORKTREE_PATH. Before spawning, validate EVERY path argument contains the worktree absolute path. Relative paths or main-repo paths are a CRITICAL violation.</constraint>
+  <constraint name="cd-Prefix Rule">Every Bash tool call in Stage 3+ MUST begin with `cd $WORKTREE_PATH &&`. Shell state does NOT persist between tool calls — without this prefix, commands execute in the wrong directory.</constraint>
   <constraint name="Delegation Mode">Team Lead spawns teammates for ALL work. Never implements directly. No exceptions for "small fixes" or "one-line changes".</constraint>
   <constraint name="Iteration Rules">Stage 7/8: follow Spec Iteration Loop. Stage 9/10: follow Implementation Completeness Loop + Implementation Iteration Loop. Both: max 3 iterations, spawn sub-agents for fixes, escalate after 3.</constraint>
   <constraint name="Implementation Completeness">Do NOT proceed from Stage 10 to Stage 11 until ALL phases in the implementation-plan are implemented and reviewed. Partial implementation is a CRITICAL violation.</constraint>

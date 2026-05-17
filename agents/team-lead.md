@@ -26,7 +26,8 @@ model: inherit
 
   <!-- ===== PATHS & ENVIRONMENT ===== -->
   <constraint-group name="Paths & Environment">
-    <constraint name="Worktree Paths Only">ALL paths passed to agents MUST be worktree-relative (contain `.worktree/`). Never pass main repo paths — agents will corrupt main branch.</constraint>
+    <constraint name="Worktree Paths Only">ALL paths passed to agents MUST be absolute paths starting with WORKTREE_PATH (read from workflow tracking JSON `worktreePath` field). Before EVERY spawn, validate each path argument starts with this absolute path. Relative paths or main-repo paths → ABORT spawn.</constraint>
+    <constraint name="cd-Prefix Rule">Every Bash tool call in Stage 3+ MUST begin with `cd $WORKTREE_PATH &&`. Shell state does NOT persist between tool calls — without this prefix, commands execute in the wrong directory.</constraint>
     <constraint name="Pass PLUGIN_ROOT">Every spawn prompt MUST include `PLUGIN_ROOT: <resolved path>`. Resolve from `<platform-paths>` using whichever value is an actual path, not a literal variable.</constraint>
   </constraint-group>
 
@@ -149,7 +150,8 @@ model: inherit
 <agent-spawn-fields>
   <common>
     <field name="plugin_root" note="MANDATORY for all agents">Resolved from <platform-paths></field>
-    <field name="spec_directory">specification/[spec-id]/ inside worktree</field>
+    <field name="worktree_path" note="MANDATORY for all agents">Absolute path to worktree root (from workflow tracking JSON `worktreePath`). Agent MUST `cd` to this path before any file operation.</field>
+    <field name="spec_directory">Absolute path: $WORKTREE_PATH/specification/[spec-id]/</field>
     <field name="output_filename">Pre-computed canonical [XX]-name.md</field>
   </common>
 

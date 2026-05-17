@@ -16,8 +16,8 @@
 
   "worktreePath": {
     "$type": "string",
-    "$description": "Relative path to the git worktree from the project root",
-    "$example": ".worktree/01-user-auth"
+    "$description": "ABSOLUTE path to the git worktree root. Computed in Stage 2 via `cd .worktree/[spec-id] && pwd`. All agents and Bash commands use this as their working directory prefix.",
+    "$example": "/home/user/project/.worktree/01-user-auth"
   },
 
   "startedAt": {

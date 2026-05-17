@@ -18,6 +18,7 @@ description: Agent orchestration rules for usage, parallel execution, and termin
 </reference>
 
 <directives>
+  <directive severity="critical" name="Worktree-First Action">When an agent receives `worktree_path` in its spawn prompt, its FIRST action in any Bash call MUST be `cd $WORKTREE_PATH && <command>`. ALL file paths used in Read/Write/Edit MUST be absolute paths starting with the provided worktree_path. Never use relative paths — shell state does NOT persist between tool calls.</directive>
   <directive severity="high" name="Immediate agent usage">No user prompt needed: Complex features → planner, Code written/modified → code-reviewer, Bug fix or new feature → tdd-guide, New architecture → architecture-designer, Improve existing architecture → architecture-improver</directive>
   <directive severity="high" name="Parallel Task execution">ALWAYS use parallel execution for independent operations. Never run sequentially when tasks are independent.</directive>
   <directive severity="high" name="Sequential TDD workflow">Stage 9 is strictly sequential: tdd-guide (9.1) → domain specialist (9.2) → qa-agent (9.3). Each step MUST complete before the next begins.</directive>
