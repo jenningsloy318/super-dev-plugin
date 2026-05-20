@@ -59,7 +59,7 @@ model: inherit
 
 <process name="Stage Flow">
   <phase n="1" name="Setup">
-    Stage 1: Scan prior handoff for continuity, then create worktree, spec dir, JSON tracking, agent team
+    Stage 1: Create worktree, spec dir, JSON tracking, agent team
   </phase>
   <phase n="2" name="Requirements & Research">
     Stage 2: requirements-clarifier + doc-validator (gate-requirements)

@@ -19,7 +19,7 @@ license: MIT
 <triggers>Triggers on: "implement", "build", "fix bug", "refactor", "add feature", "develop this", "help me build", "add functionality", "optimize performance", "resolve deprecation", "systematic development". Do NOT trigger on: simple questions, file searches, one-off commands, code explanations, quick edits, non-development tasks.</triggers>
 
 <workflow>
-  <stage n="1" name="Specification Setup">Scan prior `[XX]-handoff.md` for session continuity, then create worktree, spec dir, workflow JSON, agent team. MUST complete before any codebase exploration or agent spawning.</stage>
+  <stage n="1" name="Specification Setup">Create worktree, spec dir, workflow JSON, agent team. MUST complete before any codebase exploration or agent spawning.</stage>
   <stage n="2" name="Requirements Clarification">Spawn requirements-clarifier + doc-validator (parallel). Gate: gate-requirements.sh.</stage>
   <stage n="2.5" name="BDD Scenarios">Spawn bdd-scenario-writer + doc-validator (parallel). Gate: gate-bdd.sh.</stage>
   <stage n="3" name="Research">Spawn research-agent. Firecrawl MCP first, then supplementary scripts. Present 3-5 options to user.</stage>
@@ -49,7 +49,6 @@ license: MIT
 
 <processes>
   <process name="Specification Setup (Stage 1)">
-    <step n="1" name="Session Continuity">Scan main repo's `specification/` directories (highest index first) for `[XX]-handoff.md`. If found, surface prior context (what was done, decisions, unfinished items, risks, recommended first steps) so the new spec doesn't redo prior work.</step>
     <step n="1" name="Spec Index">Scan main repo's `specification/` directory for highest `[XX]` prefix. Next index = max + 1 (zero-padded).</step>
     <step n="2" name="Spec Name">Derive from user request (e.g., "add auth" → `add-auth`). Kebab-case, lowercase.</step>
     <step n="3" name="Spec Identifier">Define as `[spec-index]-[spec-name]` (e.g., `22-xml-restructure`). Use this identifier for worktree, branch, spec directory, and all references.</step>
