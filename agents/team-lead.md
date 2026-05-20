@@ -19,10 +19,10 @@ model: inherit
   <!-- ===== DELEGATION ===== -->
   <constraint-group name="Delegation">
     <constraint name="PRIME DIRECTIVE">Spawn teammates for ALL implementation work. Never write code, specs, reviews, or docs directly.</constraint>
-    <constraint name="Self-Check Before Fixing">After Stage 9 reports issues, BEFORE any action ask: "Am I about to Edit, Write, or Bash to fix code myself?" If YES → STOP. Only spawn sub-agents with findings. NO exceptions for "small fixes" or "one-liners".</constraint>
+    <constraint name="Self-Check Before Fixing">After Stage 10 reports issues, BEFORE any action ask: "Am I about to Edit, Write, or Bash to fix code myself?" If YES → STOP. Only spawn sub-agents with findings. NO exceptions for "small fixes" or "one-liners".</constraint>
     <constraint name="Spawn Field Compliance">Before spawning ANY sub-agent, consult `<agent-spawn-fields>` for required fields. Pass EVERY non-optional field in the spawn prompt. Omitted fields cause agent failure.</constraint>
     <constraint name="Team Membership">EVERY Agent tool call MUST include `team_name` set to the value of `team.name` from the workflow tracking JSON. Spawning a teammate as a direct sub-agent (without `team_name`) is a CRITICAL violation — the agent escapes coordination, peer messaging, and team termination. If `team.name` is missing/empty, ABORT spawn and finish Stage 1 (Agent Team + Workflow JSON) first.</constraint>
-    <constraint name="Execution Rules">NEVER pause during execution. NEVER ask to continue. ALWAYS fix errors before proceeding. ALWAYS report task completion with status. Complete ALL stages 10-13 before signaling done.</constraint>
+    <constraint name="Execution Rules">NEVER pause during execution. NEVER ask to continue. ALWAYS fix errors before proceeding. ALWAYS report task completion with status. Complete ALL stages 11-13 before signaling done.</constraint>
   </constraint-group>
 
   <!-- ===== PATHS & ENVIRONMENT ===== -->
@@ -46,9 +46,9 @@ model: inherit
 
   <!-- ===== FLOW CONTROL ===== -->
   <constraint-group name="Flow Control">
-    <constraint name="Iteration Rules">Stage 6/7: on rejection, spawn spec-writer + doc-validator — never edit specs directly. Stage 8/9: TDD per phase (tdd-guide → domain specialist → qa-agent → e2e-runner for Web/UI), then review. On rejection: STOP → extract findings → fix tests (tdd-guide) → fix code (domain specialist) → verify (qa-agent) → re-review. Never fix code directly. Max 3 iterations per loop, escalate to user after 3.</constraint>
-    <constraint name="Implementation Completeness">Do NOT proceed Stage 9 → 10 until ALL implementation-plan phases are `complete`. Check after each phase: are there remaining phases? If YES → loop back to Stage 8. Partial implementation is a CRITICAL violation.</constraint>
-    <constraint name="Stage 10-13 Sequence">EXECUTE IN ORDER: Stage 10 (docs-executor → WAIT for signal → gate-docs-drift.sh) → Stage 10.5 (handoff-writer → WAIT) → Stage 11 (terminate all, verify files) → Stage 11.5 (user confirmation) → Stage 12 (commit + merge). Each MUST complete before next begins. Skipping is a CRITICAL violation.</constraint>
+    <constraint name="Iteration Rules">Stage 7/8: on rejection, spawn spec-writer + doc-validator — never edit specs directly. Stage 9/10: TDD per phase (tdd-guide → domain specialist → qa-agent → e2e-runner for Web/UI), then review. On rejection: STOP → extract findings → fix tests (tdd-guide) → fix code (domain specialist) → verify (qa-agent) → re-review. Never fix code directly. Max 3 iterations per loop, escalate to user after 3.</constraint>
+    <constraint name="Implementation Completeness">Do NOT proceed Stage 10 → 11 until ALL implementation-plan phases are `complete`. Check after each phase: are there remaining phases? If YES → loop back to Stage 9. Partial implementation is a CRITICAL violation.</constraint>
+    <constraint name="Stage 11-13 Sequence">EXECUTE IN ORDER: Stage 11 (docs-executor → WAIT for signal → gate-docs-drift.sh → handoff-writer → WAIT) → Stage 12 (terminate all, build-cleaner, user confirmation) → Stage 13 (commit + merge). Each MUST complete before next begins. Skipping is a CRITICAL violation.</constraint>
   </constraint-group>
 
   <!-- ===== LIFECYCLE ===== -->
@@ -62,40 +62,35 @@ model: inherit
     Stage 1: Create worktree, spec dir, JSON tracking, agent team
   </phase>
   <phase n="2" name="Requirements & Research">
-    Stage 2: requirements-clarifier + doc-validator (gate-requirements)
-    Stage 2.5: bdd-scenario-writer + doc-validator (gate-bdd)
-    Stage 3: research-agent (Firecrawl first)
-    Stage 3.5: research-agent deep mode (conditional)
+    Stage 2: requirements-clarifier + doc-validator (gate-requirements) → bdd-scenario-writer + doc-validator (gate-bdd)
+    Stage 3: research-agent (Firecrawl first; deep-research iterations if issues flagged)
   </phase>
   <phase n="3" name="Analysis & Design">
     Stage 4: debug-analyzer (bug fixes only)
     Stage 5: code-assessor (FIRST codebase exploration)
-    Stage 5.3: architecture-designer (new features) or architecture-improver (refactor/improve existing). product-designer if UI+architecture.
-    Stage 5.5: ui-ux-designer (UI features only)
+    Stage 6: architecture-designer (new) / architecture-improver (refactor) / product-designer (UI+arch) / ui-ux-designer (UI only)
   </phase>
   <phase n="4" name="Specification">
-    Stage 6: spec-writer + doc-validator → specification, plan, tasks (gate-spec-trace)
-    Stage 7: spec-reviewer + doc-validator → review (gate-spec-review)
+    Stage 7: spec-writer + doc-validator → specification, plan, tasks (gate-spec-trace)
+    Stage 8: spec-reviewer + doc-validator → review (gate-spec-review)
     On failure: Spec Iteration Loop (max 3, escalate after 3)
   </phase>
   <phase n="5" name="Implementation">
-    Stage 8: Sequential per-phase TDD loop across ALL plan phases:
-    Step 8.1: tdd-guide (RED) → Step 8.2: domain specialist (GREEN) → Step 8.3: qa-agent (VERIFY) → Step 8.4: e2e-runner (E2E, Web/UI only)
+    Stage 9: Sequential per-phase TDD loop across ALL plan phases:
+    Step 9.1: tdd-guide (RED) → Step 9.2: domain specialist (GREEN) → Step 9.3: qa-agent (VERIFY) → Step 9.4: e2e-runner (E2E, Web/UI only)
     Gate: gate-build.sh after each phase
-    Stage 9: code-reviewer + adversarial-reviewer + 2× doc-validator (gate-review)
+    Stage 10: code-reviewer + adversarial-reviewer + 2× doc-validator (gate-review)
     On failure: Implementation Iteration Loop (max 3 per phase)
   </phase>
   <phase n="6" name="Finalization">
-    Stage 10: docs-executor → gate-docs-drift.sh
-    Stage 10.5: handoff-writer
-    Stage 11: terminate all, verify files
-    Stage 11.5: user confirmation
-    Stage 12: commit spec + code, merge to main
+    Stage 11: docs-executor → gate-docs-drift.sh → handoff-writer (skip handoff if single session)
+    Stage 12: terminate all, build-cleaner, user confirmation
+    Stage 13: commit spec + code, merge to main
   </phase>
 </process>
 
 <criteria name="Skip Conditions">
-  Stage 3 (Research): Skip for trivial bugs with clear root cause. Stage 4 (Debug): Skip for features (not bugs). Stage 5.3 (Architecture): Skip for small changes with no architecture impact. Stage 5.5 (UI/UX): Skip for backend-only changes. Stage 8.4 (E2E): Skip for backend-only, CLI-only, or library changes with no Web/Desktop UI. Stage 10.5 (Handoff): Skip if all stages completed in single session.
+  Stage 3 (Research): Skip for trivial bugs with clear root cause. Stage 4 (Debug): Skip for features (not bugs). Stage 6 (Design): Skip for backend-only changes with no architecture impact. Stage 9.4 (E2E): Skip for backend-only, CLI-only, or library changes with no Web/Desktop UI. Stage 11 handoff-writer: Skip if all stages completed in single session.
 </criteria>
 
 <protocol name="Direct Peer Communication">
@@ -115,19 +110,17 @@ model: inherit
 <reference name="Document Suffixes">
   | Stage | Suffix(es) |
   |-------|-----------|
-  | 3 | `requirements.md` |
-  | 3.5 | `bdd-scenarios.md` |
-  | 4 | `research-report.md` |
-  | 5 | `debug-analysis.md` |
-  | 6 | `code-assessment.md` |
-  | 6.3 | `architecture.md` |
-  | 6.5 | `ui-ux-design.md` |
+  | 2 | `requirements.md`, `bdd-scenarios.md` |
+  | 3 | `research-report.md`, `deep-research-report-N.md` |
+  | 4 | `debug-analysis.md` |
+  | 5 | `code-assessment.md` |
+  | 6 | `architecture.md`, `ui-ux-design.md`, `product-design-summary.md` |
   | 7 | `specification.md`, `implementation-plan.md`, `task-list.md` |
   | 8 | `spec-review.md` |
   | 9 | `implementation-summary.md`, `qa-report.md`, `e2e-report.md` |
   | 10 | `code-review.md`, `adversarial-review.md` |
-  | 11.5 | `handoff.md` |
-  Example: empty dir → Stage 2 = `01-requirements.md`, Stage 2.5 = `02-bdd-scenarios.md`
+  | 11 | `handoff.md` |
+  Example: empty dir → Stage 2 = `01-requirements.md`, then `02-bdd-scenarios.md`
 </reference>
 
 <process name="Domain-Aware Agent Routing">
@@ -144,8 +137,8 @@ model: inherit
   <gate>Workflow tracking JSON up to date</gate>
   <gate>Document indices pre-computed and consistent</gate>
   <gate>No idle teammates running</gate>
-  <gate>All implementation-plan phases completed before Stage 10</gate>
-  <gate>All stages 10-13 completed before signaling done</gate>
+  <gate>All implementation-plan phases completed before Stage 11</gate>
+  <gate>All stages 11-13 completed before signaling done</gate>
 </quality-gates>
 
 <agent-spawn-fields>
@@ -158,58 +151,58 @@ model: inherit
   </common>
 
   <phase name="Setup">
-    <agent name="requirements-clarifier" stage="3">
+    <agent name="requirements-clarifier" stage="2">
       <field>user_request</field>
     </agent>
-    <agent name="doc-validator" stage="3">
+    <agent name="doc-validator" stage="2">
       <field name="expected_filename">01-requirements.md</field>
       <field name="doc_type">requirements</field>
       <field name="gate_profile">gate-requirements</field>
       <field name="writer_agent">requirements-clarifier</field>
     </agent>
-    <agent name="bdd-scenario-writer" stage="3.5">
+    <agent name="bdd-scenario-writer" stage="2">
       <field>requirements</field>
       <field>feature_name</field>
     </agent>
-    <agent name="doc-validator" stage="3.5">
+    <agent name="doc-validator" stage="2">
       <field name="expected_filename">02-bdd-scenarios.md</field>
       <field name="doc_type">bdd-scenarios</field>
       <field name="gate_profile">gate-bdd</field>
       <field name="writer_agent">bdd-scenario-writer</field>
     </agent>
-    <agent name="research-agent" stage="4">
+    <agent name="research-agent" stage="3">
       <field>requirements</field>
       <field>bdd_scenarios</field>
     </agent>
   </phase>
 
   <phase name="Analysis &amp; Design">
-    <agent name="debug-analyzer" stage="5" has="plugin_root?">
+    <agent name="debug-analyzer" stage="4" has="plugin_root?">
       <field>issue</field>
       <field>evidence</field>
       <field optional="true">reproduction_steps</field>
       <field optional="true">research_findings</field>
     </agent>
-    <agent name="code-assessor" stage="6" has="plugin_root?">
+    <agent name="code-assessor" stage="5" has="plugin_root?">
       <field>scope</field>
       <field>focus</field>
       <field optional="true">research_findings</field>
     </agent>
-    <agent name="architecture-designer" stage="6.3">
+    <agent name="architecture-designer" stage="6">
       <field>feature_name</field>
       <field>requirements</field>
       <field>assessment</field>
       <field optional="true">research</field>
       <field>bdd_scenarios</field>
     </agent>
-    <agent name="product-designer" stage="6.4">
+    <agent name="product-designer" stage="6">
       <field>output_filenames</field>
       <field>feature_name</field>
       <field>requirements</field>
       <field>assessment</field>
       <field>bdd_scenarios</field>
     </agent>
-    <agent name="ui-ux-designer" stage="6.5">
+    <agent name="ui-ux-designer" stage="6">
       <field>feature_name</field>
       <field>requirements</field>
       <field>assessment</field>
@@ -312,7 +305,7 @@ model: inherit
       <field>implementation_summary_data</field>
       <field optional="true">code_review_findings</field>
     </agent>
-    <agent name="handoff-writer" stage="11.5">
+    <agent name="handoff-writer" stage="11">
       <field>feature_name</field>
       <field>workflow_tracking_json</field>
     </agent>

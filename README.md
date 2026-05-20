@@ -6,7 +6,7 @@ Enhanced with best practices from [everything-claude-code](https://github.com/af
 
 v2.3.52 — Stage-Based Workflow with Implementation Completeness:
 - Terminology Clarity: Workflow steps renamed from "Phase" to "Stage" (Stage 1–13). "Phase" now exclusively refers to implementation-plan phases (Phase 1, 2, 3…)
-- Implementation Completeness Loop: Stage 8/9 now iterates through ALL implementation-plan phases before proceeding to Stage 10
+- Implementation Completeness Loop: Stage 9/10 now iterates through ALL implementation-plan phases before proceeding to Stage 11
 - Continuous Verification Gates: Programmatic quality checks between every stage handoff (6 gate scripts in `scripts/gates/`)
 - Real Browser Testing: QA agent now runs browser smoke tests using chrome-devtools MCP for web apps
 - Autoresearch Skill: Auto-improve agent prompts using Karpathy's iterative test-measure-improve method
@@ -89,7 +89,7 @@ Directly invoke the `super-dev` skill:
 Invoke the super-dev skill and describe your task
 ```
 
-The Coordinator Agent will orchestrate all 14 stages automatically.
+The Coordinator Agent will orchestrate all 13 stages automatically.
 
 ### Examples
 
@@ -170,7 +170,7 @@ super-dev-plugin/
 │   ├── search-agent.md             # Multi-Source Search
 │   ├── qa-agent.md                 # QA Testing
 │   ├── adversarial-reviewer.md      # Multi-lens Adversarial Review
-│   ├── bdd-scenario-writer.md       # BDD Scenario Generation (Stage 2.5)
+│   ├── bdd-scenario-writer.md       # BDD Scenario Generation (Stage 2)
 │   ├── investigator.md              # Mid-Execution Investigation (any stage, on-demand)
 │   │
 │   # Additional agents:
@@ -253,22 +253,19 @@ super-dev-plugin/
 
 | Stage | Name | Agent/Skill | Description |
 |-------|------|-------------|-------------|
-| 2 | Specification Setup | Coordinator | Scan handoffs for continuity, create worktree, spec dir, team |
-| 3 | Requirements Clarification | `super-dev:requirements-clarifier` | Gather complete requirements |
-| 3.5 | BDD Scenario Writing | `super-dev:bdd-scenario-writer` | Generate Given/When/Then scenarios (MANDATORY) |
-| 4 | Research | `super-dev:research-agent` | Find best practices |
-| 4.5 | Deep Research | `super-dev:research-agent` | Targeted investigation of flagged issues (conditional) |
-| 5 | Debug Analysis | `super-dev:debug-analyzer` | Root cause analysis (grep/ast-grep) |
-| 6 | Code Assessment | `super-dev:code-assessor` | Evaluate codebase (grep/ast-grep) |
-| 6.3 | Architecture | `super-dev:architecture-designer` or `super-dev:architecture-improver` | New features → designer, Refactor → improver |
-| 6.5 | UI/UX Design | `super-dev:ui-ux-designer` | For features with UI (optional) |
-| 7 | Specification Writing | `super-dev:spec-writer` | Create tech spec, plan, tasks |
+| 1 | Specification Setup | Coordinator | Scan handoffs for continuity, create worktree, spec dir, team |
+| 2 | Requirements + BDD | `super-dev:requirements-clarifier` → `super-dev:bdd-scenario-writer` | Gather requirements, then generate Given/When/Then scenarios (MANDATORY) |
+| 3 | Research | `super-dev:research-agent` | Best practices research with optional deep-research follow-up |
+| 4 | Debug Analysis | `super-dev:debug-analyzer` | Root cause analysis (grep/ast-grep) |
+| 5 | Code Assessment | `super-dev:code-assessor` | Evaluate codebase (grep/ast-grep) |
+| 6 | Design | `super-dev:architecture-designer`/`super-dev:architecture-improver` + `super-dev:ui-ux-designer` | Architecture (new → designer, refactor → improver) + UI/UX design (when applicable) |
+| 7 | Specification Writing | `super-dev:spec-writer` | Create tech spec, implementation plan, task list |
 | 8 | Specification Review | `super-dev:spec-reviewer` | Validate all documents |
-| 8-9 | Implementation + Review | PARALLEL: specialists + qa + reviewers | Implement ALL plan phases with review loop |
-| 11 | Documentation | `super-dev:docs-executor` | Update documentation |
-| 11.5 | Handoff | `super-dev:handoff-writer` | Session handoff document |
-| 11-12 | Cleanup & Commit | Coordinator | Terminate agents, commit, merge |
-| 14 | Final Verification | Coordinator | Verify all complete |
+| 9 | Implementation | PARALLEL: 9.1 `tdd-guide` → 9.2 domain specialist → 9.3 `qa-agent` → 9.4 `e2e-runner` (Web/UI) | Implement ALL plan phases iteratively |
+| 10 | Code Review | `super-dev:code-reviewer` + `super-dev:adversarial-reviewer` | Spec-aware + multi-lens review (loops with Stage 9) |
+| 11 | Documentation + Handoff | `super-dev:docs-executor` → `super-dev:handoff-writer` | Update docs, write handoff |
+| 12 | Cleanup | Coordinator | Terminate agents, finalize artifacts |
+| 13 | Commit + Final Verification | Coordinator | Commit, merge, verify all complete |
 
 ## Key Features
 
@@ -280,7 +277,7 @@ super-dev-plugin/
 4. Parallel Execution - Specialists + QA run simultaneously
 5. Build Queue Management - Rust/Go serialization for resource safety
 6. Implementation Completeness Loop - ALL plan phases must be implemented before docs stage
-6. BDD Integration - Mandatory Stage 2.5 for behavior scenario generation with 100% coverage gate
+6. BDD Integration - Mandatory Stage 2 BDD scenario generation with 100% coverage gate
 8. Investigation Protocol - Bounded mid-execution investigation when agents hit unknowns (auto-triggered by dev-executor, qa-agent, code-reviewer)
 
 ### Additional Integrated Features
@@ -327,14 +324,14 @@ Hooks are automatic actions that fire every time Claude edits a file, runs a com
 The stage-gate hook validates that prerequisite artifacts exist before spawning stage agents. It reads `stage-manifest.json` to map agent types to required files:
 
 ```
-Stage 2.5  (BDD)        → requires [doc-index]-requirements.md
+Stage 2    (BDD)         → requires [doc-index]-requirements.md
 Stage 3    (Research)    → requires [doc-index]-requirements.md + [doc-index]-bdd-scenarios.md
 Stage 5    (Assessment)  → requires [doc-index]-research-report.md
-Stage 6    (Spec)        → requires [doc-index]-code-assessment.md
-Stage 8    (Execution)   → requires [doc-index]-specification.md + [doc-index]-implementation-plan.md + [doc-index]-task-list.md
-Stage 9   (Review)      → requires [doc-index]-specification.md
-Stage 10   (Docs)        → requires [doc-index]-specification.md
-Stage 10.5 (Handoff)     → requires [doc-index]-specification.md
+Stage 7    (Spec)        → requires [doc-index]-code-assessment.md
+Stage 9    (Execution)   → requires [doc-index]-specification.md + [doc-index]-implementation-plan.md + [doc-index]-task-list.md + [doc-index]-spec-review.md
+Stage 10   (Review)      → requires [doc-index]-specification.md + [doc-index]-implementation-summary.md
+Stage 11   (Docs)        → requires [doc-index]-specification.md + gate-implementation-complete.sh PASS
+Stage 11   (Handoff)     → requires [doc-index]-specification.md
 ```
 
 The gate also validates required sections within files (e.g., requirements.md must contain "Acceptance Criteria").
@@ -363,7 +360,7 @@ Invoke: `Task(subagent_type: "super-dev:team-lead")`
 
 ### Executor Agents (Parallel Execution)
 
-During Stage 8-10, specialists + QA run in PARALLEL:
+During Stage 9-11, specialists + QA run in PARALLEL:
 
 | Agent | Purpose | Invoke Via |
 |-------|---------|------------|
@@ -388,7 +385,7 @@ Build Policy (Rust/Go): Only ONE build at a time to prevent resource conflicts.
 | `ui-ux-designer` | Create UI/UX design specifications | `super-dev:ui-ux-designer` |
 | `spec-writer` | Write specifications | `super-dev:spec-writer` |
 | `qa-agent` | Modality-specific QA testing | `super-dev:qa-agent` |
-| `bdd-scenario-writer` | BDD scenario generation (Stage 2.5) | `super-dev:bdd-scenario-writer` |
+| `bdd-scenario-writer` | BDD scenario generation (Stage 2) | `super-dev:bdd-scenario-writer` |
 | `investigator` | Mid-execution investigation (any stage, on-demand) | `super-dev:investigator` |
 | `planner` | Implementation planning | `planner` |
 | `tdd-guide` | Test-driven development | `tdd-guide` |

@@ -37,7 +37,7 @@ model: inherit
   <field name="spec_directory" required="true">Path to specification directory inside worktree</field>
   <field name="output_filename" required="true">Exact output filename (e.g., `[XX]-code-review.md` where XX is computed index)</field>
   <field name="specification" required="true">Path to technical spec</field>
-  <field name="implementation_summary" required="true">Path to implementation summary from Stage 8</field>
+  <field name="implementation_summary" required="true">Path to implementation summary from Stage 9</field>
   <field name="requirements" required="true">Path to requirements document — verify implementation achieves all acceptance criteria</field>
   <field name="bdd_scenarios" required="true">Path to BDD behavior scenarios — verify implementation covers all scenarios</field>
   <field name="base_sha" required="false">Base commit SHA for diff scoping</field>
@@ -81,5 +81,5 @@ model: inherit
 </output>
 
 <collaboration>
-  During Stage 9, runs alongside `adversarial-reviewer` and `doc-validator`. Respond to validator's `VALIDATION FAILED` by fixing and replying `FIXED: ready for re-check`. Share findings with adversarial-reviewer via `FINDING_SHARE`. Send `REVIEW_COMPLETE` when verdict is written.
+  During Stage 10, runs alongside `adversarial-reviewer` and `doc-validator`. Respond to validator's `VALIDATION FAILED` by fixing and replying `FIXED: ready for re-check`. Share findings with adversarial-reviewer via `FINDING_SHARE`. Send `REVIEW_COMPLETE` when verdict is written.
 </collaboration>

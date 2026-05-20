@@ -20,7 +20,7 @@ gate-profile: gate-docs-drift.sh
   </metadata>
 
   <section title="Phase Overview">
-    <paragraph>High-level phase status tracking. Parsed by gate-implementation-complete.sh to enforce completeness before Stage 10.</paragraph>
+    <paragraph>High-level phase status tracking. Parsed by gate-implementation-complete.sh to enforce completeness before Stage 11.</paragraph>
     <table>
       <row header="true">
         <cell>Phase</cell>
@@ -44,7 +44,7 @@ gate-profile: gate-docs-drift.sh
         <cell>pending | in_progress | complete</cell>
       </row>
     </table>
-    <paragraph>A phase is "complete" when ALL its tasks are done AND code review passes. Updated by Team Lead during Stage 8/9 loop.</paragraph>
+    <paragraph>A phase is "complete" when ALL its tasks are done AND code review passes. Updated by Team Lead during Stage 9/10 loop.</paragraph>
   </section>
 
   <section title="Progress">

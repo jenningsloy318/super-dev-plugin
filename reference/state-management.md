@@ -51,7 +51,7 @@ An append-only log of every super-dev workflow run, stored per-project.
 ### How to Write
 
 ```bash
-# Append at end of Stage 12 (commit)
+# Append at end of Stage 13 (commit)
 echo '{"timestamp":"...","spec":"...","task":"..."}' >> "${PROJECT_DATA}/session-history.log"
 ```
 
@@ -90,8 +90,8 @@ Stores conventions and patterns discovered during development, per-project.
 ### When to Update
 
 - After Stage 5 (Code Assessment): Record codebase conventions discovered
-- After Stage 9 (Code Review): Record patterns flagged by reviewers
-- After Stage 8 (Execution): Record successful patterns used
+- After Stage 10 (Code Review): Record patterns flagged by reviewers
+- After Stage 9 (Implementation): Record successful patterns used
 
 ## Usage Statistics
 
