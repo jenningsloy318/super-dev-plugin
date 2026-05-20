@@ -70,18 +70,12 @@ Then in Gemini CLI, use the commands:
 
 ### Antigravity IDE/CLI
 
-The plugin is fully compatible with Google Antigravity IDE and Antigravity CLI. It uses the Antigravity plugin format with a root-level `plugin.json`, convention-based directory discovery for `agents/`, `skills/`, `rules/`, and `hooks.json`.
+The plugin is fully compatible with Google Antigravity IDE and Antigravity CLI (`agy`). It uses the Antigravity plugin format with a root-level `plugin.json` and convention-based directory discovery for `agents/`, `skills/`, `rules/`, and `hooks.json`.
 
-**From Gemini CLI migration (auto-imported):**
-
-If you previously installed via Gemini CLI, the plugin is automatically imported into Antigravity at `~/.gemini/antigravity-cli/plugins/super-dev/`.
-
-**Manual installation:**
+**Installation:**
 
 ```bash
-# Clone to the global plugins directory
-git clone https://github.com/jenningsloy318/super-dev-plugin \
-  ~/.gemini/antigravity-cli/plugins/super-dev
+agy plugin install https://github.com/jenningsloy318/super-dev-plugin
 ```
 
 **Workspace-level installation:**
@@ -92,6 +86,9 @@ mkdir -p .agents/plugins
 git clone https://github.com/jenningsloy318/super-dev-plugin \
   .agents/plugins/super-dev
 ```
+
+**Migration:**
+If you previously installed via Gemini CLI, the plugin is automatically imported into Antigravity at `~/.gemini/antigravity-cli/plugins/super-dev/`.
 
 ## Overview
 
