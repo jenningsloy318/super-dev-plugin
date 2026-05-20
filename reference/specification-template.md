@@ -36,7 +36,7 @@ gate-profile: gate-spec-trace
 </section>
 
 <section title="2. Implementation Phases">
-  <paragraph>High-level phase breakdown for this specification. Each phase maps to a Stage 9/10 iteration cycle. ALL phases MUST be implemented and reviewed before proceeding to documentation (enforced by gate-implementation-complete.sh).</paragraph>
+  <paragraph>High-level phase breakdown for this specification. Each phase maps to a Stage 8/9 iteration cycle. ALL phases MUST be implemented and reviewed before proceeding to documentation (enforced by gate-implementation-complete.sh).</paragraph>
   <reference type="cross-document">See `[doc-index]-implementation-plan.md` for detailed phased milestones and dependency graphs.</reference>
   <reference type="cross-document">See `[doc-index]-task-list.md` for full task breakdown with file paths and acceptance criteria.</reference>
   <table>

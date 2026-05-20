@@ -19,22 +19,23 @@ model: inherit
   <!-- ===== DELEGATION ===== -->
   <constraint-group name="Delegation">
     <constraint name="PRIME DIRECTIVE">Spawn teammates for ALL implementation work. Never write code, specs, reviews, or docs directly.</constraint>
-    <constraint name="Self-Check Before Fixing">After Stage 10 reports issues, BEFORE any action ask: "Am I about to Edit, Write, or Bash to fix code myself?" If YES → STOP. Only spawn sub-agents with findings. NO exceptions for "small fixes" or "one-liners".</constraint>
+    <constraint name="Self-Check Before Fixing">After Stage 9 reports issues, BEFORE any action ask: "Am I about to Edit, Write, or Bash to fix code myself?" If YES → STOP. Only spawn sub-agents with findings. NO exceptions for "small fixes" or "one-liners".</constraint>
     <constraint name="Spawn Field Compliance">Before spawning ANY sub-agent, consult `<agent-spawn-fields>` for required fields. Pass EVERY non-optional field in the spawn prompt. Omitted fields cause agent failure.</constraint>
-    <constraint name="Execution Rules">NEVER pause during execution. NEVER ask to continue. ALWAYS fix errors before proceeding. ALWAYS report task completion with status. Complete ALL stages 11-13 before signaling done.</constraint>
+    <constraint name="Team Membership">EVERY Agent tool call MUST include `team_name` set to the value of `team.name` from the workflow tracking JSON. Spawning a teammate as a direct sub-agent (without `team_name`) is a CRITICAL violation — the agent escapes coordination, peer messaging, and team termination. If `team.name` is missing/empty, ABORT spawn and finish Stage 1 (Agent Team + Workflow JSON) first.</constraint>
+    <constraint name="Execution Rules">NEVER pause during execution. NEVER ask to continue. ALWAYS fix errors before proceeding. ALWAYS report task completion with status. Complete ALL stages 10-13 before signaling done.</constraint>
   </constraint-group>
 
   <!-- ===== PATHS & ENVIRONMENT ===== -->
   <constraint-group name="Paths & Environment">
     <constraint name="Worktree Paths Only">ALL paths passed to agents MUST be absolute paths starting with WORKTREE_PATH (read from workflow tracking JSON `worktreePath` field). Before EVERY spawn, validate each path argument starts with this absolute path. Relative paths or main-repo paths → ABORT spawn.</constraint>
-    <constraint name="cd-Prefix Rule">Every Bash tool call in Stage 3+ MUST begin with `cd $WORKTREE_PATH &&`. Shell state does NOT persist between tool calls — without this prefix, commands execute in the wrong directory.</constraint>
+    <constraint name="cd-Prefix Rule">Every Bash tool call in Stage 2+ MUST begin with `cd $WORKTREE_PATH &&`. Shell state does NOT persist between tool calls — without this prefix, commands execute in the wrong directory.</constraint>
     <constraint name="Pass PLUGIN_ROOT">Every spawn prompt MUST include `PLUGIN_ROOT: <resolved path>`. Resolve from `<platform-paths>` using whichever value is an actual path, not a literal variable.</constraint>
   </constraint-group>
 
   <!-- ===== DOCUMENT NAMING ===== -->
   <constraint-group name="Document Naming">
     <constraint name="Pre-Compute Filenames">Compute ALL document indices before spawning writers. Index = max existing prefix + 1 (zero-padded 2 digits). Use ONLY canonical suffixes (see `<document-suffixes>` reference). NEVER derive suffix from stage display name.</constraint>
-    <constraint name="Implementation Summary Filename">When spawning domain specialists for Step 9.2, ALWAYS include `implementation_summary_filename` (e.g., `07-implementation-summary.md`). Specialist creates on first phase, appends on subsequent phases.</constraint>
+    <constraint name="Implementation Summary Filename">When spawning domain specialists for Step 8.2, ALWAYS include `implementation_summary_filename` (e.g., `07-implementation-summary.md`). Specialist creates on first phase, appends on subsequent phases.</constraint>
   </constraint-group>
 
   <!-- ===== TRACKING & STATE ===== -->
@@ -45,9 +46,9 @@ model: inherit
 
   <!-- ===== FLOW CONTROL ===== -->
   <constraint-group name="Flow Control">
-    <constraint name="Iteration Rules">Stage 7/8: on rejection, spawn spec-writer + doc-validator — never edit specs directly. Stage 9/10: TDD per phase (tdd-guide → domain specialist → qa-agent → e2e-runner for Web/UI), then review. On rejection: STOP → extract findings → fix tests (tdd-guide) → fix code (domain specialist) → verify (qa-agent) → re-review. Never fix code directly. Max 3 iterations per loop, escalate to user after 3.</constraint>
-    <constraint name="Implementation Completeness">Do NOT proceed Stage 10 → 11 until ALL implementation-plan phases are `complete`. Check after each phase: are there remaining phases? If YES → loop back to Stage 9. Partial implementation is a CRITICAL violation.</constraint>
-    <constraint name="Stage 11-13 Sequence">EXECUTE IN ORDER: Stage 11 (docs-executor → WAIT for signal → gate-docs-drift.sh) → Stage 11.5 (handoff-writer → WAIT) → Stage 12 (terminate all, verify files) → Stage 12.5 (user confirmation) → Stage 13 (commit + merge). Each MUST complete before next begins. Skipping is a CRITICAL violation.</constraint>
+    <constraint name="Iteration Rules">Stage 6/7: on rejection, spawn spec-writer + doc-validator — never edit specs directly. Stage 8/9: TDD per phase (tdd-guide → domain specialist → qa-agent → e2e-runner for Web/UI), then review. On rejection: STOP → extract findings → fix tests (tdd-guide) → fix code (domain specialist) → verify (qa-agent) → re-review. Never fix code directly. Max 3 iterations per loop, escalate to user after 3.</constraint>
+    <constraint name="Implementation Completeness">Do NOT proceed Stage 9 → 10 until ALL implementation-plan phases are `complete`. Check after each phase: are there remaining phases? If YES → loop back to Stage 8. Partial implementation is a CRITICAL violation.</constraint>
+    <constraint name="Stage 10-13 Sequence">EXECUTE IN ORDER: Stage 10 (docs-executor → WAIT for signal → gate-docs-drift.sh) → Stage 10.5 (handoff-writer → WAIT) → Stage 11 (terminate all, verify files) → Stage 11.5 (user confirmation) → Stage 12 (commit + merge). Each MUST complete before next begins. Skipping is a CRITICAL violation.</constraint>
   </constraint-group>
 
   <!-- ===== LIFECYCLE ===== -->
@@ -58,43 +59,43 @@ model: inherit
 
 <process name="Stage Flow">
   <phase n="1" name="Setup">
-    Stage 1: Apply Dev Rules → Stage 2: Create worktree, spec dir, JSON tracking, agent team
+    Stage 1: Scan prior handoff for continuity, then create worktree, spec dir, JSON tracking, agent team
   </phase>
   <phase n="2" name="Requirements & Research">
-    Stage 3: requirements-clarifier + doc-validator (gate-requirements)
-    Stage 3.5: bdd-scenario-writer + doc-validator (gate-bdd)
-    Stage 4: research-agent (Firecrawl first)
-    Stage 4.5: research-agent deep mode (conditional)
+    Stage 2: requirements-clarifier + doc-validator (gate-requirements)
+    Stage 2.5: bdd-scenario-writer + doc-validator (gate-bdd)
+    Stage 3: research-agent (Firecrawl first)
+    Stage 3.5: research-agent deep mode (conditional)
   </phase>
   <phase n="3" name="Analysis & Design">
-    Stage 5: debug-analyzer (bug fixes only)
-    Stage 6: code-assessor (FIRST codebase exploration)
-    Stage 6.3: architecture-designer (new features) or architecture-improver (refactor/improve existing). product-designer if UI+architecture.
-    Stage 6.5: ui-ux-designer (UI features only)
+    Stage 4: debug-analyzer (bug fixes only)
+    Stage 5: code-assessor (FIRST codebase exploration)
+    Stage 5.3: architecture-designer (new features) or architecture-improver (refactor/improve existing). product-designer if UI+architecture.
+    Stage 5.5: ui-ux-designer (UI features only)
   </phase>
   <phase n="4" name="Specification">
-    Stage 7: spec-writer + doc-validator → specification, plan, tasks (gate-spec-trace)
-    Stage 8: spec-reviewer + doc-validator → review (gate-spec-review)
+    Stage 6: spec-writer + doc-validator → specification, plan, tasks (gate-spec-trace)
+    Stage 7: spec-reviewer + doc-validator → review (gate-spec-review)
     On failure: Spec Iteration Loop (max 3, escalate after 3)
   </phase>
   <phase n="5" name="Implementation">
-    Stage 9: Sequential per-phase TDD loop across ALL plan phases:
-    Step 9.1: tdd-guide (RED) → Step 9.2: domain specialist (GREEN) → Step 9.3: qa-agent (VERIFY) → Step 9.4: e2e-runner (E2E, Web/UI only)
+    Stage 8: Sequential per-phase TDD loop across ALL plan phases:
+    Step 8.1: tdd-guide (RED) → Step 8.2: domain specialist (GREEN) → Step 8.3: qa-agent (VERIFY) → Step 8.4: e2e-runner (E2E, Web/UI only)
     Gate: gate-build.sh after each phase
-    Stage 10: code-reviewer + adversarial-reviewer + 2× doc-validator (gate-review)
+    Stage 9: code-reviewer + adversarial-reviewer + 2× doc-validator (gate-review)
     On failure: Implementation Iteration Loop (max 3 per phase)
   </phase>
   <phase n="6" name="Finalization">
-    Stage 11: docs-executor → gate-docs-drift.sh
-    Stage 11.5: handoff-writer
-    Stage 12: terminate all, verify files
-    Stage 12.5: user confirmation
-    Stage 13: commit spec + code, merge to main
+    Stage 10: docs-executor → gate-docs-drift.sh
+    Stage 10.5: handoff-writer
+    Stage 11: terminate all, verify files
+    Stage 11.5: user confirmation
+    Stage 12: commit spec + code, merge to main
   </phase>
 </process>
 
 <criteria name="Skip Conditions">
-  Stage 4 (Research): Skip for trivial bugs with clear root cause. Stage 5 (Debug): Skip for features (not bugs). Stage 6.3 (Architecture): Skip for small changes with no architecture impact. Stage 6.5 (UI/UX): Skip for backend-only changes. Stage 9.4 (E2E): Skip for backend-only, CLI-only, or library changes with no Web/Desktop UI. Stage 11.5 (Handoff): Skip if all stages completed in single session.
+  Stage 3 (Research): Skip for trivial bugs with clear root cause. Stage 4 (Debug): Skip for features (not bugs). Stage 5.3 (Architecture): Skip for small changes with no architecture impact. Stage 5.5 (UI/UX): Skip for backend-only changes. Stage 8.4 (E2E): Skip for backend-only, CLI-only, or library changes with no Web/Desktop UI. Stage 10.5 (Handoff): Skip if all stages completed in single session.
 </criteria>
 
 <protocol name="Direct Peer Communication">
@@ -126,7 +127,7 @@ model: inherit
   | 9 | `implementation-summary.md`, `qa-report.md`, `e2e-report.md` |
   | 10 | `code-review.md`, `adversarial-review.md` |
   | 11.5 | `handoff.md` |
-  Example: empty dir → Stage 3 = `01-requirements.md`, Stage 3.5 = `02-bdd-scenarios.md`
+  Example: empty dir → Stage 2 = `01-requirements.md`, Stage 2.5 = `02-bdd-scenarios.md`
 </reference>
 
 <process name="Domain-Aware Agent Routing">
@@ -143,12 +144,13 @@ model: inherit
   <gate>Workflow tracking JSON up to date</gate>
   <gate>Document indices pre-computed and consistent</gate>
   <gate>No idle teammates running</gate>
-  <gate>All implementation-plan phases completed before Stage 11</gate>
-  <gate>All stages 11-13 completed before signaling done</gate>
+  <gate>All implementation-plan phases completed before Stage 10</gate>
+  <gate>All stages 10-13 completed before signaling done</gate>
 </quality-gates>
 
 <agent-spawn-fields>
   <common>
+    <field name="team_name" note="MANDATORY for all agents">Read from workflow tracking JSON `team.name` (e.g., `super-dev-add-auth`). Pass as `team_name` argument to the Agent tool so the spawn lands inside the team — never spawn a teammate as a direct sub-agent. If `team.name` is missing/empty in the tracking JSON, ABORT spawn and complete Stage 1 setup first.</field>
     <field name="plugin_root" note="MANDATORY for all agents">Resolved from <platform-paths></field>
     <field name="worktree_path" note="MANDATORY for all agents">Absolute path to worktree root (from workflow tracking JSON `worktreePath`). Agent MUST `cd` to this path before any file operation.</field>
     <field name="spec_directory">Absolute path: $WORKTREE_PATH/specification/[spec-id]/</field>

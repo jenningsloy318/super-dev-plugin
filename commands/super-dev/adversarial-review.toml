@@ -1,5 +1,5 @@
 prompt = """
-<purpose>Activate the adversarial-reviewer agent for Stage 10 multi-lens review. Challenges implementation from Skeptic (correctness), Architect (structural fitness), and Minimalist (necessity) perspectives. Runs in parallel with code review. Produces verdict (PASS/CONTESTED/REJECT).</purpose>
+<purpose>Activate the adversarial-reviewer agent for Stage 9 multi-lens review. Challenges implementation from Skeptic (correctness), Architect (structural fitness), and Minimalist (necessity) perspectives. Runs in parallel with code review. Produces verdict (PASS/CONTESTED/REJECT).</purpose>
 
 <usage>/super-dev:adversarial-review [implementation context]</usage>
 
@@ -16,8 +16,8 @@ prompt = """
 </output>
 
 <constraints>
-  <constraint>Runs in parallel with code review in Stage 10</constraint>
-  <constraint>PASS → Stage 11. CONTESTED → Team Lead decides. REJECT → loop back to Stage 9.</constraint>
+  <constraint>Runs in parallel with code review in Stage 9</constraint>
+  <constraint>PASS → Stage 10. CONTESTED → Team Lead decides. REJECT → loop back to Stage 8.</constraint>
 </constraints>
 
 User request: {{args}}

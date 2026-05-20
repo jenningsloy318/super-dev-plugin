@@ -1,72 +1,20 @@
-## Time MCP rules (MUST follow)
-
-- in every prompt, add the current date and time as an extra info for context
-
-## github rule (MUST follow)
-- whenerver create new project or update / fix the code, don't create github action
-- if there is already some github actions, don't add to git cache, don't commit, don't push
-- when commit and push, only commit those file you edited, ignore the files which are not created or edit by you at the moment
-- don't use git add -A, just use git add file1 file2( only files edit/created/delete by you in this session)
-
 ## Plugin versioning rule (MUST follow)
-- Every modification MUST include a patch version bump in ALL platform manifests simultaneously:
-  - `.claude-plugin/plugin.json`
-  - `.claude-plugin/marketplace.json` (the plugin entry version)
-  - `.codex-plugin/plugin.json`
-  - `gemini-extension.json`
-- Bump the patch level (e.g., 2.3.88 → 2.3.89) and include ALL four files in the same commit
-- ALL four manifest versions MUST always match each other
 
-## Development Philosophy Integration (MUST follow)
+Every modification MUST include a patch version bump in ALL platform manifests simultaneously:
+- `plugin.json` (root — Antigravity IDE/CLI)
+- `.claude-plugin/plugin.json`
+- `.claude-plugin/marketplace.json` (the plugin entry version)
+- `.codex-plugin/plugin.json`
+- `gemini-extension.json`
 
-- **Incremental development**: Make small, atomic commits; each commit must compile/build successfully and pass all tests.
-- **Learn from existing code**: Research and plan before beginning implementation.
-- **Pragmatic, not dogmatic**: Adapt to project realities.
-- **Explicit intent over clever code**: Choose simple, clear solutions.
-- Avoid over-engineering; keep code simple, readable, and practical.
-- Manage cyclomatic complexity; maximize code reuse.
-- Emphasize modular design; use design patterns where appropriate.
-- Minimize changes; avoid modifying unrelated module code.
-- Occam's Razor (do not add code unless necessary)
-- **No backward compatibility** - Break old formats freely
+Bump the patch level (e.g., `2.4.13 → 2.4.14`) and include ALL five files in the same commit. ALL five manifest versions MUST always match.
 
-### New Requirements Process (MUST follow)
-1. **Do not rush into coding during initial communication**: When the user proposes a new requirement, first conduct a solution discussion.
-2. **Use ASCII diagrams**: When necessary, create comparative ASCII diagrams for multiple solution options to enable the user to select the optimal approach.
+## Project-specific notes
 
-### Implementation Process (MUST follow)
-1. Understand existing patterns: study three analogous features/components in the codebase.
-2. Identify common patterns: determine project conventions and recurring patterns.
-3. Adhere to existing standards: use the same libraries/tools and follow the established testing patterns.
-4. Implement in phases: decompose complex work into 3–5 stages.
-5. No reinventing the wheel: extensively reuse open-source components, and use AI to write the "glue code" that binds them together.
-6. Modularity: develop like assembling building blocks—define interfaces first, implement afterward.
-8. for api implementation, always use version api endpoints like `/api/v1/xxx`
-9. In Next.js, do not use deprecated or global middleware for request proxying. Prefer implementing a proxy via Route Handlers (e.g., /app/api/proxy/route.ts) or a dedicated proxy.ts/js helper, and use next.config.js rewrites/redirects when appropriate.
-10. If the project includes both frontend and backend, split them into two directories (e.g., /frontend and /backend) and maintain separate build/test pipelines for each.
+- This is a multi-platform agent plugin (Claude Code, Codex CLI, Gemini CLI, Antigravity IDE/CLI). Edits to the Claude version under `agents/*.md` and `skills/super-dev/SKILL.md` usually need a mirror edit under `.codex/agents/*.toml` for parity.
+- **No backward compatibility** — Break old formats freely; the plugin is in active development.
+- **Stage workflow**: super-dev uses Stages 1–13 (with sub-stages 2.5, 3.5, 5.3, 5.5, 10.5, 11.5). Stage numbers are referenced in many files; renumbering requires cascade-safe updates.
 
-### Quality Standards (MUST follow)
-- Each commit must compile successfully
-- Pass all existing tests
-- Include tests for new functionality
-- Adhere to project formatting and linting checks
+## Inherits from global
 
-### refactor Process
-
-1. First analyze the project according to Clean Code principles.
-2. Prepare an incremental refactoring checklist and prioritize items from highest to lowest.
-3. Execute items one by one; after completing each item, update the to‑do status.
-4. Obtain my approval for each step before proceeding to the next.
-
-### Decision Framework Priority
-1. **Testability** - Is it easy to test?
-2. **Readability** - Will it still be understandable in six months?
-3. **Consistency** - Does it conform to project patterns?
-4. **Simplicity** - Is it the simplest viable solution?
-5. **Reversibility** - What is the difficulty of making subsequent changes?
-
-### Error Handling & When Stuck
-- Stop after a maximum of three attempts.
-- Record the failure cause and the specific error message(s).
-- Investigate 2–3 alternative implementation approaches.
-- Challenge foundational assumptions: Is the solution over-abstracted? Can it be decomposed into smaller parts?
+All generic rules (development philosophy, git workflow, github rule, refactor process, decision framework, error handling, time MCP, agent spawn) live in `~/.claude/CLAUDE.md` and apply here. Do NOT duplicate them in this file.

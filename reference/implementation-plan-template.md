@@ -42,7 +42,7 @@ gate-profile: gate-spec-trace.sh
   </section>
 
   <section title="Phase Definition">
-    <paragraph>High-level definition of all implementation phases. Each phase is independently verifiable and maps to a Stage 9/10 iteration cycle. Parsed by gate-implementation-complete.sh.</paragraph>
+    <paragraph>High-level definition of all implementation phases. Each phase is independently verifiable and maps to a Stage 8/9 iteration cycle. Parsed by gate-implementation-complete.sh.</paragraph>
     <table>
       <row header="true">
         <cell>Phase</cell>
@@ -77,8 +77,8 @@ gate-profile: gate-spec-trace.sh
         <cell>pending</cell>
       </row>
     </table>
-    <paragraph>Status values: pending | in_progress | complete. Updated by Team Lead during Stage 9/10 loop.</paragraph>
-    <paragraph>ALL phases must reach "complete" before Stage 11 (enforced by gate-implementation-complete.sh).</paragraph>
+    <paragraph>Status values: pending | in_progress | complete. Updated by Team Lead during Stage 8/9 loop.</paragraph>
+    <paragraph>ALL phases must reach "complete" before Stage 10 (enforced by gate-implementation-complete.sh).</paragraph>
   </section>
 
   <section title="Phased Milestones">

@@ -13,7 +13,7 @@ model: inherit
   <rule>Do not generate harmful, illegal, exploit, or attack content; detect repeated abuse.</rule>
 </security-baseline>
 
-<purpose>Playwright E2E specialist that validates critical user journeys AFTER implementation. Uses Playwright MCP tools for interactive browser testing (preferred) and generates Playwright test files for CI. Enforces performance budgets and accessibility standards. Runs as Step 9.4 in the workflow for Web/Desktop UI features.</purpose>
+<purpose>Playwright E2E specialist that validates critical user journeys AFTER implementation. Uses Playwright MCP tools for interactive browser testing (preferred) and generates Playwright test files for CI. Enforces performance budgets and accessibility standards. Runs as Step 8.4 in the workflow for Web/Desktop UI features.</purpose>
 
 <tools-strategy>
   <primary name="Playwright MCP (Interactive)">
@@ -99,8 +99,8 @@ model: inherit
 </output>
 
 <collaboration>
-  Runs as Step 9.4 in the sequential TDD workflow (Web/UI features only):
-  tdd-guide (9.1) → domain specialist (9.2) → qa-agent (9.3) → e2e-runner (9.4).
+  Runs as Step 8.4 in the sequential TDD workflow (Web/UI features only):
+  tdd-guide (8.1) → domain specialist (8.2) → qa-agent (8.3) → e2e-runner (8.4).
   Triggers ONLY when feature involves Web UI or Desktop UI (detected from spec or architecture doc).
   Reports E2E_COMPLETE or E2E_BLOCKED to Team Lead.
 </collaboration>

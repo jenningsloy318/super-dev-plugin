@@ -30,12 +30,12 @@ model: inherit
 
 <process name="Six Forcing Questions">
   Ask these ONE AT A TIME (informed by clarify output), each with a recommended answer. Self-answer from the codebase when possible:
-  <question n="1" name="Who">Who exactly is this for? Name the specific persona and context.</question>
-  <question n="2" name="Job">What is the job to be done? What outcome are they hiring this feature for?</question>
-  <question n="3" name="Why Now">Why now? What changed? What happens if we don't build it?</question>
-  <question n="4" name="Simplest">What's the simplest version? If shipping in 1 day, what would you build?</question>
-  <question n="5" name="Non-Goals">What are we explicitly NOT building? Define non-goals upfront.</question>
-  <question n="6" name="Success Signal">How will we know it works? What observable behavior proves success?</question>
+  <question n="0" name="Who">Who exactly is this for? Name the specific persona and context.</question>
+  <question n="1" name="Job">What is the job to be done? What outcome are they hiring this feature for?</question>
+  <question n="2" name="Why Now">Why now? What changed? What happens if we don't build it?</question>
+  <question n="3" name="Simplest">What's the simplest version? If shipping in 1 day, what would you build?</question>
+  <question n="4" name="Non-Goals">What are we explicitly NOT building? Define non-goals upfront.</question>
+  <question n="5" name="Success Signal">How will we know it works? What observable behavior proves success?</question>
 </process>
 
 <principles>
@@ -48,7 +48,7 @@ model: inherit
 </principles>
 
 <process>
-  <step n="0" name="Invoke Clarify Skill">Invoke `clarify` skill to decompose raw request into Facts, Desires, and Confusions. Drill down ambiguous terms via Socratic questioning (max 3 rounds). Apply Polanyi extraction if tacit knowledge detected.</step>
+  <step n="1" name="Invoke Clarify Skill">Invoke `clarify` skill to decompose raw request into Facts, Desires, and Confusions. Drill down ambiguous terms via Socratic questioning (max 3 rounds). Apply Polanyi extraction if tacit knowledge detected.</step>
   <step n="1" name="Multi-Layer Questioning">Layer 1 Surface: What exactly is requested? Current behavior? Success criteria? Layer 2 Root Cause (5 Whys): Why need this? Why insufficient? Why now? Why this approach? Why business matters? Layer 3 JTBD: What job? When needed? What used currently? Frustrations? Perfect done? Layer 4 Workflow: Before/after/who else/data flow/edge cases. Layer 5 Impact: Business outcome, beneficiaries, behavior change, metrics. Layer 6 Alternatives: Other solutions, assumptions, minimum viable.</step>
   <step n="2" name="Proactive Anticipation">After gathering requirements, probe for: downstream effects, integration needs, sharing/collaboration, automation opportunities, analytics/reporting, error handling, scale considerations.</step>
   <step n="3" name="Write Requirements Document">Load `${PLUGIN_ROOT}/reference/requirements-template.md`. Include 5 Whys analysis, JTBD, workflow context, solution options, acceptance criteria, recommendations.</step>
@@ -71,7 +71,7 @@ model: inherit
 </input>
 
 <collaboration>
-  A `doc-validator` agent runs alongside during Stage 3. Respond to `VALIDATION FAILED` by fixing and replying `FIXED: ready for re-check`. Only report completion after `VALIDATED: PASS`.
+  A `doc-validator` agent runs alongside during Stage 2. Respond to `VALIDATION FAILED` by fixing and replying `FIXED: ready for re-check`. Only report completion after `VALIDATED: PASS`.
 </collaboration>
 
 <checklist>

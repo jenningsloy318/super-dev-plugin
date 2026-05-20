@@ -5,8 +5,8 @@ A comprehensive team-lead-driven development workflow plugin for Claude Code wit
 Enhanced with best practices from [everything-claude-code](https://github.com/affaan-m/everything-claude-code)
 
 v2.3.52 — Stage-Based Workflow with Implementation Completeness:
-- Terminology Clarity: Workflow steps renamed from "Phase" to "Stage" (Stage 1–14). "Phase" now exclusively refers to implementation-plan phases (Phase 1, 2, 3…)
-- Implementation Completeness Loop: Stage 9/10 now iterates through ALL implementation-plan phases before proceeding to Stage 11
+- Terminology Clarity: Workflow steps renamed from "Phase" to "Stage" (Stage 1–13). "Phase" now exclusively refers to implementation-plan phases (Phase 1, 2, 3…)
+- Implementation Completeness Loop: Stage 8/9 now iterates through ALL implementation-plan phases before proceeding to Stage 10
 - Continuous Verification Gates: Programmatic quality checks between every stage handoff (6 gate scripts in `scripts/gates/`)
 - Real Browser Testing: QA agent now runs browser smoke tests using chrome-devtools MCP for web apps
 - Autoresearch Skill: Auto-improve agent prompts using Karpathy's iterative test-measure-improve method
@@ -66,6 +66,31 @@ Then in Gemini CLI, use the commands:
 /super-dev:plan implement user authentication
 /super-dev:research JWT best practices
 /super-dev:code-review
+```
+
+### Antigravity IDE/CLI
+
+The plugin is fully compatible with Google Antigravity IDE and Antigravity CLI. It uses the Antigravity plugin format with a root-level `plugin.json`, convention-based directory discovery for `agents/`, `skills/`, `rules/`, and `hooks.json`.
+
+**From Gemini CLI migration (auto-imported):**
+
+If you previously installed via Gemini CLI, the plugin is automatically imported into Antigravity at `~/.gemini/antigravity-cli/plugins/super-dev/`.
+
+**Manual installation:**
+
+```bash
+# Clone to the global plugins directory
+git clone https://github.com/jenningsloy318/super-dev-plugin \
+  ~/.gemini/antigravity-cli/plugins/super-dev
+```
+
+**Workspace-level installation:**
+
+```bash
+# Clone into your project's plugin directory
+mkdir -p .agents/plugins
+git clone https://github.com/jenningsloy318/super-dev-plugin \
+  .agents/plugins/super-dev
 ```
 
 ## Overview
@@ -171,7 +196,7 @@ super-dev-plugin/
 │   ├── search-agent.md             # Multi-Source Search
 │   ├── qa-agent.md                 # QA Testing
 │   ├── adversarial-reviewer.md      # Multi-lens Adversarial Review
-│   ├── bdd-scenario-writer.md       # BDD Scenario Generation (Stage 3.5)
+│   ├── bdd-scenario-writer.md       # BDD Scenario Generation (Stage 2.5)
 │   ├── investigator.md              # Mid-Execution Investigation (any stage, on-demand)
 │   │
 │   # Additional agents:
@@ -217,10 +242,9 @@ super-dev-plugin/
 ├── gemini-commands/            # Gemini CLI commands (TOML format)
 │   └── super-dev/                # /super-dev:* namespace (20 commands)
 │
-├── skills/                     # Skills (6 items, XML-tagged)
+├── skills/                     # Skills (5 items, XML-tagged)
 │   # super-dev skills:
 │   ├── super-dev/                 # Main orchestrator skill
-│   └── dev-rules/                 # Core development rules and philosophy
 │   # Additional skills:
 │   ├── tdd-workflow/              # Test-Driven Development methodology
 │   ├── security-review/           # Security checklist
@@ -279,8 +303,7 @@ super-dev-plugin/
 
 | Stage | Name | Agent/Skill | Description |
 |-------|------|-------------|-------------|
-| 1 | Apply Dev Rules | `super-dev:dev-rules` skill | Establish coding standards |
-| 2 | Specification Setup | Coordinator | Create worktree, spec dir, team |
+| 2 | Specification Setup | Coordinator | Scan handoffs for continuity, create worktree, spec dir, team |
 | 3 | Requirements Clarification | `super-dev:requirements-clarifier` | Gather complete requirements |
 | 3.5 | BDD Scenario Writing | `super-dev:bdd-scenario-writer` | Generate Given/When/Then scenarios (MANDATORY) |
 | 4 | Research | `super-dev:research-agent` | Find best practices |
@@ -291,10 +314,10 @@ super-dev-plugin/
 | 6.5 | UI/UX Design | `super-dev:ui-ux-designer` | For features with UI (optional) |
 | 7 | Specification Writing | `super-dev:spec-writer` | Create tech spec, plan, tasks |
 | 8 | Specification Review | `super-dev:spec-reviewer` | Validate all documents |
-| 9-10 | Implementation + Review | PARALLEL: specialists + qa + reviewers | Implement ALL plan phases with review loop |
+| 8-9 | Implementation + Review | PARALLEL: specialists + qa + reviewers | Implement ALL plan phases with review loop |
 | 11 | Documentation | `super-dev:docs-executor` | Update documentation |
 | 11.5 | Handoff | `super-dev:handoff-writer` | Session handoff document |
-| 12-13 | Cleanup & Commit | Coordinator | Terminate agents, commit, merge |
+| 11-12 | Cleanup & Commit | Coordinator | Terminate agents, commit, merge |
 | 14 | Final Verification | Coordinator | Verify all complete |
 
 ## Key Features
@@ -302,12 +325,12 @@ super-dev-plugin/
 ### Super-Dev Unique Features
 
 1. Coordinator Agent - Central orchestrator for all workflow stages
-2. Git Worktree Requirement - MANDATORY isolation for development
+1. Git Worktree Requirement - MANDATORY isolation for development
 3. Specification-Aware Code Review - Validates against technical specs
 4. Parallel Execution - Specialists + QA run simultaneously
 5. Build Queue Management - Rust/Go serialization for resource safety
 6. Implementation Completeness Loop - ALL plan phases must be implemented before docs stage
-7. BDD Integration - Mandatory Stage 3.5 for behavior scenario generation with 100% coverage gate
+6. BDD Integration - Mandatory Stage 2.5 for behavior scenario generation with 100% coverage gate
 8. Investigation Protocol - Bounded mid-execution investigation when agents hit unknowns (auto-triggered by dev-executor, qa-agent, code-reviewer)
 
 ### Additional Integrated Features
@@ -354,14 +377,14 @@ Hooks are automatic actions that fire every time Claude edits a file, runs a com
 The stage-gate hook validates that prerequisite artifacts exist before spawning stage agents. It reads `stage-manifest.json` to map agent types to required files:
 
 ```
-Stage 3.5  (BDD)        → requires [doc-index]-requirements.md
-Stage 4    (Research)    → requires [doc-index]-requirements.md + [doc-index]-bdd-scenarios.md
-Stage 6    (Assessment)  → requires [doc-index]-research-report.md
-Stage 7    (Spec)        → requires [doc-index]-code-assessment.md
-Stage 9    (Execution)   → requires [doc-index]-specification.md + [doc-index]-implementation-plan.md + [doc-index]-task-list.md
-Stage 10   (Review)      → requires [doc-index]-specification.md
-Stage 11   (Docs)        → requires [doc-index]-specification.md
-Stage 11.5 (Handoff)     → requires [doc-index]-specification.md
+Stage 2.5  (BDD)        → requires [doc-index]-requirements.md
+Stage 3    (Research)    → requires [doc-index]-requirements.md + [doc-index]-bdd-scenarios.md
+Stage 5    (Assessment)  → requires [doc-index]-research-report.md
+Stage 6    (Spec)        → requires [doc-index]-code-assessment.md
+Stage 8    (Execution)   → requires [doc-index]-specification.md + [doc-index]-implementation-plan.md + [doc-index]-task-list.md
+Stage 9   (Review)      → requires [doc-index]-specification.md
+Stage 10   (Docs)        → requires [doc-index]-specification.md
+Stage 10.5 (Handoff)     → requires [doc-index]-specification.md
 ```
 
 The gate also validates required sections within files (e.g., requirements.md must contain "Acceptance Criteria").
@@ -390,7 +413,7 @@ Invoke: `Task(subagent_type: "super-dev:team-lead")`
 
 ### Executor Agents (Parallel Execution)
 
-During Stage 9-10, specialists + QA run in PARALLEL:
+During Stage 8-10, specialists + QA run in PARALLEL:
 
 | Agent | Purpose | Invoke Via |
 |-------|---------|------------|
@@ -415,7 +438,7 @@ Build Policy (Rust/Go): Only ONE build at a time to prevent resource conflicts.
 | `ui-ux-designer` | Create UI/UX design specifications | `super-dev:ui-ux-designer` |
 | `spec-writer` | Write specifications | `super-dev:spec-writer` |
 | `qa-agent` | Modality-specific QA testing | `super-dev:qa-agent` |
-| `bdd-scenario-writer` | BDD scenario generation (Stage 3.5) | `super-dev:bdd-scenario-writer` |
+| `bdd-scenario-writer` | BDD scenario generation (Stage 2.5) | `super-dev:bdd-scenario-writer` |
 | `investigator` | Mid-execution investigation (any stage, on-demand) | `super-dev:investigator` |
 | `planner` | Implementation planning | `planner` |
 | `tdd-guide` | Test-driven development | `tdd-guide` |
@@ -430,21 +453,6 @@ Build Policy (Rust/Go): Only ONE build at a time to prevent resource conflicts.
 ### super-dev
 
 Main entry point skill that documents the workflow. The Coordinator Agent is invoked to orchestrate all stages.
-
-### dev-rules
-
-Core development rules and standards including:
-- Git workflow rules (no GitHub Actions, selective commits)
-- Git Worktree Requirement (CRITICAL - MANDATORY)
-- Git Safety & Checkpoint Rules
-- Development philosophy (incremental development, pragmatic approach)
-- Quality standards (testability, readability, consistency)
-- Decision framework priorities
-- Figma MCP Integration Rules
-- MCP Script Usage
-- Time MCP Rules
-- Codebase Search with ast-grep
-- Documentation Update Rules
 
 ### tdd-workflow
 

@@ -1,5 +1,5 @@
 prompt = """
-<purpose>Activate the ui-ux-designer agent for Stage 6.5 UI/UX design. Produces wireframes (Pencil MCP or ASCII), design tokens, interaction patterns, accessibility requirements, and responsive behavior specs.</purpose>
+<purpose>Activate the ui-ux-designer agent for Stage 5.5 UI/UX design. Produces wireframes (Pencil MCP or ASCII), design tokens, interaction patterns, accessibility requirements, and responsive behavior specs.</purpose>
 
 <usage>/super-dev:ui-ux-design [feature description]</usage>
 

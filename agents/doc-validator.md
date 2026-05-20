@@ -36,7 +36,7 @@ model: inherit
 </reference>
 
 <process>
-  <step n="0" name="Filename Verification">Build full expected path `${spec_directory}/${expected_filename}`. Check if file exists. If wrong-named file found, rename to expected and message writer. NEVER compute the next index yourself — Team Lead already assigned exact filename.</step>
+  <step n="1" name="Filename Verification">Build full expected path `${spec_directory}/${expected_filename}`. Check if file exists. If wrong-named file found, rename to expected and message writer. NEVER compute the next index yourself — Team Lead already assigned exact filename.</step>
   <step n="1" name="Wait for Document">Check if file exists at document_path. Wait briefly and re-check if not yet written. Proceed once file exists and has content (greater than 0 bytes).</step>
   <step n="2" name="Run Gate Script">Execute via Bash: `bash <gate-script-path> <spec_directory>`. Capture stdout and exit code. Exit 0 = PASS, exit 1 = FAIL with specific `FAIL:` lines.</step>
   <step n="3" name="LLM-Assisted Fix Instructions">Only on FAIL: Parse each `FAIL:` line. Read document to understand current content. Cross-reference with Gate Fix Reference to generate fix instructions with: exact format the gate regex expects, what document currently has, exact text pattern to add/change with examples.</step>
@@ -45,15 +45,15 @@ model: inherit
 </process>
 
 <reference name="Gate Fix Reference">
-  gate-requirements (Stage 3): R1 Acceptance Criteria heading, R2 Min 2 AC items (regex `^\s*-\s*\[[ x]\]` OR `^\s*-\s*\*{0,2}AC-[0-9]`), R3 Non-functional keywords, R4 Summary section, R5 Content over 500 chars. Common trap: ACs in tables do NOT match R2.
+  gate-requirements (Stage 2): R1 Acceptance Criteria heading, R2 Min 2 AC items (regex `^\s*-\s*\[[ x]\]` OR `^\s*-\s*\*{0,2}AC-[0-9]`), R3 Non-functional keywords, R4 Summary section, R5 Content over 500 chars. Common trap: ACs in tables do NOT match R2.
 
-  gate-bdd (Stage 3.5): B1 SCENARIO-IDs, B2 Given/When/Then at least 3 lines, B3 AC references, B4 Scenario count at least AC count, B5 Content over 300 chars.
+  gate-bdd (Stage 2.5): B1 SCENARIO-IDs, B2 Given/When/Then at least 3 lines, B3 AC references, B4 Scenario count at least AC count, B5 Content over 300 chars.
 
-  gate-spec-trace (Stage 7): S1 BDD scenario refs, S2 Testing strategy text, S3 Task list file exists, S4 Implementation plan file exists.
+  gate-spec-trace (Stage 6): S1 BDD scenario refs, S2 Testing strategy text, S3 Task list file exists, S4 Implementation plan file exists.
 
-  gate-spec-review (Stage 8): SR1 Verdict exists, SR2 All 8 dimensions present, SR3 No contradictory verdict, SR4 Grounding verification, SR5 Finding severity summary.
+  gate-spec-review (Stage 7): SR1 Verdict exists, SR2 All 8 dimensions present, SR3 No contradictory verdict, SR4 Grounding verification, SR5 Finding severity summary.
 
-  gate-review-code (Stage 10): CR1 Verdict exists, CR2 Approved verdict, CR3 No critical findings.
+  gate-review-code (Stage 9): CR1 Verdict exists, CR2 Approved verdict, CR3 No critical findings.
 
-  gate-review-adversarial (Stage 10): AR1 Verdict exists (PASS/CONTESTED/REJECT/HALT), AR2 Passing verdict (PASS or CONTESTED, no REJECT).
+  gate-review-adversarial (Stage 9): AR1 Verdict exists (PASS/CONTESTED/REJECT/HALT), AR2 Passing verdict (PASS or CONTESTED, no REJECT).
 </reference>

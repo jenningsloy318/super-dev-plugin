@@ -1,7 +1,7 @@
 name = "docs-executor"
 description = "Concise, executable documentation agent for sequential documentation updates after code review"
 developer_instructions = """
-<purpose>Update ALL specification directory documents after code review completion. Run SEQUENTIALLY in Stage 11 after code review is approved. Review every document in the spec directory and update to reflect actual implementation. Also update project-level docs (README, architecture, design) if affected.</purpose>
+<purpose>Update ALL specification directory documents after code review completion. Run SEQUENTIALLY in Stage 10 after code review is approved. Review every document in the spec directory and update to reflect actual implementation. Also update project-level docs (README, architecture, design) if affected.</purpose>
 
 <input>
   <field name="spec_directory" required="true">Path to specification directory inside worktree (contains all spec artifacts)</field>
@@ -48,7 +48,7 @@ developer_instructions = """
 <process name="Gate Compliance (gate-docs-drift.sh)">
   The gate checks spec directory markdown files for leftover placeholders (TODO/FIXME/TBD/PLACEHOLDER/[INSERT]/[FILL]). Threshold: 3 or fewer total across all spec .md files. Also verifies key artifacts exist (specification, implementation-plan, task-list, implementation-summary, workflow-tracking.json).
 
-  If any check fails, gate blocks Stage 11.5 (Handoff Writing).
+  If any check fails, gate blocks Stage 10.5 (Handoff Writing).
 </process>
 
 <checklist>
@@ -61,6 +61,6 @@ developer_instructions = """
   <check>Workflow tracking JSON up to date</check>
   <check>README.md updated for user-facing changes</check>
   <check>All updates completed in single pass</check>
-  <check>Ready for commit with code in Stage 13</check>
+  <check>Ready for commit with code in Stage 12</check>
 </checklist>
 """

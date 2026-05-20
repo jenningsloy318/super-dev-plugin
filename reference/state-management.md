@@ -52,7 +52,7 @@ An append-only log of every super-dev workflow run, stored per-project.
 ### How to Write
 
 ```bash
-# Append at end of Stage 13 (commit)
+# Append at end of Stage 12 (commit)
 echo '{"timestamp":"...","spec":"...","task":"..."}' >> "${PROJECT_DATA}/session-history.log"
 ```
 
@@ -90,9 +90,9 @@ Stores conventions and patterns discovered during development, per-project.
 
 ### When to Update
 
-- After Stage 6 (Code Assessment): Record codebase conventions discovered
-- After Stage 10 (Code Review): Record patterns flagged by reviewers
-- After Stage 9 (Execution): Record successful patterns used
+- After Stage 5 (Code Assessment): Record codebase conventions discovered
+- After Stage 9 (Code Review): Record patterns flagged by reviewers
+- After Stage 8 (Execution): Record successful patterns used
 
 ## Usage Statistics
 
@@ -108,8 +108,7 @@ Tracks which skills and agents are invoked for optimization. Stored globally (no
     "super-dev": 0,
     "tdd-workflow": 0,
     "adversarial-review": 0,
-    "security-review": 0,
-    "dev-rules": 0
+    "security-review": 0
   },
   "agent_invocations": {
     "team-lead": 0,
@@ -127,7 +126,7 @@ Tracks which skills and agents are invoked for optimization. Stored globally (no
 ## Best Practices
 
 - **Always append, never overwrite** the session-history.log
-- **Read history at Stage 1** to inform the current session
+- **Read history at Stage 1 (during session-continuity scan)** to inform the current session
 - **Update patterns.json** only when confidence is high (seen 2+ times)
 - **Update stats.json** (global) at the end of every workflow run
 - **Never store secrets** in any state file

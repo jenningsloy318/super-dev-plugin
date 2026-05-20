@@ -1,6 +1,6 @@
 #!/bin/bash
 # Gate: Implementation Completeness Verification
-# Verifies ALL implementation-plan phases are complete before proceeding to Stage 11
+# Verifies ALL implementation-plan phases are complete before proceeding to Stage 10
 #
 # Usage: gate-implementation-complete.sh <spec-dir>
 # Exit 0 = PASS, Exit 1 = FAIL

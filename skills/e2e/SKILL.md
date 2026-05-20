@@ -3,7 +3,7 @@ name: e2e
 description: Generate and run end-to-end tests with Playwright including test journeys, performance budgets, accessibility, and cross-browser validation
 ---
 
-<purpose>Invoke the e2e-runner agent to generate, maintain, and execute end-to-end tests using Playwright. Creates test journeys from BDD scenarios, validates performance budgets and accessibility, runs across browsers, captures artifacts, and quarantines flaky tests. In the full workflow, runs as Step 9.4 (Web/UI features only).</purpose>
+<purpose>Invoke the e2e-runner agent to generate, maintain, and execute end-to-end tests using Playwright. Creates test journeys from BDD scenarios, validates performance budgets and accessibility, runs across browsers, captures artifacts, and quarantines flaky tests. In the full workflow, runs as Step 8.4 (Web/UI features only).</purpose>
 
 <usage>/super-dev:e2e [feature or user flow to test]</usage>
 
