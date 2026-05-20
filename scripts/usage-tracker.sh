@@ -8,8 +8,7 @@
 
 set -euo pipefail
 
-PLUGIN_DATA="${CLAUDE_PLUGIN_DATA:-${extensionPath:+${extensionPath}/.data}}"
-PLUGIN_DATA="${PLUGIN_DATA:-/tmp/super-dev-data}"
+PLUGIN_DATA="${CLAUDE_PLUGIN_DATA:-/tmp/super-dev-data}"
 GLOBAL_DATA="${PLUGIN_DATA}/global"
 mkdir -p "$GLOBAL_DATA"
 USAGE_LOG="${GLOBAL_DATA}/usage.log"

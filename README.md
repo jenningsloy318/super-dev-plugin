@@ -47,27 +47,6 @@ Alternatively, install agents manually:
 ./scripts/setup-codex-agents.sh --project
 ```
 
-### Gemini CLI
-
-```bash
-gemini extensions install https://github.com/jenningsloy318/super-dev-plugin
-gemini extensions enable super-dev
-```
-
-Or link locally for development:
-
-```bash
-gemini extensions link .
-```
-
-Then in Gemini CLI, use the commands:
-
-```
-/super-dev:plan implement user authentication
-/super-dev:research JWT best practices
-/super-dev:code-review
-```
-
 ### Antigravity IDE/CLI
 
 The plugin is fully compatible with Google Antigravity IDE and Antigravity CLI (`agy`). It uses the Antigravity plugin format with a root-level `plugin.json` and convention-based directory discovery for `agents/`, `skills/`, `rules/`, and `hooks.json`.
@@ -88,7 +67,7 @@ git clone https://github.com/jenningsloy318/super-dev-plugin \
 ```
 
 **Migration:**
-If you previously installed via Gemini CLI, the plugin is automatically imported into Antigravity at `~/.gemini/antigravity-cli/plugins/super-dev/`.
+The plugin uses the Antigravity plugin format natively.
 
 ## Overview
 
@@ -173,9 +152,7 @@ super-dev-plugin/
 ├── .codex/                      # Codex agent definitions (TOML)
 │   ├── config.toml                 # Agent declarations
 │   └── agents/*.toml               # 35 agents in Codex TOML format
-├── gemini-extension.json        # Gemini CLI extension manifest
 ├── AGENTS.md                    # Codex project-level instructions
-├── GEMINI.md                    # Gemini CLI context instructions
 ├── agents/                    # Specialized agents (35 total, XML-tagged)
 │   ├── team-lead.md              # Central Team Lead Agent (super-dev unique)
 │   ├── dev-executor.md             # Development Executor
@@ -214,30 +191,6 @@ super-dev-plugin/
 │   ├── ios-developer.md
 │   ├── macos-app-developer.md
 │   └── windows-app-developer.md
-│
-├── commands/                   # Slash commands (17 total, XML-tagged)
-│   # super-dev commands:
-│   ├── architecture-design.md
-│   ├── code-assessment.md
-│   ├── code-review.md
-│   ├── debug-analysis.md
-│   ├── documentation.md
-│   ├── execute.md
-│   ├── research.md
-│   └── ui-ux-design.md
-│   # Additional commands:
-│   ├── build-fix.md
-│   ├── e2e.md
-│   ├── learn.md
-│   ├── plan.md
-│   ├── refactor-clean.md
-│   ├── tdd.md
-│   ├── test-coverage.md
-│   ├── update-codemaps.md
-│   └── update-docs.md
-│
-├── gemini-commands/            # Gemini CLI commands (TOML format)
-│   └── super-dev/                # /super-dev:* namespace (20 commands)
 │
 ├── skills/                     # Skills (5 items, XML-tagged)
 │   # super-dev skills:

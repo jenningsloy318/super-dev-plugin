@@ -4,15 +4,14 @@ Super-dev uses `${PLUGIN_DATA}` for persistent state that survives plugin upgrad
 
 ## Platform Path Resolution
 
-| Concept | Claude Code / Codex CLI | Gemini CLI |
-|---------|------------------------|------------|
-| `PLUGIN_ROOT` | `${CLAUDE_PLUGIN_ROOT}` | `${extensionPath}` |
-| `PLUGIN_DATA` | `${CLAUDE_PLUGIN_DATA}` | `${extensionPath}/.data` |
+| Concept | Claude Code / Codex CLI / Antigravity |
+|---------|---------------------------------------|
+| `PLUGIN_ROOT` | `${CLAUDE_PLUGIN_ROOT}` |
+| `PLUGIN_DATA` | `${CLAUDE_PLUGIN_DATA}` |
 
 Shell scripts resolve via:
 ```bash
-PLUGIN_DATA="${CLAUDE_PLUGIN_DATA:-${extensionPath:+${extensionPath}/.data}}"
-PLUGIN_DATA="${PLUGIN_DATA:-/tmp/super-dev-data}"
+PLUGIN_DATA="${CLAUDE_PLUGIN_DATA:-/tmp/super-dev-data}"
 ```
 
 ## Storage Location

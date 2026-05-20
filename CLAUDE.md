@@ -5,13 +5,12 @@ Every modification MUST include a patch version bump in ALL platform manifests s
 - `.claude-plugin/plugin.json`
 - `.claude-plugin/marketplace.json` (the plugin entry version)
 - `.codex-plugin/plugin.json`
-- `gemini-extension.json`
 
-Bump the patch level (e.g., `2.4.13 → 2.4.14`) and include ALL five files in the same commit. ALL five manifest versions MUST always match.
+Bump the patch level (e.g., `2.4.14 → 2.4.15`) and include ALL four files in the same commit. ALL four manifest versions MUST always match.
 
 ## Project-specific notes
 
-- This is a multi-platform agent plugin (Claude Code, Codex CLI, Gemini CLI, Antigravity IDE/CLI). Edits to the Claude version under `agents/*.md` and `skills/super-dev/SKILL.md` usually need a mirror edit under `.codex/agents/*.toml` for parity.
+- This is a multi-platform agent plugin (Claude Code, Codex CLI, Antigravity IDE/CLI). Edits to the Claude version under `agents/*.md` and `skills/super-dev/SKILL.md` usually need a mirror edit under `.codex/agents/*.toml` for parity.
 - **No backward compatibility** — Break old formats freely; the plugin is in active development.
 - **Stage workflow**: super-dev uses Stages 1–13 (with sub-stages 2.5, 3.5, 5.3, 5.5, 10.5, 11.5). Stage numbers are referenced in many files; renumbering requires cascade-safe updates.
 

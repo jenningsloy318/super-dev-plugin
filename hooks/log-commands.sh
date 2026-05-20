@@ -9,8 +9,7 @@ cmd=$(echo "$INPUT" | jq -r '.tool_input.command // ""' 2>/dev/null || echo "")
 
 [ -z "$cmd" ] && exit 0
 
-PLUGIN_DATA="${CLAUDE_PLUGIN_DATA:-${extensionPath:+${extensionPath}/.data}}"
-PLUGIN_DATA="${PLUGIN_DATA:-/tmp/super-dev-data}"
+PLUGIN_DATA="${CLAUDE_PLUGIN_DATA:-/tmp/super-dev-data}"
 LOG_DIR="$PLUGIN_DATA"
 LOG_FILE="${LOG_DIR}/command-log.txt"
 

@@ -9,10 +9,8 @@ license: MIT
 <platform-paths>
   PLUGIN_ROOT:
     claude: ${CLAUDE_PLUGIN_ROOT}
-    gemini: ${extensionPath}
   PLUGIN_DATA:
     claude: ${CLAUDE_PLUGIN_DATA}
-    gemini: ${extensionPath}/data
   Use whichever value resolved to an actual path (not a literal variable name).
 </platform-paths>
 
@@ -216,5 +214,5 @@ license: MIT
 <references>
   <ref>Plugin root: `${PLUGIN_ROOT}` — agents, commands, rules, skills, templates, scripts</ref>
   <ref>Plugin data: `${PLUGIN_DATA}` — global stats, learned patterns, autoresearch results</ref>
-  <ref>Compatibility: Claude Code CLI, Codex CLI, or Gemini CLI. Git required for worktree management.</ref>
+  <ref>Compatibility: Claude Code CLI, Codex CLI, or Antigravity IDE/CLI. Git required for worktree management.</ref>
 </references>

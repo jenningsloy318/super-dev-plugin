@@ -9,10 +9,8 @@ license: MIT
 <platform-paths>
   PLUGIN_ROOT:
     claude: ${CLAUDE_PLUGIN_ROOT}
-    gemini: ${extensionPath}
   PLUGIN_DATA:
     claude: ${CLAUDE_PLUGIN_DATA}
-    gemini: ${extensionPath}/data
   Use whichever value resolved to an actual path (not a literal variable name).
 </platform-paths>
 
