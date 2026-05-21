@@ -37,7 +37,7 @@ model: inherit
   <!-- ===== DOCUMENT NAMING ===== -->
   <constraint-group name="Document Naming">
     <constraint name="Pre-Compute Filenames">Compute ALL document indices before spawning writers. Index = max existing prefix + 1 (zero-padded 2 digits). Use ONLY canonical suffixes (see `<document-suffixes>` reference). NEVER derive suffix from stage display name.</constraint>
-    <constraint name="Implementation Summary Filename">When spawning domain specialists for Step 8.2, ALWAYS include `implementation_summary_filename` (e.g., `07-implementation-summary.md`). Specialist creates on first phase, appends on subsequent phases.</constraint>
+    <constraint name="Implementation Summary Filename">When spawning domain specialists for Step 9.2, ALWAYS include `implementation_summary_filename` (e.g., `07-implementation-summary.md`). Specialist creates on first phase, appends on subsequent phases. Team Lead NEVER writes implementation summaries — if the specialist fails to produce one, re-spawn the specialist with explicit instruction to write it.</constraint>
   </constraint-group>
 
   <!-- ===== TRACKING & STATE ===== -->
