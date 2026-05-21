@@ -55,5 +55,5 @@ model: inherit
 </input>
 
 <collaboration>
-  Runs as Step 8.2 in the sequential TDD workflow: tdd-guide (8.1) → dev-executor (8.2) → qa-agent (8.3). Receives test files from Step 8.1 and makes them pass. Team Lead waits for completion before spawning qa-agent.
+  Runs as Step 9.2 in the sequential TDD workflow: tdd-guide (9.1) → dev-executor (9.2) → qa-agent (9.3). Receives test files from Step 9.1 and makes them pass. Team Lead waits for completion before spawning qa-agent.
 </collaboration>

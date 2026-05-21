@@ -59,4 +59,8 @@ developer_instructions = """
 <references>
   <ref>Produces `[XX]-design-spec.md` (and optionally `.pen` files). Template: `${CLAUDE_PLUGIN_ROOT}/reference/design-spec-template.md`.</ref>
 </references>
+
+<gate-format-requirements>
+  MANDATORY: Before writing output, read and apply the Gate Compliance Notes from `${CLAUDE_PLUGIN_ROOT}/reference/design-spec-template.md`.
+</gate-format-requirements>
 """

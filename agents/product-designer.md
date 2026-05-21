@@ -63,3 +63,7 @@ model: inherit
   <gate>Cross-domain contracts documented</gate>
   <gate>No conflicting decisions between architecture and UI</gate>
 </quality-gates>
+
+<gate-format-requirements>
+  MANDATORY: Before writing output, read and apply the Gate Compliance Notes from `${PLUGIN_ROOT}/reference/product-design-summary-template.md`.
+</gate-format-requirements>
