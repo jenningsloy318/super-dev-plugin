@@ -298,3 +298,20 @@ Phase 1 [rust]         Phase 2 [frontend]     Phase 3 [mixed]
   </section>
 
 </document>
+
+## Gate Compliance Notes
+
+This template is validated by `gate-spec-trace.sh` (the gate checks for the file's existence):
+
+| # | Gate Check | How This Template Satisfies It |
+|---|-----------|-------------------------------|
+| 1 | File exists as `[doc-index]-implementation-plan.md` | spec-writer produces this as a companion file to the specification |
+| 2 | Phase table present | Section "Implementation Phases" with Phase/Name/Scope/Domain columns |
+| 3 | Dependencies documented | Each phase lists prerequisites and blocking dependencies |
+| 4 | Risk assessment present | Risk matrix with likelihood, impact, and mitigation per identified risk |
+
+To ensure reliable downstream parsing:
+1. Phase numbers MUST be sequential (Phase 1, Phase 2, Phase 3...)
+2. Domain values MUST be one of: `rust`, `go`, `frontend`, `backend`, `mixed`
+3. Risk severity MUST be one of: `Critical`, `High`, `Medium`, `Low`
+4. Milestone names MUST be unique within the document

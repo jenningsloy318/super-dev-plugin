@@ -334,3 +334,17 @@ gate-profile: null
 </section>
 
 </document>
+
+## Gate Compliance Notes
+
+This template does NOT have a dedicated gate script (gate-profile: null). However, it is consumed by:
+- **spec-writer** (Stage 7): uses selected option and cross-domain contracts for specification
+- **architecture-designer**: may reference if architecture decisions depend on product design
+
+To ensure reliable downstream parsing:
+1. Scope classification MUST be one of: `FULL_STACK`, `ARCHITECTURE_ONLY`, `UI_ONLY`
+2. Comparison matrix MUST use numeric scores (1-5) with TOTAL row
+3. Compatibility matrix MUST use enum values: `Full`, `Partial`, `No`
+4. Selected Option MUST reference an option by number (e.g., "Option 2")
+5. Cross-Domain Contracts section MUST be present for FULL_STACK scope
+6. Validation Checklist items MUST cover both architecture and UI concerns

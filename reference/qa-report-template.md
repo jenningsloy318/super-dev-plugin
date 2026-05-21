@@ -252,3 +252,17 @@ When rendering this template to markdown:
 - Every BDD scenario from `[doc-index]-bdd-scenarios.md` MUST appear in the BDD Scenario Coverage table
 - Omit Browser Smoke Test and CodeRabbit sections when not applicable (do not leave empty tables)
 - Update Quality Gates Checklist items to `status="done"` as each gate passes
+
+## Gate Compliance Notes
+
+The rendered document is validated by `gate-build.sh` (indirectly via test execution):
+
+| # | Gate Check | How This Template Satisfies It |
+|---|-----------|-------------------------------|
+| 1 | Status present (PASS/FAIL) | `<field name="status">` in metadata |
+| 2 | BDD Scenario Coverage table complete | Every SCENARIO-NNN from bdd-scenarios.md appears with PASS/FAIL status |
+| 3 | All tests pass for PASS status | Quality Gates Checklist "All tests pass" must be `status="done"` |
+| 4 | Defects tracked with DEF-NNN IDs | Sequential IDs with severity and status |
+| 5 | Coverage metrics present | Overall and new/changed code percentages in Executive Summary table |
+
+Critical: Do NOT report status=PASS if any Quality Gates Checklist item remains `status="open"`. All gates must be `done` for PASS.

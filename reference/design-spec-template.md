@@ -229,3 +229,18 @@ desktop:
 </section>
 
 </document>
+
+## Gate Compliance Notes
+
+This template does NOT have a dedicated gate script (gate-profile: null). However, it is consumed by:
+- **spec-writer** (Stage 7): integrates UI specifications into the technical specification
+- **frontend-developer** (Stage 9): uses wireframes, tokens, and interaction patterns for implementation
+- **e2e-runner** (Stage 9): uses user flows and screen inventory for E2E test planning
+
+To ensure reliable downstream parsing:
+1. Screen IDs MUST use format: `SCR-NNN` (if multiple screens)
+2. Design tokens MUST use CSS custom property naming: `--[category]-[name]-[variant]`
+3. Breakpoints MUST include exact pixel values (e.g., `768px`, `1024px`, `1440px`)
+4. Accessibility section MUST reference WCAG 2.1 AA criteria
+5. All wireframes MUST be enclosed in `<diagram type="ascii">` or `<diagram type="mermaid">` tags
+6. Interaction states MUST cover: default, hover, active, focus, disabled, loading, error, empty

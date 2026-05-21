@@ -187,3 +187,17 @@ gate-profile: adversarial-review
 </rule>
 
 </document>
+
+## Gate Compliance Notes
+
+The rendered document MUST satisfy `gate-adversarial-review.sh`:
+
+| # | Gate Check | How This Template Satisfies It |
+|---|-----------|-------------------------------|
+| 1 | Verdict present (PASS/REJECT/HALT) | `<field name="verdict">` in metadata renders FIRST before any other verdict text |
+| 2 | No stray HALT in body when verdict is PASS | Replace all `CLEAR/HALT` placeholders with actual value — never leave both on one line |
+| 3 | Destructive Action Gate section present | `<section title="Destructive Action Gate">` always included |
+| 4 | Findings have AF-NNN IDs | `<finding id="AF-NNN">` format with zero-padded sequential IDs |
+| 5 | Lens and vector attributed | Each finding has `lens` and `vector` attributes |
+
+Critical: The word "REJECT" or "HALT" MUST NOT appear anywhere in a PASS document except inside clearly-attributed rule/logic sections. The gate regex scans the entire file.

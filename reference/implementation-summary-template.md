@@ -99,3 +99,16 @@ gate-profile: none
 </section>
 
 </document>
+
+## Gate Compliance Notes
+
+This template does NOT have a dedicated gate script (gate-profile: null). However, it is consumed by:
+- **adversarial-reviewer** (Stage 10): uses as `implementation_summary` input to scope the review
+- **code-reviewer** (Stage 10): cross-references changes against this summary
+- **qa-agent** (Stage 9): uses to identify files changed and functions to verify
+
+To ensure reliable downstream parsing:
+1. Files Changed table MUST list every file modified with action (Created/Modified/Deleted)
+2. Phase reference MUST match the phase number from the implementation plan
+3. Each key decision MUST reference the specific file:line where it was implemented
+4. Deviations from spec MUST be explicitly called out with rationale

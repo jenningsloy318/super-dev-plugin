@@ -633,3 +633,16 @@ async function [featureName][action](
 </rule>
 
 </document>
+
+## Gate Compliance Notes
+
+The rendered document MUST satisfy `gate-spec-trace.sh`:
+
+| # | Gate Check | How This Template Satisfies It |
+|---|-----------|-------------------------------|
+| 1 | SCENARIO-NNN references present | Section 6.4 BDD Scenario References table — minimum 1 reference |
+| 2 | Testing strategy text present | Section 6 "Testing Strategy" heading satisfies keyword check |
+| 3 | Task list file exists | `[doc-index]-task-list.md` must be a separate companion file |
+| 4 | Implementation plan file exists | `[doc-index]-implementation-plan.md` must be a separate companion file |
+
+Critical: The spec-writer MUST produce all 3 files (specification, task-list, implementation-plan) in a single stage — the gate checks for all three.

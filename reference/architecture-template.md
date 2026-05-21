@@ -116,3 +116,16 @@ interface [Name]Service {
 </section>
 
 </document>
+
+## Gate Compliance Notes
+
+This template does NOT have a dedicated gate script (gate-profile: null). However, it is consumed by:
+- **spec-writer** (Stage 7): parses Module Specifications, Data Flow, and Technology Stack
+- **tdd-guide** (Stage 9): uses interfaces for test scaffolding
+
+To ensure reliable downstream parsing:
+1. Module names MUST be consistent between Module Architecture diagram and Module Specifications sections
+2. Each module MUST have `purpose`, `Responsibilities` list, `dependencies`, and `public-interface` fields
+3. ADR IDs MUST use format: `ADR-NNN` (zero-padded sequential)
+4. ASCII diagrams MUST be enclosed in `<diagram type="ascii">` tags
+5. Technology Stack table MUST include Layer, Technology, and Rationale columns

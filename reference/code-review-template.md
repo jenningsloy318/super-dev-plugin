@@ -167,3 +167,17 @@ gate-profile: code-review
 </rule>
 
 </document>
+
+## Gate Compliance Notes
+
+The rendered document MUST satisfy `gate-code-review.sh`:
+
+| # | Gate Check | How This Template Satisfies It |
+|---|-----------|-------------------------------|
+| 1 | Verdict present | `<field name="status">` in metadata — must be one of: Approved, Approved with Comments, Changes Requested, Blocked |
+| 2 | CR3: No stray `**Critical**` bold text | Use `### Critical` heading (safe), NEVER `**Critical**` in finding bodies |
+| 3 | Findings have F-NNN IDs | `<finding id="F-NNN">` format with zero-padded sequential IDs |
+| 4 | Verdict consistency | `status` in metadata MUST match `verdict` in Verdict section exactly |
+| 5 | BDD Scenario Coverage table present | `SCENARIO-NNN` IDs with Covered/Missing status |
+
+Critical: The gate regex `\*\*Critical\*\*` scans the ENTIRE file — any `**Critical**` text outside the summary table triggers CR3 FAIL.

@@ -131,3 +131,15 @@ gate-profile: none
 <rule>Written FOR an AI agent -- concrete paths, commands, and IDs only.</rule>
 
 </document>
+
+## Gate Compliance Notes
+
+This template does NOT have a dedicated gate script (gate-profile: none). It is consumed by:
+- **Next session's team-lead**: uses to resume work with full context
+
+To ensure reliable downstream parsing:
+1. Status MUST be one of: `Complete`, `Partial -- [what is missing]`
+2. Progress table MUST include every stage that was attempted
+3. Unfinished Items MUST have priority (P0/P1/P2) and concrete next action
+4. Keep under 300 lines total — no section exceeds 30 lines
+5. Written FOR an AI agent — concrete paths, commands, and IDs only (no prose summaries)

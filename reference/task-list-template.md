@@ -186,3 +186,19 @@ When rendering this template to markdown:
 2. **After each phase completion:** Update `<section title="Progress">` totals
 3. **After code review:** Incorporate any findings into the Technical Decisions Log or Challenges sections
 4. **Final pass:** Ensure File Change Tracking table is complete and all statuses are accurate
+
+## Gate Compliance Notes
+
+This template is validated by `gate-spec-trace.sh` (the gate checks for the file's existence):
+
+| # | Gate Check | How This Template Satisfies It |
+|---|-----------|-------------------------------|
+| 1 | File exists as `[doc-index]-task-list.md` | spec-writer produces this as a companion file to the specification |
+| 2 | Tasks linked to phases | Each task references its parent phase from the implementation plan |
+| 3 | Task status tracking | `<item status="pending/done">` enables progress calculation |
+
+To ensure reliable downstream parsing:
+1. Task items MUST use `status="pending"` or `status="done"` attributes
+2. Phase groupings MUST match phase numbers from the implementation plan
+3. File paths in tasks MUST be relative to project root
+4. Each task MUST reference at least one AC-NN from requirements

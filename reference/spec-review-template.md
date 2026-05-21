@@ -178,3 +178,17 @@ gate-profile: spec-review
 </section>
 
 </document>
+
+## Gate Compliance Notes
+
+The rendered document MUST satisfy `gate-spec-review.sh`:
+
+| # | Gate Check | How This Template Satisfies It |
+|---|-----------|-------------------------------|
+| 1 | Verdict present | `<field name="status">` — must be one of: Approved, Approved with Revisions, Revisions Needed, Rejected |
+| 2 | 8 dimensions evaluated | All D1-D8 sections present with Pass/Fail status |
+| 3 | Findings use SR-NNN format | Sequential IDs with dimension and severity |
+| 4 | Grounding verification table present | References verified against actual codebase |
+| 5 | Deterministic verdict logic | Verdict follows the explicit logic rules (Critical > 0 → Rejected, etc.) |
+
+Critical: Verdict MUST match the deterministic logic — never override with subjective judgment.
