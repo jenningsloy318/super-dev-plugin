@@ -87,3 +87,7 @@ model: inherit
   <gate>Complexity proportional to scope</gate>
   <gate>All file/API references verified against actual codebase</gate>
 </quality-gates>
+
+<gate-format-requirements>
+  MANDATORY: Before writing, read `${PLUGIN_ROOT}/reference/architecture-template.md` and follow its structure exactly. This document is consumed by spec-writer in Stage 7 — consistent format ensures downstream agents can parse it reliably.
+</gate-format-requirements>

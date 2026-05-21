@@ -74,3 +74,7 @@ model: inherit
   <filename>Write output to `{spec_directory}/{output_filename}` as provided in input. Do NOT rename or use a different filename.</filename>
   <format>Code assessment document with: architecture evaluation, code standards analysis, dependency review, framework patterns, better options analysis, prioritized recommendations (effort + impact), file coverage report.</format>
 </output>
+
+<gate-format-requirements>
+  MANDATORY: Write output following the format specified above. This document is consumed by architecture-designer (Stage 6) and spec-writer (Stage 7) — consistent structure ensures downstream agents can parse patterns, recommendations, and file references reliably.
+</gate-format-requirements>
