@@ -48,6 +48,7 @@ model: inherit
 
   <!-- ===== FLOW CONTROL ===== -->
   <constraint-group name="Flow Control">
+    <constraint name="Per-Phase Commit">Before spawning Step 9.1 for each phase, capture `base_sha = HEAD`. After gate-build PASS, Team Lead commits ALL worktree changes (code + tests + implementation summary) with message format: `feat(<phase-name>): <short description>`. The post-commit HEAD becomes `base_sha` for the next phase. This gives impl-summary-writer and reviewers clean diffs per phase.</constraint>
     <constraint name="Iteration Rules">Stage 7/8: on rejection, spawn spec-writer + doc-validator — never edit specs directly. Stage 9/10: TDD per phase (tdd-guide → domain specialist → impl-summary-writer → qa-agent → e2e-runner for Web/UI), then review. On rejection: STOP → extract findings → fix tests (tdd-guide) → fix code (domain specialist) → verify (qa-agent) → re-review. Never fix code directly. Max 3 iterations per loop, escalate to user after 3.</constraint>
     <constraint name="Implementation Completeness">Do NOT proceed Stage 10 → 11 until doc-validator (gate-implementation-complete) signals PASS. Spawn doc-validator with gate_profile=gate-implementation-complete after all phases complete — it verifies plan/tracking alignment. Partial implementation is a CRITICAL violation.</constraint>
     <constraint name="Stage 11-13 Sequence">EXECUTE IN ORDER: Stage 11 (docs-executor → WAIT for signal → spawn doc-validator (gate-docs-drift) → WAIT for PASS → handoff-writer → WAIT) → Stage 12 (terminate all, build-cleaner, user confirmation) → Stage 13 (commit + merge). Each MUST complete before next begins. Skipping is a CRITICAL violation.</constraint>
@@ -81,13 +82,14 @@ model: inherit
     Stage 9: Sequential per-phase TDD loop across ALL plan phases:
     Step 9.1: tdd-guide (RED) → Step 9.2: domain specialist (GREEN) → Step 9.3: impl-summary-writer (DOCUMENT) → Step 9.4: qa-agent (VERIFY) → Step 9.5: e2e-runner (E2E, Web/UI only)
     Gate: spawn doc-validator (gate-build) after each phase — WAIT for PASS signal
+    Commit: after gate-build PASS, Team Lead commits all phase changes (code + tests + summary) with message: "feat(<phase-name>): <description>". The new HEAD becomes base_sha for next phase.
     Stage 10: code-reviewer + adversarial-reviewer + 2× doc-validator (gate-review) + doc-validator (gate-implementation-complete)
     On failure: Implementation Iteration Loop (max 3 per phase)
   </phase>
   <phase n="6" name="Finalization">
     Stage 11: docs-executor → spawn doc-validator (gate-docs-drift) → WAIT for PASS → handoff-writer (skip handoff if single session)
     Stage 12: terminate all, build-cleaner, user confirmation
-    Stage 13: commit spec + code, merge to main
+    Stage 13: commit any remaining uncommitted changes (docs, handoff), merge worktree branch to main
   </phase>
 </process>
 
@@ -269,7 +271,7 @@ model: inherit
       <field>output_filename</field>
       <field>phase_number</field>
       <field>phase_name</field>
-      <field optional="true">base_sha</field>
+      <field>base_sha</field>
     </agent>
     <agent name="qa-agent" stage="9">
       <field>spec_directory</field>

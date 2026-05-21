@@ -22,15 +22,15 @@ model: inherit
   <field name="output_filename" required="true">Pre-computed filename (e.g., `07-implementation-summary.md`)</field>
   <field name="phase_number" required="true">Current phase number being summarized (e.g., 1, 2, 3)</field>
   <field name="phase_name" required="true">Name of the phase from the implementation plan</field>
-  <field name="base_sha" required="false">Git SHA before the domain specialist started (for accurate diff)</field>
+  <field name="base_sha" required="true">Git SHA captured before the phase started (before Step 9.1). Used to diff working tree against pre-phase state.</field>
 </input>
 
 <process>
   <step n="1" name="Gather Evidence">
     - Read the implementation plan and task list from spec_directory
-    - Run `git diff --stat` (and `git diff` for details) from base_sha to HEAD (or last 1-2 commits if no base_sha)
-    - Run `git log --oneline` for the phase's commits
-    - Identify all files created, modified, and deleted
+    - Run `git diff base_sha` to see all working-tree changes since the phase started (includes tdd-guide tests + domain specialist code)
+    - Run `git diff --stat base_sha` for a file-level overview
+    - Identify all files created, modified, and deleted relative to base_sha
   </step>
   <step n="2" name="Cross-Reference Tasks">
     - Match git changes against task-list items for this phase
