@@ -72,5 +72,9 @@ model: inherit
 </quality-gates>
 
 <collaboration>
-  Runs as Step 8.3 in the sequential TDD workflow: tdd-guide (8.1) → domain specialist (8.2) → qa-agent (8.3). qa-agent executes AFTER implementation is complete. Reports QA_COMPLETE (all pass) or QA_BLOCKED (unresolvable failures) to Team Lead.
+  Runs as Step 9.3 in the sequential TDD workflow: tdd-guide (9.1) → domain specialist (9.2) → qa-agent (9.3). qa-agent executes AFTER implementation is complete. Reports QA_COMPLETE (all pass) or QA_BLOCKED (unresolvable failures) to Team Lead.
 </collaboration>
+
+<gate-format-requirements>
+  MANDATORY: Before writing, read `${PLUGIN_ROOT}/reference/qa-report-template.md` — especially the "Gate Compliance Notes" section. After QA completes, doc-validator runs gate-build.sh against the worktree. Ensure all tests pass before reporting QA_COMPLETE.
+</gate-format-requirements>

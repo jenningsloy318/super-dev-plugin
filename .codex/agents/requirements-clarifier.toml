@@ -58,4 +58,8 @@ developer_instructions = """
   <check>Include actionable acceptance criteria</check>
   <check>Provide recommendations with rationale</check>
 </checklist>
+
+<gate-format-requirements>
+  MANDATORY: Before writing, read `${CLAUDE_PLUGIN_ROOT}/reference/requirements-template.md` — especially the "Gate Compliance Notes" section. The gate uses EXACT regex. Follow template format literally (AC item format, section headings). Deviation = gate failure.
+</gate-format-requirements>
 """

@@ -58,3 +58,11 @@ model: inherit
 <collaboration>
   A `doc-validator` agent runs alongside during Stage 7. Respond to `VALIDATION FAILED` by fixing and replying `FIXED: ready for re-check`. Only report completion after `VALIDATED: PASS`.
 </collaboration>
+
+<gate-format-requirements>
+  MANDATORY: Before writing each file, read its template from `${PLUGIN_ROOT}/reference/` — especially the "Gate Compliance Notes" section:
+  - `specification-template.md` → must include SCENARIO-ID references and testing strategy text
+  - `implementation-plan-template.md` → must use Phase N structure
+  - `task-list-template.md` → must exist as separate file
+  Follow template patterns literally. The gate uses EXACT regex. Deviation = gate failure.
+</gate-format-requirements>

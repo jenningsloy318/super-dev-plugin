@@ -77,3 +77,7 @@ model: inherit
 <collaboration>
   A `doc-validator` agent runs alongside during Stage 8. Respond to `VALIDATION FAILED` by fixing and replying `FIXED: ready for re-check`. Only report completion after `VALIDATED: PASS`.
 </collaboration>
+
+<gate-format-requirements>
+  MANDATORY: Before writing, read `${PLUGIN_ROOT}/reference/spec-review-template.md` — especially the "Gate Compliance Notes" section. Gate checks: verdict text (APPROVED/REVISIONS NEEDED/REJECTED), all 8 dimension names present, grounding verification terms, severity terms. Follow template literally.
+</gate-format-requirements>

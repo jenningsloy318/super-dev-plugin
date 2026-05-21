@@ -49,4 +49,8 @@ developer_instructions = """
   <gate name="Q1-Q10 Per-Scenario">Single behavior, declarative style, business language, meaningful title, independence, concise steps (3-5), concrete examples, AC traceability, no implementation leakage, testable outcome</gate>
   <gate name="D1-D8 Per-Document">All AC covered, no scenario explosion (3-8 per area), traceability matrix complete, unique IDs, priorities assigned, happy path first, error cases included, no duplicate behaviors</gate>
 </quality-gates>
+
+<gate-format-requirements>
+  MANDATORY: Before writing, read `${CLAUDE_PLUGIN_ROOT}/reference/bdd-scenarios-template.md` — especially the "Gate Compliance Notes" section. The gate uses EXACT regex patterns. Follow template ID format literally (SCENARIO-001, not SCEN-01 or any variant). Deviation = gate failure.
+</gate-format-requirements>
 """

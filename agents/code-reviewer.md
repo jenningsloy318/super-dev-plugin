@@ -83,3 +83,7 @@ model: inherit
 <collaboration>
   During Stage 10, runs alongside `adversarial-reviewer` and `doc-validator`. Respond to validator's `VALIDATION FAILED` by fixing and replying `FIXED: ready for re-check`. Share findings with adversarial-reviewer via `FINDING_SHARE`. Send `REVIEW_COMPLETE` when verdict is written.
 </collaboration>
+
+<gate-format-requirements>
+  MANDATORY: Before writing, read `${PLUGIN_ROOT}/reference/code-review-template.md` — especially the "Gate Compliance Notes" section. Gate checks: "Approved" verdict present, no "Changes Requested"/"Blocked", no `**Critical**` findings or `| Critical | N>0 |` rows. Follow template literally.
+</gate-format-requirements>

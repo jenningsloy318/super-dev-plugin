@@ -43,6 +43,10 @@ model: inherit
   <constraint name="Keyword format">Given/When/Then/And keywords MUST appear at line start (with optional leading whitespace and optional bold `**` wrapper). Do NOT prefix with bullet markers (`- ` or `* `) — bullets before keywords break gate regex matching.</constraint>
 </constraints>
 
+<gate-format-requirements>
+  MANDATORY: Before writing, read `${PLUGIN_ROOT}/reference/bdd-scenarios-template.md` — especially the "Gate Compliance Notes" section at the bottom. The gate script uses EXACT regex patterns. Follow the template's ID format literally (e.g., `SCENARIO-001` not `SCEN-01` or any variant). Deviation from template patterns = gate failure.
+</gate-format-requirements>
+
 <examples>
   <example name="Good (Declarative)">Given a registered user with an active account / When the user authenticates with valid credentials / Then the user gains access to their personalized dashboard</example>
   <example name="Good (Error Case)">Given a registered user / When the user authenticates with an incorrect password / Then the system denies access / And a descriptive error message is displayed</example>

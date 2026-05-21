@@ -80,3 +80,7 @@ model: inherit
 <collaboration>
   During Stage 10, runs alongside `code-reviewer` and `doc-validator`. Respond to validator's `VALIDATION FAILED` by fixing and replying `FIXED: ready for re-check`. Share significant findings with code-reviewer via `FINDING_SHARE`. Send `REVIEW_COMPLETE` when verdict is written. If Destructive Action Gate triggers HALT, share immediately.
 </collaboration>
+
+<gate-format-requirements>
+  MANDATORY: Before writing, read `${PLUGIN_ROOT}/reference/adversarial-review-template.md` — especially the "Gate Compliance Notes" section. Gate checks: PASS/REJECT/HALT verdict present, no "REJECT" when intending PASS. Avoid using the word "REJECT" anywhere in the document if your verdict is PASS.
+</gate-format-requirements>

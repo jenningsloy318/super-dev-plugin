@@ -74,6 +74,10 @@ model: inherit
   A `doc-validator` agent runs alongside during Stage 2. Respond to `VALIDATION FAILED` by fixing and replying `FIXED: ready for re-check`. Only report completion after `VALIDATED: PASS`.
 </collaboration>
 
+<gate-format-requirements>
+  MANDATORY: Before writing, read `${PLUGIN_ROOT}/reference/requirements-template.md` — especially the "Gate Compliance Notes" section. The gate script uses EXACT regex patterns. Follow the template's format literally (AC item format, section headings). Deviation = gate failure.
+</gate-format-requirements>
+
 <checklist>
   <check>Go beyond surface request to identify root need</check>
   <check>Include 5 Whys analysis</check>
