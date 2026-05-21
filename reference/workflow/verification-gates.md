@@ -6,16 +6,21 @@ Gate scripts live in `${PLUGIN_ROOT}/scripts/gates/`. Exit 0 = PASS, exit 1 = FA
 
 ## Execution
 
+All gates are executed by **doc-validator** agents spawned by team-lead. Team-lead NEVER runs gate scripts directly — it spawns doc-validator with the appropriate `gate_profile` and waits for the PASS/FAIL signal.
+
 ```bash
-bash ${PLUGIN_ROOT}/scripts/gates/<gate-name>.sh <spec-dir>
+# doc-validator runs this internally:
+bash ${PLUGIN_ROOT}/scripts/gates/<gate-name>.sh <argument>
+# argument = <spec-dir> for most gates, <worktree-path> for gate-build.sh
 ```
 
 ## Failure handling
 
-1. Report which checks failed.
-2. Spawn appropriate agent to fix (spec-writer for spec gates, domain specialist for code gates, docs-executor for docs gates).
-3. Re-run gate.
-4. Proceed only on PASS (exit 0). Never bypass.
+1. doc-validator reports which checks failed (with fix instructions) to the responsible agent.
+2. Responsible agent fixes the issue and signals doc-validator.
+3. doc-validator re-runs gate. Loop max 3 iterations.
+4. After 3 failures: doc-validator escalates to team-lead as VALIDATION BLOCKED.
+5. Team-lead spawns appropriate fix agent or escalates to user.
 
 ## Gate map (canonical)
 
@@ -27,7 +32,7 @@ This table is duplicated in SKILL.md for inline reference — keep both in sync.
 | 2 → 3 | `gate-bdd.sh` | doc-validator | SCENARIO-IDs, Given/When/Then, AC traceability |
 | 7 → 8 | `gate-spec-trace.sh` | doc-validator | Spec refs BDD scenarios, testing strategy |
 | 8 → 9 | `gate-spec-review.sh` | doc-validator | Review verdict, 8 dimensions, grounding |
-| 9 → 10 | `gate-build.sh` | team-lead | Build succeeds, tests pass, type checks |
+| 9 (per phase) | `gate-build.sh` | doc-validator | Build succeeds, tests pass, type checks |
 | 10 → 11 | `gate-review.sh` | doc-validator | Code review approved, adversarial PASS |
-| 10 → 11 | `gate-implementation-complete.sh` | team-lead | ALL implementation-plan phases complete in tracking JSON |
-| 11 (docs → handoff) | `gate-docs-drift.sh` | team-lead | Docs exist, no excessive TODOs |
+| 10 → 11 | `gate-implementation-complete.sh` | doc-validator | ALL implementation-plan phases complete in tracking JSON |
+| 11 (docs → handoff) | `gate-docs-drift.sh` | doc-validator | Docs exist, no excessive TODOs |

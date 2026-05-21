@@ -2,7 +2,7 @@
 name: super-dev
 description: Multi-step development orchestrator for implementing features, fixing bugs, refactoring, optimizing performance, and resolving deprecations
 author: Jennings Liu
-version: 2.4.18
+version: 2.4.20
 license: MIT
 ---
 
@@ -22,7 +22,7 @@ license: MIT
 
 <workflow>
   <stage n="1" name="Specification Setup">Create worktree, spec dir, workflow JSON, agent team. MUST complete before any codebase exploration or agent spawning.</stage>
-  <stage n="2" name="Requirements + BDD">Sequential: spawn requirements-clarifier + doc-validator (parallel) → after gate-requirements.sh PASS, spawn bdd-scenario-writer + doc-validator (parallel). Gates: gate-requirements.sh, gate-bdd.sh.</stage>
+  <stage n="2" name="Requirements + BDD">Sequential pairs: spawn requirements-clarifier + doc-validator (gate-requirements) in parallel → WAIT for doc-validator PASS signal (do NOT read the doc or run the gate yourself) → spawn bdd-scenario-writer + doc-validator (gate-bdd) in parallel → WAIT for doc-validator PASS signal. Gates: gate-requirements.sh, gate-bdd.sh (both run by doc-validator, NEVER by team-lead).</stage>
   <stage n="3" name="Research">Spawn research-agent. Firecrawl MCP first, then supplementary scripts. If report identifies issues/flaws/ambiguities, re-spawn research-agent in deep-research mode targeting specific issues (max 3 iterations). Present 3-5 options to user.</stage>
   <stage n="4" name="Debug Analysis">Spawn debug-analyzer. Only for bug fixes — skip otherwise.</stage>
   <stage n="5" name="Code Assessment">Spawn code-assessor. FIRST stage allowed to read/grep/explore the codebase.</stage>
@@ -36,9 +36,9 @@ license: MIT
   </stage>
   <stage n="7" name="Specification Writing">Spawn spec-writer + doc-validator (parallel). Produces specification, implementation plan, task list. Gate: gate-spec-trace.sh.</stage>
   <stage n="8" name="Specification Review">Spawn spec-reviewer + doc-validator (parallel). Reviewer MUST verify spec covers ALL requirements ACs, ALL BDD scenarios, and aligns with design decisions. Gate: gate-spec-review.sh. On failure: follow Spec Iteration Loop.</stage>
-  <stage n="9" name="Implementation">Sequential TDD workflow per phase: Step 9.1 spawn tdd-guide (write failing tests from req/bdd/spec/plan/tasks) → Step 9.2 spawn domain specialist (make tests pass, produce `*-implementation-summary.md`) → Step 9.3 spawn qa-agent (run tests, verify coverage, report) → Step 9.4 spawn e2e-runner (E2E tests, Web/UI only — skip for backend-only/CLI/library). Each step MUST complete before the next begins. Gate: gate-build.sh. Loops through ALL implementation-plan phases via Implementation Completeness Loop.</stage>
-  <stage n="10" name="Code Review">Spawn code-reviewer + adversarial-reviewer + 2x doc-validator (4 parallel). Gate: gate-review.sh. On failure: follow Implementation Iteration Loop.</stage>
-  <stage n="11" name="Documentation">Sequential: spawn docs-executor → WAIT for `DOCS_COMPLETE` signal or agent termination → run gate-docs-drift.sh → spawn handoff-writer → WAIT for completion. Skip handoff-writer ONLY if all stages completed in a single session (no continuation needed). MANDATORY — do not skip docs-executor.</stage>
+  <stage n="9" name="Implementation">Sequential TDD workflow per phase: Step 9.1 spawn tdd-guide (write failing tests from req/bdd/spec/plan/tasks) → Step 9.2 spawn domain specialist (make tests pass, produce `*-implementation-summary.md`) → Step 9.3 spawn qa-agent (run tests, verify coverage, report) → Step 9.4 spawn e2e-runner (E2E tests, Web/UI only — skip for backend-only/CLI/library). Each step MUST complete before the next begins. Gate: spawn doc-validator (gate-build) after each phase — WAIT for PASS. Loops through ALL implementation-plan phases via Implementation Completeness Loop.</stage>
+  <stage n="10" name="Code Review">Spawn code-reviewer + adversarial-reviewer + 2x doc-validator (gate-review) + doc-validator (gate-implementation-complete) — 5 parallel. Gate: gate-review.sh, gate-implementation-complete.sh. On failure: follow Implementation Iteration Loop.</stage>
+  <stage n="11" name="Documentation">Sequential: spawn docs-executor → WAIT for `DOCS_COMPLETE` signal or agent termination → spawn doc-validator (gate-docs-drift) → WAIT for PASS → spawn handoff-writer → WAIT for completion. Skip handoff-writer ONLY if all stages completed in a single session (no continuation needed). MANDATORY — do not skip docs-executor.</stage>
   <stage n="12" name="Cleanup & Confirmation">Verify all teammates terminated. Spawn build-cleaner agent to detect project type and clean build artifacts/caches (e.g., cargo clean, rm node_modules, etc.). Worktree preserved. Then present summary to user for confirmation before merge.</stage>
   <stage n="13" name="Commit and Merge">Git operations: commit spec directory + code, merge to main. Verify completion; worktree preserved for reference.</stage>
 </workflow>
@@ -65,10 +65,10 @@ license: MIT
   | 2 → 3 | `gate-bdd.sh` | doc-validator | SCENARIO-IDs, Given/When/Then, AC traceability |
   | 7 → 8 | `gate-spec-trace.sh` | doc-validator | Spec refs BDD scenarios, testing strategy |
   | 8 → 9 | `gate-spec-review.sh` | doc-validator | Review verdict, 8 dimensions, grounding |
-  | 9 → 10 | `gate-build.sh` | team-lead | Build, tests, type checks |
+  | 9 (per phase) | `gate-build.sh` | doc-validator | Build, tests, type checks |
   | 10 → 11 | `gate-review.sh` | doc-validator | Code review approved, adversarial PASS |
-  | 10 → 11 | `gate-implementation-complete.sh` | team-lead | ALL implementation-plan phases complete |
-  | 11 (docs → handoff) | `gate-docs-drift.sh` | team-lead | Docs exist, no excessive TODOs |
+  | 10 → 11 | `gate-implementation-complete.sh` | doc-validator | ALL implementation-plan phases complete |
+  | 11 (docs → handoff) | `gate-docs-drift.sh` | doc-validator | Docs exist, no excessive TODOs |
 </gate-map>
 
 <process name="Worktree Enforcement (PRE-STAGE GATE)">
@@ -116,13 +116,15 @@ license: MIT
 </criteria>
 
 <constraints>
+  <constraint name="NEVER Run Gate Scripts">Team Lead NEVER executes gate scripts (gate-*.sh) via Bash. ALL gate verification is delegated to doc-validator. Spawn doc-validator with gate_profile, WAIT for VALIDATED: PASS signal. Running a gate directly — even "just to check" — is a CRITICAL violation.</constraint>
+  <constraint name="NEVER Read Document Outputs">Team Lead NEVER reads documents produced by writer agents for quality verification or to copy content into spawn prompts. Pass spec_directory to downstream agents — they read their own inputs. Exception: extracting a structural count (e.g., number of phases via grep) for loop initialization is acceptable — but never read full documents or paste their content.</constraint>
   <constraint name="Worktree-Only Modifications">NEVER modify files in the main repo. ALL file operations MUST use absolute paths starting with WORKTREE_PATH. Only exception: Stage 1 scanning main repo's specification/ for next index (read-only). Stage 13 merges to main.</constraint>
   <constraint name="Iteration Rules">Stage 7/8: follow `spec-iteration-loop.md`. Stage 9/10: follow `implementation-completeness-loop.md` + `implementation-iteration-loop.md`. Both: max 3 iterations, spawn sub-agents for fixes, escalate after 3.</constraint>
   <constraint name="Version Bump">Every modification to super-dev-plugin files requires patch version bump in plugin.json and marketplace.json.</constraint>
   <constraint name="Stage 1 Gate">Stage 1 MUST complete before ANY exploration, code reading, grep, glob, research, or agent spawning.</constraint>
   <constraint name="No Early Code Analysis">Do NOT read code or explore the codebase before Stage 5. Stages 1-4 work from requirements and research only.</constraint>
-  <constraint name="Parallel Doc-validator Rule">Stages 2, 7, 8, 10: ALWAYS spawn doc-validator alongside writer/reviewer.</constraint>
-  <constraint name="MANDATORY Stage 11-13 Transition">Execute in strict order: Stage 11 (docs-executor → gate-docs-drift.sh → handoff-writer) → Stage 12 (cleanup + user confirmation) → Stage 13 (commit + merge). Skipping is a CRITICAL violation.</constraint>
+  <constraint name="Parallel Doc-validator Rule">EVERY writer/reviewer spawn MUST have a doc-validator spawned IN THE SAME MESSAGE (parallel). Pre-spawn self-check: "Is this agent producing a document? Am I also spawning its paired doc-validator?" If not → STOP and add doc-validator. Spawning a writer WITHOUT its paired doc-validator is a CRITICAL violation — the gate will never be checked. Applies to: Stage 2 (×2), Stage 7, Stage 8, Stage 9 (gate-build after qa), Stage 10 (×3), Stage 11 (gate-docs-drift after docs-executor).</constraint>
+  <constraint name="MANDATORY Stage 11-13 Transition">Execute in strict order: Stage 11 (docs-executor → doc-validator (gate-docs-drift) → handoff-writer) → Stage 12 (cleanup + user confirmation) → Stage 13 (commit + merge). Skipping is a CRITICAL violation.</constraint>
   <ref>Team Lead operational constraints (worktree paths in spawn prompts, cd-prefix, delegation mode, implementation completeness, teammate termination) live in `agents/team-lead.md` — not duplicated here.</ref>
 </constraints>
 
