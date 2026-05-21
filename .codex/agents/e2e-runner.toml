@@ -32,4 +32,8 @@ developer_instructions = """
 <constraint name="Flaky Test Management">
   Detection: Inconsistent pass/fail across runs. Quarantine: `test.describe.configure({ retries: 3 })` or skip with documented reason. Stabilize: Add explicit waits, improve selectors, mock time, isolate test data. Remove: After 3 failed stabilization attempts, remove and document.
 </constraint>
+
+<gate-format-requirements>
+  MANDATORY: Before writing, read `${CLAUDE_PLUGIN_ROOT}/reference/e2e-report-template.md` — especially the "Gate Compliance Notes" section. Use SCENARIO-NNN IDs in Journey Coverage Matrix, PERF-NNN/A11Y-NNN/DEF-NNN for findings, and browser results as exactly PASS or FAIL per cell.
+</gate-format-requirements>
 """

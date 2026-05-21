@@ -71,10 +71,10 @@ model: inherit
 </checklist>
 
 <output>
+  <template>Load `${PLUGIN_ROOT}/reference/code-assessment-template.md` and fill in all placeholders.</template>
   <filename>Write output to `{spec_directory}/{output_filename}` as provided in input. Do NOT rename or use a different filename.</filename>
-  <format>Code assessment document with: architecture evaluation, code standards analysis, dependency review, framework patterns, better options analysis, prioritized recommendations (effort + impact), file coverage report.</format>
 </output>
 
 <gate-format-requirements>
-  MANDATORY: Write output following the format specified above. This document is consumed by architecture-designer (Stage 6) and spec-writer (Stage 7) — consistent structure ensures downstream agents can parse patterns, recommendations, and file references reliably.
+  MANDATORY: Before writing, read `${PLUGIN_ROOT}/reference/code-assessment-template.md` — especially the "Gate Compliance Notes" section. Use prefixed finding IDs (ARCH-NNN, STD-NNN, DEP-NNN, PAT-NNN, TD-NNN, REC-NNN) and include the File Coverage Report section.
 </gate-format-requirements>

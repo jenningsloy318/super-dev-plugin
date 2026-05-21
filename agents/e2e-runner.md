@@ -104,3 +104,7 @@ model: inherit
   Triggers ONLY when feature involves Web UI or Desktop UI (detected from spec or architecture doc).
   Reports E2E_COMPLETE or E2E_BLOCKED to Team Lead.
 </collaboration>
+
+<gate-format-requirements>
+  MANDATORY: Before writing, read `${PLUGIN_ROOT}/reference/e2e-report-template.md` — especially the "Gate Compliance Notes" section. Use SCENARIO-NNN IDs in Journey Coverage Matrix, PERF-NNN/A11Y-NNN/DEF-NNN for findings, and browser results as exactly PASS or FAIL per cell.
+</gate-format-requirements>

@@ -90,10 +90,10 @@ model: inherit
 </checklist>
 
 <output>
+  <template>Load `${PLUGIN_ROOT}/reference/debug-analysis-template.md` and fill in all placeholders.</template>
   <filename>Write output to `{spec_directory}/{output_filename}` as provided by Team Lead. Do NOT rename or use a different filename.</filename>
-  <format>Debug analysis document with: issue summary, reproduction strategy (technique + steps to reproduce), reproduction confirmation, code execution path trace, hypotheses (3-5 ranked, each with falsifiable prediction and verification result), verified root cause, recommended fix with code locations, regression test strategy, prevention recommendation.</format>
 </output>
 
 <gate-format-requirements>
-  MANDATORY: Write output following the format specified above. This document is consumed by spec-writer in Stage 7 — consistent structure ensures downstream agents can parse root cause, fix locations, and test strategy reliably.
+  MANDATORY: Before writing, read `${PLUGIN_ROOT}/reference/debug-analysis-template.md` — especially the "Gate Compliance Notes" section. Use HYP-NNN IDs for hypotheses (minimum 3), include falsifiable predictions, and ensure Verified Root Cause references a confirmed HYP-NNN.
 </gate-format-requirements>

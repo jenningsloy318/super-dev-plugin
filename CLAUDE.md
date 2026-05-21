@@ -8,6 +8,8 @@ Every modification MUST include a patch version bump in ALL platform manifests s
 
 Bump the patch level (e.g., `2.4.14 → 2.4.15`) and include ALL four files in the same commit. ALL four manifest versions MUST always match.
 
+**Commit immediately after each bump** — never accumulate multiple version bumps in uncommitted state. Each logical change group gets its own version bump AND its own commit before starting the next group.
+
 ## Project-specific notes
 
 - This is a multi-platform agent plugin (Claude Code, Codex CLI, Antigravity IDE/CLI). Edits to the Claude version under `agents/*.md` and `skills/super-dev/SKILL.md` usually need a mirror edit under `.codex/agents/*.toml` for parity.
