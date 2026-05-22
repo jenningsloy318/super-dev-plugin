@@ -30,12 +30,12 @@ model: inherit
 </input>
 
 <process>
-  <step n="0" name="Read Output Schemas">Read ALL three JSON schemas: `{plugin_root}/templates/schemas/specification.schema.json`, `{plugin_root}/templates/schemas/implementation-plan.schema.json`, `{plugin_root}/templates/schemas/task-list.schema.json` to understand the required output structures BEFORE starting synthesis.</step>
+  <step n="0" name="Read Format Templates">Read ALL three format templates: `{plugin_root}/templates/specification.md.j2`, `{plugin_root}/templates/implementation-plan.md.j2`, `{plugin_root}/templates/task-list.md.j2` to understand the expected markdown structures BEFORE starting synthesis.</step>
   <step n="1" name="Synthesize Inputs">Read ALL input documents. For requirements: extract every AC-ID and its acceptance criteria. For BDD scenarios: extract every SCENARIO-ID. For architecture/design: extract key decisions and constraints. These form the coverage baseline — the spec MUST address every one.</step>
-  <step n="2" name="Create Technical Specification">Document all technical decisions and architecture. Every AC must map to a spec section. Every BDD scenario must be addressable by the design. Architecture decisions must be reflected in the technical approach. Structure for AI consumption: use XML tags for machine-parseable sections, include AC-IDs and SCENARIO-ID references inline, place long context (background, constraints, data models) at TOP and queries/action items at BOTTOM. Write JSON matching schema to `{spec_directory}/{output_filenames[0]}.json`. Then render: `bash {plugin_root}/scripts/render.sh --template {plugin_root}/templates/specification.md.j2 --data {spec_directory}/{output_filenames[0]}.json --output {spec_directory}/{output_filenames[0]}`. If render fails, fix JSON and re-run.</step>
-  <step n="3" name="Create Implementation Plan">Break specification into implementable milestones. Tag every task with `domain` attribute. Identify cross-domain dependencies. Document spawn ordering. Structure as a dependency graph (DAG): each phase MUST include `depends_on` (which phases must complete first) and `parallelizable_with` (which phases can execute concurrently) fields. Decompose tasks so each has clear inputs/outputs and can be assigned to one agent independently. Tune granularity by complexity: simple tasks get coarse phases, complex tasks get fine-grained sub-phases. Write JSON matching schema to `{spec_directory}/{output_filenames[1]}.json`. Then render: `bash {plugin_root}/scripts/render.sh --template {plugin_root}/templates/implementation-plan.md.j2 --data {spec_directory}/{output_filenames[1]}.json --output {spec_directory}/{output_filenames[1]}`. If render fails, fix JSON and re-run.</step>
-  <step n="4" name="Create Task List">Generate granular tasks from implementation plan. Write JSON matching schema to `{spec_directory}/{output_filenames[2]}.json`. Then render: `bash {plugin_root}/scripts/render.sh --template {plugin_root}/templates/task-list.md.j2 --data {spec_directory}/{output_filenames[2]}.json --output {spec_directory}/{output_filenames[2]}`. If render fails, fix JSON and re-run.</step>
-  <step n="5" name="Pre-Output Self-Check">Verify: (1) Specification contains SCENARIO-ID references from BDD doc. (2) Every AC-ID from requirements is addressed. (3) Architecture decisions are not contradicted. (4) All three .md output files produced and non-empty. If any check fails, fix the JSON and re-render before signaling completion.</step>
+  <step n="2" name="Create Technical Specification">Document all technical decisions and architecture. Every AC must map to a spec section. Every BDD scenario must be addressable by the design. Architecture decisions must be reflected in the technical approach. Structure for AI consumption: use XML tags for machine-parseable sections, include AC-IDs and SCENARIO-ID references inline, place long context (background, constraints, data models) at TOP and queries/action items at BOTTOM. Write the specification markdown directly to `{spec_directory}/{output_filenames[0]}` following the structure from the template.</step>
+  <step n="3" name="Create Implementation Plan">Break specification into implementable milestones. Tag every task with `domain` attribute. Identify cross-domain dependencies. Document spawn ordering. Structure as a dependency graph (DAG): each phase MUST include `depends_on` (which phases must complete first) and `parallelizable_with` (which phases can execute concurrently) fields. Decompose tasks so each has clear inputs/outputs and can be assigned to one agent independently. Tune granularity by complexity: simple tasks get coarse phases, complex tasks get fine-grained sub-phases. Write the implementation plan markdown directly to `{spec_directory}/{output_filenames[1]}` following the structure from the template.</step>
+  <step n="4" name="Create Task List">Generate granular tasks from implementation plan. Write the task list markdown directly to `{spec_directory}/{output_filenames[2]}` following the structure from the template.</step>
+  <step n="5" name="Pre-Output Self-Check">Verify: (1) Specification contains SCENARIO-ID references from BDD doc. (2) Every AC-ID from requirements is addressed. (3) Architecture decisions are not contradicted. (4) All three .md output files produced and non-empty. If any check fails, fix the output before signaling completion.</step>
 </process>
 
 <constraints>
@@ -54,8 +54,8 @@ model: inherit
 </process>
 
 <output>
-  <filename>For each document, write JSON to `{spec_directory}/{output_filenames[N]}.json`, then render to `{spec_directory}/{output_filenames[N]}`.</filename>
-  <format>3 documents produced in order: (1) Technical Specification — architecture, data models, APIs, testing strategy. (2) Implementation Plan — phased milestones with domain tags and dependencies. (3) Task List — granular tasks per phase with file change tracking.</format>
+  <format>3 documents produced in order, written directly as markdown: (1) Technical Specification — architecture, data models, APIs, testing strategy. (2) Implementation Plan — phased milestones with domain tags and dependencies. (3) Task List — granular tasks per phase with file change tracking.</format>
+  <filename>`{spec_directory}/{output_filenames[0]}`, `{spec_directory}/{output_filenames[1]}`, `{spec_directory}/{output_filenames[2]}`</filename>
 </output>
 
 <collaboration>
@@ -63,8 +63,9 @@ model: inherit
 </collaboration>
 
 <gate-format-requirements>
-  MiniJinja templates guarantee gate-compliant output. You produce JSON matching schemas in `{plugin_root}/templates/schemas/`, then render via `{plugin_root}/scripts/render.sh`. Templates handle formatting:
-  - `specification.md.j2` → SCENARIO-ID references, testing strategy
-  - `implementation-plan.md.j2` → Phase N structure, DAG fields
+  Read format templates in Step 0 to understand required markdown structures. Templates show exact headings, section order, and patterns gate scripts validate:
+  - `specification.md.j2` → SCENARIO-ID references, testing strategy keywords
+  - `implementation-plan.md.j2` → "Phase N" structure, dependency fields
   - `task-list.md.j2` → checkbox tasks with phase references
+  Write your output following those structures directly — no JSON or render.sh needed.
 </gate-format-requirements>

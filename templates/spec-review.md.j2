@@ -1,33 +1,30 @@
-{# Spec Review Template — renders gate-spec-review.sh compliant markdown.
-   Gate checks:
-   SR1: Verdict text exists (APPROVED|REVISIONS NEEDED|REJECTED)
-   SR2: All 8 dimensions present by name (Completeness, Consistency, Feasibility,
-        Testability, Traceability, Grounding, Complexity, Ambiguity)
-   SR3: No contradictory verdict (APPROVED and REJECTED on same line)
-   SR4: Grounding verification keywords (verified|exists|not found|hallucinated|confirmed|grounding)
-   SR5: Finding severity summary (Critical|High|Medium|Low|finding)
+{# FORMAT REFERENCE — Agent reads this to understand the required output structure.
+   Gate checks (gate-spec-review.sh):
+   - Must contain verdict text: APPROVED or REVISIONS NEEDED or REJECTED
+   - Must contain ALL 8 dimension names: Completeness, Consistency, Feasibility, Testability, Traceability, Grounding, Complexity, Ambiguity
+   - Must contain grounding keywords (verified|exists|not found|confirmed|grounding)
+   - Must contain finding severity keywords (Critical|High|Medium|Low|finding)
 #}
-# Specification Review: {{ feature_name }}
+# Specification Review: [Feature Name]
 
-- **Date**: {{ date }}
+- **Date**: [YYYY-MM-DD]
 - **Author**: super-dev:spec-reviewer
-- **Specification**: ./{{ spec_filename }}
-- **Status**: {{ verdict }}
+- **Specification**: ./[XX]-specification.md
+- **Status**: [APPROVED|REVISIONS NEEDED|REJECTED]
 
 ---
 
-## Verdict: {{ verdict }}
+## Verdict: [APPROVED|REVISIONS NEEDED|REJECTED]
 
-{{ verdict_rationale }}
+[1-2 sentence rationale for the verdict]
 
 ## Finding Summary
 
-| Severity | Count |
-|----------|-------|
-{% for sev in severity_summary %}
-| {{ sev.level }} | {{ sev.count }} |
-{% endfor %}
-| **Total** | {{ findings | length }} |
+- Critical: [N]
+- High: [N]
+- Medium: [N]
+- Low: [N]
+- **Total**: [N]
 
 ---
 
@@ -35,113 +32,69 @@
 
 ### D1: Completeness
 
-- **Status**: {{ dimensions.completeness.status }}
+- **Status**: [Pass|Fail|Partial]
 
-{{ dimensions.completeness.assessment }}
-{% for finding in dimensions.completeness.findings %}
+[Assessment of whether every AC has a spec section, every SCENARIO is addressed]
 
-> **{{ finding.id }}** ({{ finding.severity }}): {{ finding.description }}
-> *Recommendation*: {{ finding.recommendation }}
-{% endfor %}
+> **F-01** (High): [Finding description if any issues]
+> *Recommendation*: [How to fix]
 
 ### D2: Consistency
 
-- **Status**: {{ dimensions.consistency.status }}
+- **Status**: [Pass|Fail|Partial]
 
-{{ dimensions.consistency.assessment }}
-{% for finding in dimensions.consistency.findings %}
-
-> **{{ finding.id }}** ({{ finding.severity }}): {{ finding.description }}
-> *Recommendation*: {{ finding.recommendation }}
-{% endfor %}
+[Assessment of data model name consistency, terminology uniformity]
 
 ### D3: Feasibility
 
-- **Status**: {{ dimensions.feasibility.status }}
+- **Status**: [Pass|Fail|Partial]
 
-{{ dimensions.feasibility.assessment }}
-{% for finding in dimensions.feasibility.findings %}
-
-> **{{ finding.id }}** ({{ finding.severity }}): {{ finding.description }}
-> *Recommendation*: {{ finding.recommendation }}
-{% endfor %}
+[Assessment of whether architecture fits project patterns]
 
 ### D4: Testability
 
-- **Status**: {{ dimensions.testability.status }}
+- **Status**: [Pass|Fail|Partial]
 
-{{ dimensions.testability.assessment }}
-{% for finding in dimensions.testability.findings %}
-
-> **{{ finding.id }}** ({{ finding.severity }}): {{ finding.description }}
-> *Recommendation*: {{ finding.recommendation }}
-{% endfor %}
+[Assessment of measurable ACs, concrete test types]
 
 ### D5: Traceability
 
-- **Status**: {{ dimensions.traceability.status }}
+- **Status**: [Pass|Fail|Partial]
 
-{{ dimensions.traceability.assessment }}
-{% for finding in dimensions.traceability.findings %}
-
-> **{{ finding.id }}** ({{ finding.severity }}): {{ finding.description }}
-> *Recommendation*: {{ finding.recommendation }}
-{% endfor %}
+[Assessment of AC→spec, SCENARIO→task chains]
 
 ### D6: Grounding
 
-- **Status**: {{ dimensions.grounding.status }}
+- **Status**: [Pass|Fail|Partial]
 
-{{ dimensions.grounding.assessment }}
+[Assessment of whether referenced files, functions, APIs exist in the codebase]
 
-#### Grounding Verification
-
-| Reference | Type | Verified | Notes |
-|-----------|------|----------|-------|
-{% for ref in dimensions.grounding.verifications %}
-| {{ ref.reference }} | {{ ref.type }} | {{ ref.status }} | {{ ref.notes }} |
-{% endfor %}
-{% for finding in dimensions.grounding.findings %}
-
-> **{{ finding.id }}** ({{ finding.severity }}): {{ finding.description }}
-> *Recommendation*: {{ finding.recommendation }}
-{% endfor %}
+Grounding verification:
+- `[file/function]` — [confirmed|not found]
+- `[file/function]` — [confirmed|not found]
 
 ### D7: Complexity
 
-- **Status**: {{ dimensions.complexity.status }}
+- **Status**: [Pass|Fail|Partial]
 
-{{ dimensions.complexity.assessment }}
-{% for finding in dimensions.complexity.findings %}
-
-> **{{ finding.id }}** ({{ finding.severity }}): {{ finding.description }}
-> *Recommendation*: {{ finding.recommendation }}
-{% endfor %}
+[Assessment of proportional file count, justified abstractions]
 
 ### D8: Ambiguity
 
-- **Status**: {{ dimensions.ambiguity.status }}
+- **Status**: [Pass|Fail|Partial]
 
-{{ dimensions.ambiguity.assessment }}
-{% for finding in dimensions.ambiguity.findings %}
-
-> **{{ finding.id }}** ({{ finding.severity }}): {{ finding.description }}
-> *Recommendation*: {{ finding.recommendation }}
-{% endfor %}
+[Assessment of fully defined schemas, explicit state transitions]
 
 ---
 
 ## Coverage Matrix
 
-| AC-ID | Spec Section | Status |
-|-------|-------------|--------|
-{% for row in coverage_matrix %}
-| {{ row.ac_id }} | {{ row.spec_section }} | {{ row.status }} |
-{% endfor %}
+- AC-01 → [spec section] — [Covered|Missing]
+- AC-02 → [spec section] — [Covered|Missing]
 
 ## Verdict Logic
 
-- Findings with severity of type critical: {{ critical_count }}
-- Findings with severity of type high: {{ high_count }}
-- Dimensions at 0%: {{ zero_dimensions }}
-- Determination: {{ verdict }}
+- Critical findings: [N]
+- High findings: [N]
+- Dimensions at 0%: [N]
+- Determination: [APPROVED|REVISIONS NEEDED|REJECTED]

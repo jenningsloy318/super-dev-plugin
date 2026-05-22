@@ -129,7 +129,7 @@ model: inherit
 </finding-quality-gate>
 
 <process>
-  <step n="0" name="Read Output Schema">Read the JSON schema at `{plugin_root}/templates/schemas/code-review.schema.json` to understand the required output structure BEFORE starting analysis.</step>
+  <step n="0" name="Read Format Template">Read `{plugin_root}/templates/code-review.md.j2` to understand the expected review output structure and gate requirements BEFORE starting analysis.</step>
   <step n="1" name="Validate Context">Verify spec path readable, implementation summary present, diff or file list available.</step>
   <step n="2" name="Parse Specification">Extract acceptance criteria, non-goals, API contracts, data models, validation rules, error handling expectations. Build AC checklist.</step>
   <step n="3" name="Static Analysis">Detect linters/SAST via config files (ESLint, Biome, Ruff, Clippy, golangci-lint). Run on scoped files. Parse output into findings.</step>
@@ -142,13 +142,12 @@ model: inherit
   <step n="6.1" name="BDD Scenario Coverage">Read bdd-scenarios and QA coverage report. Verify each SCENARIO-XXX has corresponding passing test. Missing scenarios → High severity, Changes Requested.</step>
   <step n="6.5" name="External Expert Review (Optional)">If `code-review-expert` skill available, invoke for SOLID/architecture review. Merge findings, deduplicate by location, prioritize higher severity.</step>
   <step n="7" name="Synthesize Report">Critical → Blocked. Any High, Medium, or Low finding, or AC not met, or scenario coverage less than 100% → Changes Requested. Zero findings → Approved. ALL findings of any severity MUST be resolved before approval — nothing deferred to handoff. Include dimension scores (1-5) for all reviewed dimensions. Report coverage: enumerate ALL dimensions checked even if no issues found — prevents under-reporting bias.</step>
-  <step n="8" name="Write Output JSON">Produce JSON with: verdict, severity counts, findings array, scenario coverage, files changed, additional checklist. Write to `{spec_directory}/{output_filename}.json`.</step>
-  <step n="9" name="Render Markdown">Run: `bash {plugin_root}/scripts/render.sh --template {plugin_root}/templates/code-review.md.j2 --data {spec_directory}/{output_filename}.json --output {spec_directory}/{output_filename}`. If render fails, fix the JSON and re-run. Do NOT write the .md file directly.</step>
+  <step n="8" name="Write Review Document">Write the code review document directly to `{spec_directory}/{output_filename}` following the exact structure from the template read in Step 0. Ensure: verdict (approved/changes requested/blocked), severity counts with Critical=0 for approval, finding format with severity/file/line/category, BDD scenario coverage, files changed list.</step>
 </process>
 
 <output>
-  <format>Write JSON matching `{plugin_root}/templates/schemas/code-review.schema.json` to `{spec_directory}/{output_filename}.json`, then render via `{plugin_root}/scripts/render.sh`.</format>
-  <filename>JSON output: `{spec_directory}/{output_filename}.json`. Rendered markdown: `{spec_directory}/{output_filename}`.</filename>
+  <format>Write the code review markdown document directly to `{spec_directory}/{output_filename}` following the structure from the template read in Step 0.</format>
+  <filename>`{spec_directory}/{output_filename}`</filename>
 </output>
 
 <collaboration>
@@ -156,5 +155,5 @@ model: inherit
 </collaboration>
 
 <gate-format-requirements>
-  The MiniJinja template (`code-review.md.j2`) guarantees gate-compliant markdown. You only need to produce valid JSON matching the schema — render.sh handles formatting.
+  Read `{plugin_root}/templates/code-review.md.j2` in Step 0 to understand the required markdown structure. The template shows exact headings, verdict format, severity patterns, and checklist items the gate script validates. Write your output following that structure directly — no JSON or render.sh needed.
 </gate-format-requirements>

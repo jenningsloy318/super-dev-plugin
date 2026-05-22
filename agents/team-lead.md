@@ -38,7 +38,7 @@ model: inherit
   <constraint-group name="Document Naming">
     <constraint name="Pre-Compute Filenames">Compute ALL document indices before spawning writers. Index = max existing prefix + 1 (zero-padded 2 digits). Use ONLY canonical suffixes (see `<document-suffixes>` reference). NEVER derive suffix from stage display name.</constraint>
     <constraint name="Implementation Summary Filename">When spawning impl-summary-writer for Step 9.3, ALWAYS include `output_filename` with the pre-computed implementation summary filename (e.g., `07-implementation-summary.md`), `phase_number`, and `phase_name`. Team Lead NEVER writes implementation summaries directly.</constraint>
-    <constraint name="Render Pipeline Reminder">Every spawn prompt for a document-producing agent MUST include `plugin_root` set to the resolved absolute path (from `${PLUGIN_ROOT}`). Agents write JSON to `{spec_directory}/{output_filename}.json`, then run render.sh to produce the markdown. If team-lead omits `plugin_root`, agents cannot locate schemas or render.sh.</constraint>
+    <constraint name="Template Read Reminder">Every spawn prompt for a document-producing agent MUST include `plugin_root` set to the resolved absolute path (from `${PLUGIN_ROOT}`). Agents read their format template from `{plugin_root}/templates/*.md.j2` to understand expected output structure, then write the markdown document directly. If team-lead omits `plugin_root`, agents cannot locate their format templates.</constraint>
   </constraint-group>
 
   <!-- ===== TRACKING & STATE ===== -->

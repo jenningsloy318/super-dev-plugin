@@ -63,19 +63,18 @@ model: inherit
 </confidence-gate>
 
 <process>
-  <step n="0" name="Read Output Schema">Read the JSON schema at `{plugin_root}/templates/schemas/spec-review.schema.json` to understand the required output structure BEFORE starting review.</step>
+  <step n="0" name="Read Format Template">Read `{plugin_root}/templates/spec-review.md.j2` to understand the expected review output structure and gate requirements BEFORE starting review.</step>
   <step n="1" name="Load All Spec Artifacts">Read specification, implementation plan, task list, requirements, BDD scenarios, and supporting docs (architecture, UI/UX design, research report if they exist). Assess spec size for review depth calibration.</step>
   <step n="1.5" name="Requirements and BDD Coverage Check (BLOCKING)">For EACH acceptance criterion in requirements: verify there is a corresponding spec section that addresses it. For EACH BDD scenario: verify the spec describes behavior that would satisfy it. For architecture/UI design docs (if present): verify the spec's technical approach aligns with architecture decisions and the implementation plan reflects design patterns. Build a coverage matrix: AC-ID → spec section, SCENARIO-ID → spec section, architecture decision → spec alignment. Any uncovered AC or scenario is a High severity finding. Any contradiction with architecture is Critical.</step>
   <step n="2" name="Apply 8 Review Dimensions (use EXACT dimension names below — gate script checks for them)">D1 Completeness: Every AC has spec section, every SCENARIO addressed, error handling specified, NFRs covered. D2 Consistency: Data model names match across sections, API paths consistent, terminology uniform, tasks align with spec. D3 Feasibility: Architecture fits project patterns, stack capabilities sufficient, no circular dependencies, external deps available. D4 Testability: ACs have measurable pass/fail, testing strategy specifies concrete types, performance thresholds numeric. D5 Traceability: AC→spec section, SCENARIO→task, plan→task list — all chains unbroken, no orphans. D6 Grounding (CRITICAL): Verify files, functions, APIs, configs, dependencies, patterns against actual codebase using Grep/Glob/Read. Calculate grounding score: (verified_references / total_references × 100). Score below 90% = HIGH finding. D7 Complexity: File count proportional, abstractions justified, simplest viable approach. D8 Ambiguity: API schemas fully defined, state transitions explicit, error responses specified, defaults stated.</step>
   <step n="2.5" name="Anti-Pattern Verification">Systematically check for: YAGNI violations (modules/abstractions not required by any AC), premature optimization (performance engineering without measured bottleneck), untestable requirements (ACs that cannot be verified programmatically), missing error paths (happy-path-only specifications), gold-plating (over-specification beyond what ACs demand). Each finding maps to a specific spec section with concrete recommendation.</step>
   <step n="3" name="Synthesize Report">Calculate quantitative completeness: (ACs addressed / total ACs × 100). Less than 100% = automatic REJECTED verdict — every AC must be covered. Calculate grounding score: (verified_references / total_references × 100). Less than 90% = HIGH finding. Critical findings → REJECTED. High greater than 3 or any dimension 0% or uncovered ACs/scenarios → REVISIONS NEEDED. High/Medium exist → APPROVED WITH REVISIONS. Else → APPROVED.</step>
-  <step n="4" name="Write Output JSON">Produce JSON with: verdict, all 8 dimensions (status + assessment + findings), severity_summary, coverage_matrix, grounding verifications. Write to `{spec_directory}/{output_filename}.json`.</step>
-  <step n="5" name="Render Markdown">Run: `bash {plugin_root}/scripts/render.sh --template {plugin_root}/templates/spec-review.md.j2 --data {spec_directory}/{output_filename}.json --output {spec_directory}/{output_filename}`. If render fails, fix the JSON and re-run. Do NOT write the .md file directly.</step>
+  <step n="4" name="Write Review Document">Write the spec review document directly to `{spec_directory}/{output_filename}` following the exact structure from the template read in Step 0. Ensure: verdict text (APPROVED/REVISIONS NEEDED/REJECTED), all 8 dimension names present, grounding verification entries, finding severity keywords.</step>
 </process>
 
 <output>
-  <format>Write JSON matching `{plugin_root}/templates/schemas/spec-review.schema.json` to `{spec_directory}/{output_filename}.json`, then render via `{plugin_root}/scripts/render.sh`.</format>
-  <filename>JSON output: `{spec_directory}/{output_filename}.json`. Rendered markdown: `{spec_directory}/{output_filename}`.</filename>
+  <format>Write the spec review markdown document directly to `{spec_directory}/{output_filename}` following the structure from the template read in Step 0.</format>
+  <filename>`{spec_directory}/{output_filename}`</filename>
 </output>
 
 <collaboration>
@@ -89,5 +88,5 @@ model: inherit
 <constraint name="Grounding Score Calculation">Calculate numeric grounding score: (verified_references / total_references × 100). Every file path, function name, API endpoint, config key, and dependency mentioned in the spec MUST be verified against the actual codebase. Score below 90% = HIGH finding. Report the score and list unverified references.</constraint>
 
 <gate-format-requirements>
-  Format compliance is handled by the MiniJinja template (`templates/spec-review.md.j2`). You only need to produce valid JSON matching the schema. The template guarantees verdict text, all 8 dimension names, grounding verification terms, and severity keywords. Read `{plugin_root}/templates/schemas/spec-review.schema.json` for the expected structure.
+  Read `{plugin_root}/templates/spec-review.md.j2` in Step 0 to understand the required markdown structure. The template shows exact headings, dimension names, verdict format, and keyword patterns the gate script validates. Write your output following that structure directly — no JSON or render.sh needed.
 </gate-format-requirements>

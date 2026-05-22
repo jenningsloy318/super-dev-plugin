@@ -1,98 +1,104 @@
-{# Requirements Template — renders gate-requirements.sh compliant markdown.
-   Gate checks:
-   R1: "acceptance criteria" text present (case-insensitive)
-   R2: Min 2 AC items matching ^\s*-\s*\[[ x]\] OR ^\s*-\s*\*{0,2}AC-[0-9]
-   R3: Non-functional keywords (non-functional|performance|security|accessibility)
-   R4: Summary keyword (executive summary|summary)
-   R5: File size > 500 chars
+{# FORMAT REFERENCE — Agent reads this to understand the required output structure.
+   Gate checks (gate-requirements.sh):
+   - Must contain "acceptance criteria" text (case-insensitive)
+   - Must have at least 2 items matching AC-[0-9]+ pattern
+   - Must contain non-functional keywords (non-functional|performance|security|accessibility)
+   - Must contain summary keyword (executive summary|summary)
+   - File size must be > 500 characters
 #}
-# Requirements: {{ title }}
+# Requirements: [Feature/Fix Title]
 
-- **Date**: {{ date }}
+- **Date**: [YYYY-MM-DD]
 - **Author**: super-dev:requirements-clarifier
-- **Type**: {{ type }}
-- **Priority**: {{ priority }}
-- **Status**: {{ status }}
+- **Type**: [feature|bug-fix|refactor|enhancement]
+- **Priority**: [critical|high|medium|low]
+- **Status**: draft
 
 ---
 
 ## Executive Summary
 
-{{ executive_summary }}
+[2-3 sentence summary of what this requirement addresses and why it matters]
 
 ## The Real Need (Root Cause Analysis)
 
 ### Surface Request
 
-{{ surface_request }}
+[What the user literally asked for]
 
 ### 5 Whys Analysis
 
-{% for why in five_whys %}
-{{ loop.index }}. **Why**: {{ why }}
-{% endfor %}
+1. **Why**: [First why — why is this needed?]
+2. **Why**: [Second why — why is that important?]
+3. **Why**: [Third why — dig deeper]
+4. **Why**: [Fourth why — approaching root cause]
+5. **Why**: [Fifth why — root cause identified]
 
 ### Job to Be Done
 
-When {{ jtbd.situation }}
-I want to {{ jtbd.motivation }}
-So I can {{ jtbd.outcome }}
+When [situation/context]
+I want to [motivation/action]
+So I can [expected outcome]
 
-- **Functional**: {{ jtbd.functional }}
-- **Emotional**: {{ jtbd.emotional }}
-- **Social**: {{ jtbd.social }}
+- **Functional**: [What the feature does]
+- **Emotional**: [How it makes the user feel]
+- **Social**: [How it affects their relationship with others]
 
 ## Stakeholders
-{% for s in stakeholders %}
-- **{{ s.role }}**: {{ s.description }}
-{% endfor %}
+
+- **[Role 1]**: [How this stakeholder is affected]
+- **[Role 2]**: [How this stakeholder is affected]
 
 ## Workflow Context
 
 ### Before (Current State)
 
-{{ workflow.before }}
+[Describe the current workflow/pain points]
 
 ### After (Desired State)
 
-{{ workflow.after }}
+[Describe the improved workflow after implementation]
 
 ## Solution Options
-{% for option in solution_options %}
 
-### Option {{ loop.index }}: {{ option.name }}
+### Option 1: [Name]
 
-{{ option.description }}
+[Description of this approach]
 
-- **Pros**: {{ option.pros }}
-- **Cons**: {{ option.cons }}
-- **Effort**: {{ option.effort }}
-{% endfor %}
+- **Pros**: [Advantages]
+- **Cons**: [Disadvantages]
+- **Effort**: [low|medium|high]
+
+### Option 2: [Name]
+
+[Description of this approach]
+
+- **Pros**: [Advantages]
+- **Cons**: [Disadvantages]
+- **Effort**: [low|medium|high]
 
 ## Acceptance Criteria
-{% for ac in acceptance_criteria %}
-- **{{ ac.id }}**: {{ ac.description }}
-{% endfor %}
+
+- **AC-01**: [First acceptance criterion — specific, testable, measurable]
+- **AC-02**: [Second acceptance criterion]
+- **AC-03**: [Third acceptance criterion]
 
 ## Non-Functional Requirements
-{% for nfr in non_functional_requirements %}
-- **{{ nfr.category }}** ({{ nfr.priority }}): {{ nfr.description }}
-{% endfor %}
+
+- **Performance** (high): [Latency, throughput, or resource constraints]
+- **Security** (medium): [Authentication, authorization, data protection needs]
+- **Accessibility** (medium): [WCAG level, keyboard nav, screen reader support]
 
 ## Open Questions
-{% for q in open_questions %}
-- {{ q }}
-{% endfor %}
+
+- [Question that needs resolution before implementation]
 
 ## Recommendations
 
-Based on the analysis, I recommend:
-
-{% for rec in recommendations %}
-{{ loop.index }}. **{{ rec.name }}**: {{ rec.description }}
-{% endfor %}
+1. **[Recommendation name]**: [Why this is the best path forward]
+2. **[Recommendation name]**: [Supporting recommendation]
 
 ## Assumptions
-{% for a in assumptions %}
-- {{ a }}
-{% endfor %}
+
+- [Assumption that could invalidate requirements if wrong]
+- [Another assumption to validate]

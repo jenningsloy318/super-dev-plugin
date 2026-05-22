@@ -1,76 +1,66 @@
-{# Code Review Template — renders gate-review.sh compliant markdown.
-   Gate checks:
-   CR1: Verdict exists (approved|changes requested|blocked)
-   CR2: Approved verdict without "changes requested" or "blocked"
-   CR3: No **Critical** bold text anywhere (grep -cE '\*\*Critical\*\*')
-        SAFE: ### Critical heading, | Critical | 0 | table row
-        UNSAFE: **Critical** anywhere in prose
-   CR4: No | Critical | N>0 | table rows (grep -cE '\|\s*Critical\s*\|\s*[1-9]')
-
-   IMPORTANT: This template NEVER uses **Critical** bold format anywhere.
-   Severity in findings uses > format, not bold.
+{# FORMAT REFERENCE — Agent reads this to understand the required output structure.
+   Gate checks (gate-review.sh):
+   - Must contain verdict: approved or changes requested or blocked (case-insensitive)
+   - If verdict is "approved", must NOT contain "changes requested" or "blocked"
+   - Must NOT contain **Critical** in bold anywhere (bold severity is forbidden)
+   - Must NOT have | Critical | N>0 | in tables (no critical findings allowed for approval)
 #}
-# Code Review: {{ feature_name }}
+# Code Review: [Feature Name]
 
-- **Date**: {{ date }}
+- **Date**: [YYYY-MM-DD]
 - **Author**: super-dev:code-reviewer
-- **Verdict**: {{ verdict }}
-- **Files Reviewed**: {{ files_reviewed }}
+- **Verdict**: [Approved|Changes Requested|Blocked]
+- **Files Reviewed**: [N]
 
 ---
 
-## Verdict: {{ verdict }}
+## Verdict: [Approved|Changes Requested|Blocked]
 
-{{ verdict_rationale }}
+[1-2 sentence rationale for the verdict]
 
-## Summary
+## Severity Counts
 
-| Severity | Count |
-|----------|-------|
-| Critical | {{ critical_count }} |
-| High | {{ high_count }} |
-| Medium | {{ medium_count }} |
-| Low | {{ low_count }} |
-| **Total** | {{ findings | length }} |
+- Critical: 0
+- High: [N]
+- Medium: [N]
+- Low: [N]
+- **Total**: [N]
 
 ---
 
 ## Findings
-{% for finding in findings %}
 
-### {{ finding.id }}: {{ finding.title }}
+[repeat for each finding]
 
-- Severity: {{ finding.severity }}
-- File: `{{ finding.file }}`
-- Line: {{ finding.line }}
-- Category: {{ finding.category }}
+### F-01: [Finding title]
 
-{{ finding.description }}
+- Severity: [High|Medium|Low]
+- File: `[path/to/file.ext]`
+- Line: [line number]
+- Category: [correctness|security|performance|maintainability|naming]
 
-**Recommendation**: {{ finding.recommendation }}
-{% endfor %}
-{% if findings | length == 0 %}
+[Description of the issue found]
+
+**Recommendation**: [How to fix it]
+
+[If no findings:]
 
 No findings. Code meets all quality standards.
-{% endif %}
 
 ---
 
 ## BDD Scenario Coverage
 
-| Scenario | Status |
-|----------|--------|
-{% for row in scenario_coverage %}
-| {{ row.scenario_id }} | {{ row.status }} |
-{% endfor %}
+[repeat for each scenario]
+
+- **SCENARIO-001**: [Covered|Missing|Partial]
+- **SCENARIO-002**: [Covered|Missing|Partial]
 
 ## Files Changed
 
-| File | Action | Lines |
-|------|--------|-------|
-{% for f in files_changed %}
-| `{{ f.path }}` | {{ f.action }} | +{{ f.added }}/-{{ f.removed }} |
-{% endfor %}
+[repeat for each file]
+
+- `[path/to/file]` — [created|modified|deleted], +[N]/-[N]
 
 ## Checklist
 
@@ -79,6 +69,3 @@ No findings. Code meets all quality standards.
 - [x] No security vulnerabilities introduced
 - [x] Naming conventions followed
 - [x] Architecture patterns respected
-{% for item in additional_checklist %}
-- [{{ "x" if item.passed else " " }}] {{ item.description }}
-{% endfor %}

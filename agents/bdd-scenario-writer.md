@@ -33,14 +33,13 @@ model: inherit
 </input>
 
 <process>
-  <step n="0" name="Read Output Schema">Read the JSON schema at `{plugin_root}/templates/schemas/bdd-scenarios.schema.json` to understand the required JSON structure BEFORE starting scenario generation.</step>
+  <step n="0" name="Read Format Template">Read `{plugin_root}/templates/bdd-scenarios.md.j2` to understand the expected markdown structure and gate requirements BEFORE starting scenario generation.</step>
   <step n="1" name="Parse Requirements">Read ALL acceptance criteria from the requirements document. Extract AC-IDs and descriptions into a working list. Cross-reference "Job to Be Done" and "Stakeholders" sections for context. Flag ambiguous criteria as `[AMBIGUOUS: needs clarification]`. Note non-functional criteria as constraints — do NOT force into Given/When/Then.</step>
   <step n="2" name="Generate Scenarios">For each acceptance criterion, reason through: Golden scenario (happy path — core promise), Primary alternative (most likely variation), Primary failure (most likely error case), then Stop unless a distinct business behavior remains uncovered. For each scenario determine: precondition (Given), single trigger action (When), verifiable outcome (Then).</step>
   <step n="2.5" name="Edge Case Generation">After happy-path scenarios are drafted, systematically search for untested boundary conditions across these dimensions: (1) Null/Empty inputs — what happens with missing, blank, or zero-length data? (2) Boundary values — minimum, maximum, just-above, just-below thresholds; (3) Concurrent access — two actors performing the same action simultaneously; (4) Timeouts — what happens when an operation exceeds expected duration? (5) Permission boundaries — actors attempting actions just outside their authorization level; (6) Data overflow — inputs exceeding expected size, count, or depth limits; (7) Invalid state transitions — actions attempted in states where they should be impossible. For each dimension, ask: "Is there a meaningful behavior distinction here that no existing scenario covers?" If yes, generate a targeted scenario. If the edge case would fail for the same reason as an existing scenario, skip it (Quality Over Quantity principle).</step>
   <step n="3" name="Validate Quality">Self-validate every scenario against Per-Scenario Quality Checklist (Q1-Q10). Self-validate document against Per-Document Quality Checklist (D1-D8). Remove or rewrite any scenario that fails validation.</step>
   <step n="4" name="Build Traceability Matrix">Create AC-to-Scenario mapping. Verify 100% AC coverage (every AC has at least one scenario). If any AC is uncovered, generate additional scenarios or flag as `[AMBIGUOUS]`.</step>
-  <step n="5" name="Write Output JSON">Produce a JSON file matching the schema from Step 0 with all scenarios, traceability data, and metadata. Write it to: `{spec_directory}/{output_filename}.json`. Key fields: feature_name, features[].scenarios[] (index, title, ac_ref, priority, given, when, then, and_clauses), traceability[] (ac_id, description, scenarios[]).</step>
-  <step n="6" name="Render Markdown">Run: `bash {plugin_root}/scripts/render.sh --template {plugin_root}/templates/bdd-scenarios.md.j2 --data {spec_directory}/{output_filename}.json --output {spec_directory}/{output_filename}`. If render fails, fix the JSON and re-run. Do NOT write the .md file directly.</step>
+  <step n="5" name="Write Output Document">Write the BDD scenarios document directly to `{spec_directory}/{output_filename}` following the exact structure from the template read in Step 0. Ensure: SCENARIO-NNN IDs, **Given**/**When**/**Then** keywords, AC-NN references, traceability section, coverage summary.</step>
 </process>
 
 <constraints>
@@ -50,7 +49,7 @@ model: inherit
 </constraints>
 
 <gate-format-requirements>
-  The MiniJinja template (`bdd-scenarios.md.j2`) guarantees gate-compliant markdown (SCENARIO-NNN IDs, Given/When/Then formatting, AC references). You only need to produce valid JSON matching the schema — render.sh handles formatting.
+  Read `{plugin_root}/templates/bdd-scenarios.md.j2` in Step 0 to understand the required markdown structure. The template shows exact headings, ID formats, and keyword patterns the gate script validates (SCENARIO-NNN, Given/When/Then, AC-NN). Write your output following that structure directly — no JSON or render.sh needed.
 </gate-format-requirements>
 
 <examples>
@@ -60,8 +59,8 @@ model: inherit
 </examples>
 
 <output>
-  <format>Write JSON matching `{plugin_root}/templates/schemas/bdd-scenarios.schema.json` to `{spec_directory}/{output_filename}.json`, then render via `{plugin_root}/scripts/render.sh`.</format>
-  <filename>JSON output: `{spec_directory}/{output_filename}.json`. Rendered markdown: `{spec_directory}/{output_filename}`.</filename>
+  <format>Write the BDD scenarios markdown document directly to `{spec_directory}/{output_filename}` following the structure from the template read in Step 0.</format>
+  <filename>`{spec_directory}/{output_filename}`</filename>
 </output>
 
 <collaboration>

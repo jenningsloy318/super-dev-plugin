@@ -1,76 +1,69 @@
-{# BDD Scenarios Template — renders gate-bdd.sh compliant markdown.
-   Gate checks:
-   B1: SCENARIO-[0-9]+ IDs present
-   B2: Given/When/Then keywords at line start (with optional bold **)
-   B3: AC-[0-9]+ references present
-   B4: Scenario count >= AC count from requirements
-   B5: File size > 300 chars
+{# FORMAT REFERENCE — Agent reads this to understand the required output structure.
+   Gate checks (gate-bdd.sh):
+   - Must contain SCENARIO-[0-9]+ IDs (at least 1)
+   - Must contain Given/When/Then keywords (at least 3 total, supports bold **Given**)
+   - Must contain AC-[0-9]+ references (at least 1)
+   - Scenario count must be >= acceptance criteria count from requirements
+   - File size must be > 300 characters
 #}
-# Behavior Scenarios: {{ feature_name }}
+# Behavior Scenarios: [Feature Name]
 
-- **Date**: {{ date }}
+- **Date**: [YYYY-MM-DD]
 - **Author**: super-dev:bdd-scenario-writer
-- **Source**: ./{{ source_filename }}
-- **Total Scenarios**: {{ total_scenario_count }}
-
----
-{% for feature in features %}
-
-## Feature: {{ feature.name }}
-{% for scenario in feature.scenarios %}
-
-### SCENARIO-{{ "%03d" | format(scenario.index) }}: {{ scenario.title }}
-
-- **Acceptance Criteria**: {{ scenario.ac_ref }}
-- **Priority**: {{ scenario.priority }}
-
-**Given** {{ scenario.given }}
-**When** {{ scenario.when }}
-**Then** {{ scenario.then }}
-{% for clause in scenario.and_clauses %}
-**And** {{ clause }}
-{% endfor %}
-{% endfor %}
-{% endfor %}
+- **Source**: ./[XX]-requirements.md
+- **Total Scenarios**: [number]
 
 ---
 
-## Scenario-Acceptance Criteria Traceability Matrix
+## Feature: [Feature Area Name]
 
-| Acceptance Criterion | Scenario IDs | Coverage |
-|---------------------|-------------|----------|
-{% for row in traceability %}
-| {{ row.ac_id }}: {{ row.description }} | {{ row.scenarios | join(", ") }} | Covered |
-{% endfor %}
+### SCENARIO-001: [Descriptive scenario title]
+
+- **Acceptance Criteria**: AC-01
+- **Priority**: high
+
+**Given** [precondition — what state exists before the action]
+**When** [trigger action — what the actor does]
+**Then** [expected outcome — observable, verifiable result]
+**And** [additional outcome if needed]
+
+### SCENARIO-002: [Another scenario title]
+
+- **Acceptance Criteria**: AC-01
+- **Priority**: medium
+
+**Given** [precondition]
+**When** [trigger]
+**Then** [outcome]
+
+### SCENARIO-003: [Error/edge case scenario]
+
+- **Acceptance Criteria**: AC-02
+- **Priority**: high
+
+**Given** [precondition]
+**When** [trigger that should fail]
+**Then** [expected error handling behavior]
+
+---
+
+## Traceability
+
+- **AC-01**: [description] → SCENARIO-001, SCENARIO-002
+- **AC-02**: [description] → SCENARIO-003
 
 ## Coverage Summary
 
-- **Total Acceptance Criteria**: {{ traceability | length }}
-- **Covered by Scenarios**: {{ traceability | length }}
+- **Total Acceptance Criteria**: [number]
+- **Covered by Scenarios**: [number — must equal total]
 - **Uncovered**: 0
-- **Total Scenarios**: {{ total_scenario_count }}
-- **Scenarios per AC (avg)**: {{ "%.1f" | format(total_scenario_count / traceability | length) }}
+- **Total Scenarios**: [number]
 
 ## Quality Validation
 
-### Per-Scenario Checks
-
-| Scenario | Q1 | Q2 | Q3 | Q4 | Q5 | Q6 | Q7 | Q8 | Q9 | Q10 | Pass |
-|----------|----|----|----|----|----|----|----|----|----|----|------|
-{% for feature in features %}{% for scenario in feature.scenarios %}
-| SCENARIO-{{ "%03d" | format(scenario.index) }} | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y |
-{% endfor %}{% endfor %}
-
-Q1: Single Behavior | Q2: Declarative Style | Q3: Business Language |
-Q4: Meaningful Title | Q5: Independence | Q6: Concise Steps |
-Q7: Concrete Examples | Q8: AC Traceability | Q9: No Implementation Leakage |
-Q10: Testable Outcome
-
-### Per-Document Checks
-
 - [x] D1: All AC covered
-- [x] D2: Scenario count within limits (3-8 per area)
-- [x] D3: Traceability matrix complete
+- [x] D2: Scenario count within limits
+- [x] D3: Traceability complete
 - [x] D4: All IDs unique
 - [x] D5: Priorities assigned
 - [x] D6: Happy paths first

@@ -26,7 +26,7 @@ model: inherit
 </input>
 
 <process>
-  <step n="0" name="Read Output Schema">Read the JSON schema at `{plugin_root}/templates/schemas/implementation-summary.schema.json` to understand the required output structure BEFORE starting analysis.</step>
+  <step n="0" name="Read Format Template">Read `{plugin_root}/templates/implementation-summary.md.j2` to understand the expected summary output structure BEFORE starting analysis.</step>
   <step n="1" name="Gather Evidence">
     - Read the implementation plan and task list from spec_directory
     - Run `git diff base_sha` to see all working-tree changes since the phase started (includes tdd-guide tests + domain specialist code)
@@ -43,13 +43,12 @@ model: inherit
     - Note any deviations from the spec or plan
     - Record challenges (workarounds, unexpected complexity, blocked approaches)
   </step>
-  <step n="4" name="Write Output JSON">Produce JSON with: feature_name, phase_number, phase_name, status, overview, files_changed, key_decisions, deviations, test_results, next_steps. CRITICAL: no field value may contain TODO, FIXME, or TBD markers. Write to `{spec_directory}/{output_filename}.json`.</step>
-  <step n="5" name="Render Markdown">Run: `bash {plugin_root}/scripts/render.sh --template {plugin_root}/templates/implementation-summary.md.j2 --data {spec_directory}/{output_filename}.json --output {spec_directory}/{output_filename}`. If render fails, fix the JSON and re-run. Do NOT write the .md file directly.</step>
+  <step n="4" name="Write Summary Document">Write the implementation summary document directly to `{spec_directory}/{output_filename}` following the exact structure from the template read in Step 0. CRITICAL: no field value may contain TODO, FIXME, or TBD markers.</step>
 </process>
 
 <output>
-  <format>Write JSON matching `{plugin_root}/templates/schemas/implementation-summary.schema.json` to `{spec_directory}/{output_filename}.json`, then render via `{plugin_root}/scripts/render.sh`.</format>
-  <filename>JSON output: `{spec_directory}/{output_filename}.json`. Rendered markdown: `{spec_directory}/{output_filename}`.</filename>
+  <format>Write the implementation summary markdown document directly to `{spec_directory}/{output_filename}` following the structure from the template read in Step 0.</format>
+  <filename>`{spec_directory}/{output_filename}`</filename>
 </output>
 
 <constraints>
@@ -59,5 +58,5 @@ model: inherit
 </constraints>
 
 <gate-format-requirements>
-  The MiniJinja template (`implementation-summary.md.j2`) guarantees gate-compliant markdown. You only need to produce valid JSON matching the schema — render.sh handles formatting.
+  Read `{plugin_root}/templates/implementation-summary.md.j2` in Step 0 to understand the required markdown structure. The template shows exact headings and section patterns. CRITICAL: never include TODO, FIXME, or TBD markers in the output. Write your output following that structure directly — no JSON or render.sh needed.
 </gate-format-requirements>

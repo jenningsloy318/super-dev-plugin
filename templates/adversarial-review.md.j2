@@ -1,38 +1,37 @@
-{# Adversarial Review Template — renders gate-review.sh compliant markdown.
-   Gate checks:
-   AR1: Verdict text (PASS|REJECT|HALT) on first matching line
-   AR2: grep takes first line matching (PASS|REJECT|HALT) and checks:
-        - "PASS" is present AND "REJECT" is NOT present on that line
+{# FORMAT REFERENCE — Agent reads this to understand the required output structure.
+   Gate checks (gate-review.sh):
+   - Must contain verdict: PASS or REJECT or HALT on first matching line
+   - If verdict is PASS, the word REJECT must NOT appear ANYWHERE in the document
+   - If verdict is PASS, the word HALT must NOT appear ANYWHERE in the document
 
-   CRITICAL SAFETY RULES:
-   - The word REJECT must NEVER appear anywhere in a PASS document
-   - The word HALT must NEVER appear anywhere in a PASS document
-   - The verdict line below is the FIRST occurrence the gate will find
-   - This template guarantees the verdict field is placed before any content
+   CRITICAL: When verdict is PASS, do NOT use the words REJECT or HALT anywhere
+   in any section, finding, or description. Use alternative wording like
+   "no issues found" or "acceptable" instead.
 #}
-# Adversarial Review: {{ feature_name }}
+# Adversarial Review: [Feature Name]
 
-- **Date**: {{ date }}
+- **Date**: [YYYY-MM-DD]
 - **Author**: super-dev:adversarial-reviewer
-- **Verdict**: {{ verdict }}
+- **Verdict**: [PASS|CONTEST|REJECT]
 
 ---
 
-## Verdict: {{ verdict }}
+## Verdict: [PASS|CONTEST|REJECT]
 
-{{ verdict_rationale }}
+[1-2 sentence rationale]
 
 ## Destructive Action Gate
 
-{% if destructive_actions | length > 0 %}
-| Category | Pattern | Safeguard | Status |
-|----------|---------|-----------|--------|
-{% for action in destructive_actions %}
-| {{ action.category }} | {{ action.pattern }} | {{ action.safeguard }} | {{ action.status }} |
-{% endfor %}
-{% else %}
+[If no destructive actions detected:]
+
 No destructive actions detected in the implementation.
-{% endif %}
+
+[If destructive actions found, repeat for each:]
+
+- **Category**: [DAT|IRR|PRD|PRM|SEC]
+- **Pattern**: [what was detected]
+- **Safeguard**: [backup/rollback/confirmation]
+- **Status**: [safe|unsafe]
 
 ---
 
@@ -40,60 +39,50 @@ No destructive actions detected in the implementation.
 
 ### Skeptic Lens
 
-{{ skeptic.assessment }}
-{% for finding in skeptic.findings %}
+[Assessment of correctness and completeness — what inputs break this? What error paths are unhandled?]
 
-> **{{ finding.id }}** ({{ finding.severity }}): {{ finding.description }}
-> *Attack Vector*: {{ finding.vector }}
-> *Mitigation*: {{ finding.mitigation }}
-{% endfor %}
-{% if skeptic.findings | length == 0 %}
+[repeat for each finding]
 
-No findings from the Skeptic lens.
-{% endif %}
+> **S-01** (Medium): [Finding description]
+> *Attack Vector*: [V1-V8 identifier]
+> *Mitigation*: [How to address]
+
+[If no findings: "No findings from the Skeptic lens."]
 
 ### Architect Lens
 
-{{ architect.assessment }}
-{% for finding in architect.findings %}
+[Assessment of structural fitness — does design serve the stated goal? Where are coupling points?]
 
-> **{{ finding.id }}** ({{ finding.severity }}): {{ finding.description }}
-> *Attack Vector*: {{ finding.vector }}
-> *Mitigation*: {{ finding.mitigation }}
-{% endfor %}
-{% if architect.findings | length == 0 %}
+[repeat for each finding]
 
-No findings from the Architect lens.
-{% endif %}
+> **A-01** (Low): [Finding description]
+> *Attack Vector*: [V7 or similar]
+> *Mitigation*: [How to address]
+
+[If no findings: "No findings from the Architect lens."]
 
 ### Minimalist Lens
 
-{{ minimalist.assessment }}
-{% for finding in minimalist.findings %}
+[Assessment of necessity — what can be deleted? What abstractions exist for single call sites?]
 
-> **{{ finding.id }}** ({{ finding.severity }}): {{ finding.description }}
-> *Attack Vector*: {{ finding.vector }}
-> *Mitigation*: {{ finding.mitigation }}
-{% endfor %}
-{% if minimalist.findings | length == 0 %}
+[repeat for each finding]
 
-No findings from the Minimalist lens.
-{% endif %}
+> **M-01** (Low): [Finding description]
+> *Mitigation*: [How to address]
+
+[If no findings: "No findings from the Minimalist lens."]
 
 ---
 
 ## Finding Summary
 
-| ID | Lens | Severity | Vector | Status |
-|----|------|----------|--------|--------|
-{% for finding in all_findings %}
-| {{ finding.id }} | {{ finding.lens }} | {{ finding.severity }} | {{ finding.vector }} | {{ finding.status }} |
-{% endfor %}
-{% if all_findings | length == 0 %}
+[repeat for each finding across all lenses]
 
-No findings across all lenses. Implementation is clean.
-{% endif %}
+- **S-01** (Skeptic, Medium, V3) — [open|resolved]
+- **A-01** (Architect, Low, V7) — [open|resolved]
+
+[If no findings: "No findings across all lenses. Implementation is clean."]
 
 ## Conclusion
 
-{{ conclusion }}
+[Final assessment summarizing the review outcome]

@@ -1,121 +1,140 @@
-{# Specification Template (HYBRID) — renders gate-spec-trace.sh compliant markdown.
-   Gate checks:
+{# FORMAT REFERENCE — Agent reads this to understand the required output structure.
+   Gate checks (gate-spec-trace.sh):
    S1: Contains SCENARIO-[0-9]+ references (at least 1)
    S2: Contains testing strategy text (testing strategy|test plan|test approach|test coverage|unit test|integration test|e2e test|testing|tests)
    S3: Task list file exists (checked separately, not in this template)
    S4: Implementation plan file exists (checked separately, not in this template)
-
-   HYBRID: Fixed header sections guarantee gate compliance.
-   Free-form content sections allow flexible technical writing.
 #}
-# Technical Specification: {{ feature_name }}
+# Technical Specification: [Feature Name]
 
-- **Date**: {{ date }}
+- **Date**: [YYYY-MM-DD]
 - **Author**: super-dev:spec-writer
-- **Requirements**: ./{{ requirements_filename }}
-- **BDD Scenarios**: ./{{ bdd_filename }}
-{% if architecture_filename %}
-- **Architecture**: ./{{ architecture_filename }}
-{% endif %}
+- **Requirements**: ./[XX]-requirements.md
+- **BDD Scenarios**: ./[XX]-bdd-scenarios.md
+- **Architecture**: ./[XX]-architecture.md (omit line if not applicable)
 
 ---
 
 ## 1. Overview
 
-{{ overview }}
+[2-4 paragraph summary of what this specification covers — the feature, its purpose, and the high-level technical approach]
 
 ## 2. Architecture
-{% for section in architecture_sections %}
 
-### 2.{{ loop.index }}. {{ section.title }}
+[repeat numbered subsection for each architecture concern]
 
-{{ section.content }}
-{% endfor %}
+### 2.1. [Architecture section title]
+
+[Description of architectural component, decision, or pattern]
+
+### 2.2. [Another architecture section]
+
+[Description]
 
 ## 3. Data Models
-{% for model in data_models %}
 
-### 3.{{ loop.index }}. {{ model.name }}
+[repeat numbered subsection for each data model]
 
-{{ model.description }}
+### 3.1. [Model name]
 
-```{{ model.language | default("") }}
-{{ model.schema }}
+[Description of what this model represents and where it lives]
+
+```[language]
+[Schema or type definition — e.g., TypeScript interface, JSON schema, SQL DDL]
 ```
-{% endfor %}
+
+### 3.2. [Another model]
+
+[Description]
+
+```[language]
+[Schema]
+```
 
 ## 4. API Design
-{% for endpoint in api_endpoints %}
 
-### 4.{{ loop.index }}. {{ endpoint.method }} {{ endpoint.path }}
+[repeat numbered subsection for each endpoint]
 
-{{ endpoint.description }}
+### 4.1. [METHOD] [/path/to/endpoint]
 
-{% if endpoint.request_body %}
+[Description of the endpoint's purpose]
+
 **Request Body:**
+
 ```json
-{{ endpoint.request_body }}
+[Request body shape — omit section if endpoint has no body]
 ```
-{% endif %}
 
 **Response:**
+
 ```json
-{{ endpoint.response }}
+[Response body shape]
 ```
 
 **Error Cases:**
-{% for error in endpoint.errors %}
-- `{{ error.code }}`: {{ error.description }}
-{% endfor %}
-{% endfor %}
+
+- `[error code]`: [description]
+- `[error code]`: [description]
 
 ## 5. Implementation Details
-{% for section in implementation_sections %}
 
-### 5.{{ loop.index }}. {{ section.title }}
+[repeat numbered subsection for each implementation concern]
 
-{{ section.content }}
-{% endfor %}
+### 5.1. [Implementation section title]
+
+[Description of how a particular piece is built — modules, functions, integration points]
+
+### 5.2. [Another implementation section]
+
+[Description]
 
 ## 6. Testing Strategy
 
-{{ testing_overview }}
+[Overview paragraph describing the overall testing approach]
 
 ### 6.1. Unit Tests
-{% for test in unit_tests %}
-- {{ test }}
-{% endfor %}
+
+[repeat for each unit test concern]
+
+- [Unit test description — what it covers]
+- [Another unit test description]
 
 ### 6.2. Integration Tests
-{% for test in integration_tests %}
-- {{ test }}
-{% endfor %}
+
+[repeat for each integration test concern]
+
+- [Integration test description]
 
 ### 6.3. E2E Tests
-{% for test in e2e_tests %}
-- {{ test }}
-{% endfor %}
+
+[repeat for each e2e test concern]
+
+- [E2E test description]
 
 ### 6.4. BDD Scenario References
 
-| Scenario | Test Type | Coverage |
-|----------|-----------|----------|
-{% for ref in scenario_refs %}
-| {{ ref.scenario_id }} | {{ ref.test_type }} | {{ ref.coverage }} |
-{% endfor %}
+[repeat for each scenario]
+
+- **SCENARIO-001** — [unit|integration|e2e] — [Covered|Partial]
+- **SCENARIO-002** — [unit|integration|e2e] — [Covered|Partial]
 
 ## 7. Non-Functional Requirements
-{% for nfr in non_functional %}
 
-### 7.{{ loop.index }}. {{ nfr.category }}
+[repeat numbered subsection for each NFR category]
 
-{{ nfr.details }}
-{% endfor %}
+### 7.1. [Category — e.g., Performance]
+
+[Details on the constraint and how the spec addresses it]
+
+### 7.2. [Category — e.g., Security]
+
+[Details]
 
 ## 8. Risks and Mitigations
 
-| Risk | Likelihood | Impact | Mitigation |
-|------|-----------|--------|------------|
-{% for risk in risks %}
-| {{ risk.description }} | {{ risk.likelihood }} | {{ risk.impact }} | {{ risk.mitigation }} |
-{% endfor %}
+[repeat for each risk]
+
+- **Risk**: [Description of the risk]
+  - Likelihood: [low|medium|high]
+  - Impact: [low|medium|high]
+  - Mitigation: [How the risk is mitigated]

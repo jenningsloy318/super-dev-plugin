@@ -1,70 +1,74 @@
-{# Implementation Summary Template — renders gate-docs-drift.sh compliant (file existence + minimal TODOs).
+{# FORMAT REFERENCE — Agent reads this to understand the required output structure.
    Gate checks (gate-docs-drift.sh):
    DD4: Implementation summary file exists and is non-empty
    DD5: No excessive placeholders (≤3 TODO/FIXME/TBD total across all spec md files)
 
-   This template never produces TODO/FIXME/TBD markers.
+   Do NOT use TODO/FIXME/TBD markers in this document.
 #}
-# Implementation Summary: {{ feature_name }}
+# Implementation Summary: [Feature Name]
 
-- **Date**: {{ date }}
+- **Date**: [YYYY-MM-DD]
 - **Author**: super-dev:impl-summary-writer
-- **Phase**: {{ phase_number }}{% if phase_name %} — {{ phase_name }}{% endif %}
-
-- **Status**: {{ status }}
+- **Phase**: [phase number] — [phase name]
+- **Status**: [completed|partial|blocked]
 
 ---
 
 ## Overview
 
-{{ overview }}
+[2-4 sentence summary of what was implemented in this phase, the approach taken, and the outcome]
 
 ## Files Changed
 
-| File | Action | Lines | Purpose |
-|------|--------|-------|---------|
-{% for f in files_changed %}
-| `{{ f.path }}` | {{ f.action }} | +{{ f.added }}/-{{ f.removed }} | {{ f.purpose }} |
-{% endfor %}
+[repeat for each file]
+
+- `[path/to/file]` — [created|modified|deleted], +[N]/-[N]
+  - Purpose: [what this file does in the context of this phase]
 
 ## Key Decisions
-{% for decision in key_decisions %}
 
-### {{ loop.index }}. {{ decision.title }}
+[repeat for each decision]
 
-- **Context**: {{ decision.context }}
-- **Decision**: {{ decision.decision }}
-- **Rationale**: {{ decision.rationale }}
-{% if decision.file_ref %}- **Reference**: `{{ decision.file_ref }}`{% endif %}
-{% endfor %}
+### 1. [Decision title]
+
+- **Context**: [What situation prompted this decision]
+- **Decision**: [What was chosen]
+- **Rationale**: [Why this choice over alternatives]
+- **Reference**: `[path/to/file]` (optional)
+
+### 2. [Another decision title]
+
+- **Context**: [Context]
+- **Decision**: [Choice]
+- **Rationale**: [Reasoning]
 
 ## Deviations from Spec
-{% if deviations | length > 0 %}
-{% for dev in deviations %}
 
-### {{ dev.title }}
-
-- **Spec said**: {{ dev.spec_said }}
-- **Actual**: {{ dev.actual }}
-- **Reason**: {{ dev.reason }}
-{% endfor %}
-{% else %}
+[If no deviations:]
 
 No deviations from specification.
-{% endif %}
+
+[If deviations exist, repeat for each:]
+
+### [Deviation title]
+
+- **Spec said**: [What the specification stated]
+- **Actual**: [What was actually implemented]
+- **Reason**: [Why the deviation was necessary]
 
 ## Test Results
 
-- **Unit Tests**: {{ test_results.unit_pass }}/{{ test_results.unit_total }} passing
-- **Integration Tests**: {{ test_results.integration_pass }}/{{ test_results.integration_total }} passing
-{% if test_results.e2e_total > 0 %}- **E2E Tests**: {{ test_results.e2e_pass }}/{{ test_results.e2e_total }} passing{% endif %}
+- **Unit Tests**: [N pass]/[N total] passing
+- **Integration Tests**: [N pass]/[N total] passing
+- **E2E Tests**: [N pass]/[N total] passing (omit line if no E2E)
 
 ## Next Steps
-{% if next_steps | length > 0 %}
-{% for step in next_steps %}
-{{ loop.index }}. {{ step }}
-{% endfor %}
-{% else %}
+
+[repeat for each step]
+
+1. [First next step — concrete, actionable]
+2. [Second next step]
+
+[If phase is complete:]
 
 Phase complete. No remaining items.
-{% endif %}

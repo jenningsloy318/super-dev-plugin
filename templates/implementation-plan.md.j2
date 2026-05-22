@@ -1,84 +1,73 @@
-{# Implementation Plan Template (HYBRID) — renders gate-spec-trace.sh compliant (file existence).
-   Also validated by gate-implementation-complete.sh:
-   IC1: File exists
-   IC2: Has phases matching: Phase [0-9]+ or ## Phase [0-9]+
-   IC3-IC5: Tracking JSON (separate concern)
+{# FORMAT REFERENCE — Agent reads this to understand the required output structure.
+   Gate checks (gate-implementation-complete.sh):
+   - IC1: File exists
+   - IC2: Has phases matching pattern: "Phase [0-9]+" or "## Phase [0-9]+"
+   - IC3-IC5: Tracking JSON alignment (separate concern)
 
-   HYBRID: Phase structure is fixed (guaranteed regex match).
-   Content within phases is free-form.
+   CRITICAL: Each phase MUST have "## Phase N:" heading for gate regex match.
 #}
-# Implementation Plan: {{ feature_name }}
+# Implementation Plan: [Feature Name]
 
-- **Date**: {{ date }}
+- **Date**: [YYYY-MM-DD]
 - **Author**: super-dev:spec-writer
-- **Specification**: ./{{ spec_filename }}
-- **Total Phases**: {{ phases | length }}
-- **Estimated Effort**: {{ total_effort }}
+- **Specification**: ./[XX]-specification.md
+- **Total Phases**: [number]
+- **Estimated Effort**: [total effort estimate]
 
 ---
 
-## Implementation Phases
+## Phase Summary
 
-| Phase | Name | Domain | Effort | Depends On | Parallelizable With |
-|-------|------|--------|--------|------------|---------------------|
-{% for phase in phases %}
-| Phase {{ phase.number }} | {{ phase.name }} | {{ phase.domain }} | {{ phase.effort }} | {{ phase.depends_on | join(", ") if phase.depends_on else "None" }} | {{ phase.parallelizable_with | join(", ") if phase.parallelizable_with else "None" }} |
-{% endfor %}
+[repeat for each phase]
+
+- Phase [N]: [name] — Domain: [domain], Effort: [effort], Depends on: [dependencies or None], Parallelizable with: [phases or None]
 
 ---
-{% for phase in phases %}
 
-## Phase {{ phase.number }}: {{ phase.name }}
+## Phase 1: [Phase Name]
 
-- **Domain**: {{ phase.domain }}
-- **Effort**: {{ phase.effort }}
-- **Objective**: {{ phase.objective }}
-{% if phase.depends_on %}
-- **Depends On**: {{ phase.depends_on | join(", ") }}
-{% endif %}
-{% if phase.parallelizable_with %}
-- **Parallelizable With**: {{ phase.parallelizable_with | join(", ") }}
-{% endif %}
+- **Domain**: [frontend|backend|infrastructure|testing|docs]
+- **Effort**: [small|medium|large]
+- **Objective**: [what this phase achieves]
+- **Depends On**: [list of phase numbers or None]
+- **Parallelizable With**: [list of phase numbers or None]
 
 ### Scope
 
-{{ phase.scope }}
+[Description of what is in and out of scope for this phase]
 
 ### Tasks
 
-{% for task in phase.tasks %}
-{{ loop.index }}. {{ task.description }}
-   - Files: {{ task.files | join(", ") }}
-   - Type: {{ task.type }}
-{% endfor %}
+1. [task description]
+   - Files: [file1, file2]
+   - Type: [create|modify|delete]
+2. [task description]
+   - Files: [file1]
+   - Type: [create|modify]
 
 ### Acceptance Criteria
 
-{% for ac in phase.acceptance_criteria %}
-- {{ ac }}
-{% endfor %}
+- [measurable criterion for phase completion]
+- [measurable criterion for phase completion]
 
 ### Risks
 
-{% for risk in phase.risks %}
-- {{ risk }}
-{% endfor %}
-{% endfor %}
+- [risk specific to this phase]
+
+[repeat "## Phase N:" sections for each phase]
 
 ---
 
 ## Cross-Cutting Concerns
-{% for concern in cross_cutting %}
 
-### {{ concern.title }}
+[repeat for each cross-cutting concern]
 
-{{ concern.description }}
-{% endfor %}
+### [Concern title]
+
+[Description of concern that spans multiple phases]
 
 ## Milestone Summary
 
-| Milestone | Phase | Deliverable | Verification |
-|-----------|-------|-------------|-------------|
-{% for m in milestones %}
-| {{ m.name }} | Phase {{ m.phase }} | {{ m.deliverable }} | {{ m.verification }} |
-{% endfor %}
+[repeat for each milestone]
+
+- **[Milestone name]**: Phase [N] — Deliverable: [what is delivered], Verification: [how to verify]
