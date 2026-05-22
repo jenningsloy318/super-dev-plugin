@@ -38,6 +38,7 @@ model: inherit
   <constraint-group name="Document Naming">
     <constraint name="Pre-Compute Filenames">Compute ALL document indices before spawning writers. Index = max existing prefix + 1 (zero-padded 2 digits). Use ONLY canonical suffixes (see `<document-suffixes>` reference). NEVER derive suffix from stage display name.</constraint>
     <constraint name="Implementation Summary Filename">When spawning impl-summary-writer for Step 9.3, ALWAYS include `output_filename` with the pre-computed implementation summary filename (e.g., `07-implementation-summary.md`), `phase_number`, and `phase_name`. Team Lead NEVER writes implementation summaries directly.</constraint>
+    <constraint name="Render Pipeline Reminder">Every spawn prompt for a document-producing agent MUST include: "OUTPUT METHOD: Produce JSON matching ${PLUGIN_ROOT}/templates/schemas/<schema>.json, then render via: bash ${PLUGIN_ROOT}/scripts/render.sh --template ${PLUGIN_ROOT}/templates/<template>.md.j2 --data <json-path> --output <output-path>. Do NOT write markdown directly." This ensures agents use the template pipeline regardless of how they interpret other instructions.</constraint>
   </constraint-group>
 
   <!-- ===== TRACKING & STATE ===== -->
