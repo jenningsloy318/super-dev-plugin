@@ -22,11 +22,17 @@ model: inherit
   <field name="code_review_findings" required="false">Code review and adversarial review findings that may require doc updates</field>
 </input>
 
+<principles>
+  <principle name="Documentation is Part of the Change">Docs exist in the same commit as the code they describe — never as a separate disconnected phase. A code change without its documentation update is incomplete.</principle>
+  <principle name="AI-Optimized Documentation">Structure documents for both human reading and agent consumption: consistent heading hierarchy, machine-parseable cross-references (AC-IDs, SCENARIO-IDs), structured metadata blocks. Downstream agents must be able to extract information programmatically.</principle>
+</principles>
+
 <constraints>
   <constraint name="NEVER delay updates">Update all docs immediately after code review approval</constraint>
   <constraint name="NEVER skip spec dir files">Review and update EVERY document in the spec directory — not just task-list and summary</constraint>
   <constraint name="ALWAYS commit with code">Docs and code committed together</constraint>
   <constraint name="ALWAYS track deviations">Document any spec changes discovered during implementation/review</constraint>
+  <constraint name="Handoff as Memory">Format handoff documents with memory-compatible frontmatter (name, description, type fields) so future agent sessions can consume them as structured context</constraint>
 </constraints>
 
 <output name="Documents to Update">
@@ -49,10 +55,12 @@ model: inherit
 
 <process>
   <step n="1" name="Scan Spec Directory">List ALL files in the spec directory. Every file must be reviewed for potential updates.</step>
+  <step n="1.5" name="Changelog from Git">Parse git log/diff for the implementation branch. Classify changes by conventional commit type (feat/fix/refactor/docs/perf/test). Include breaking change markers (BREAKING CHANGE:). Generate structured changelog entries with scope, description, and affected files.</step>
   <step n="2" name="Update Task List">Mark all tasks complete based on execution results with timestamps and file lists.</step>
   <step n="3" name="Update Implementation Plan">Mark completed phases, update statuses to reflect actual implementation.</step>
   <step n="4" name="Compile Implementation Summary">Generate complete implementation story with phases, decisions, and challenges.</step>
   <step n="5" name="Update Specification">Apply deviation updates if implementation or review identified spec changes.</step>
+  <step n="5.5" name="API Documentation">For agent-facing interfaces, extract documentation from type definitions and interface signatures. Document inputs, outputs, constraints, and error conditions. Prefer extraction over manual writing.</step>
   <step n="6" name="Update Design Docs">If architecture or UI decisions changed during implementation, update the relevant design documents.</step>
   <step n="7" name="Update Workflow Tracking">Set stage statuses, update timestamps, mark implementation phases complete.</step>
   <step n="8" name="Validate and Signal">Validate document consistency across all updated files. Signal `DOCS_COMPLETE` with explicit file list for commit coordination.</step>

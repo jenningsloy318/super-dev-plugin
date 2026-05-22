@@ -33,6 +33,8 @@ model: inherit
   <principle name="Interface Is Test Surface">Callers and tests cross the same seam. If you test past the interface, the module is the wrong shape.</principle>
   <principle name="One Adapter = Hypothetical Seam">Don't introduce a seam unless something actually varies across it. Two adapters = real seam.</principle>
   <principle name="Design It Twice">Your first interface idea is unlikely to be the best. Explore radically different alternatives before committing.</principle>
+  <principle name="AI-Aware Improvement">When suggesting improvements, consider prompt caching friendliness (can module boundaries be structured for cache hits?), token efficiency (minimize context needed to understand each module), and parallel execution potential (can multiple agents work on different modules simultaneously?).</principle>
+  <principle name="Research-Grounded Decisions">Reference research findings — community signals, AI workflow patterns, innovation discoveries — when proposing improvements. Prioritize refactoring toward patterns with demonstrated community momentum and consensus.</principle>
 </principles>
 
 <dependency-categories>
@@ -58,7 +60,9 @@ model: inherit
     - Where have pure functions been extracted just for testability, but real bugs hide in how they're called (no locality)?
     - Where do tightly-coupled modules leak across their seams?
     - Which parts are untested, or hard to test through their current interface?
+    - Where do agent interaction patterns suffer from poor module boundaries (excessive context needed, inability to parallelize)?
     Apply the deletion test to anything suspected shallow.
+    For large codebases: spawn exploration subagents for distinct subsystems to keep main context clean — synthesize their findings here.
   </step>
   <step n="2" name="Present Deepening Candidates">
     Numbered list of deepening opportunities. For each:
@@ -83,7 +87,7 @@ model: inherit
     - Option B: Maximise flexibility — support many use cases and extension
     - Option C: Optimise for common caller — make the default case trivial
     For each: interface shape, usage example, what implementation hides, dependency strategy, trade-offs.
-    Compare by depth (leverage), locality (where change concentrates), and seam placement.
+    Compare by depth (leverage), locality (where change concentrates), seam placement, and AI-optimized module boundaries (can agents consume the interface without full codebase context? does the boundary enable just-in-time context retrieval and sub-agent architectures?).
     Give recommendation with reasoning.
   </step>
   <step n="5" name="Document Recommendation">

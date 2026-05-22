@@ -19,10 +19,10 @@
 
 ## Implementation Phases
 
-| Phase | Name | Domain | Effort | Dependencies |
-|-------|------|--------|--------|-------------|
+| Phase | Name | Domain | Effort | Depends On | Parallelizable With |
+|-------|------|--------|--------|------------|---------------------|
 {% for phase in phases %}
-| Phase {{ phase.number }} | {{ phase.name }} | {{ phase.domain }} | {{ phase.effort }} | {{ phase.dependencies | join(", ") if phase.dependencies else "None" }} |
+| Phase {{ phase.number }} | {{ phase.name }} | {{ phase.domain }} | {{ phase.effort }} | {{ phase.depends_on | join(", ") if phase.depends_on else "None" }} | {{ phase.parallelizable_with | join(", ") if phase.parallelizable_with else "None" }} |
 {% endfor %}
 
 ---
@@ -33,8 +33,11 @@
 - **Domain**: {{ phase.domain }}
 - **Effort**: {{ phase.effort }}
 - **Objective**: {{ phase.objective }}
-{% if phase.dependencies %}
-- **Dependencies**: {{ phase.dependencies | join(", ") }}
+{% if phase.depends_on %}
+- **Depends On**: {{ phase.depends_on | join(", ") }}
+{% endif %}
+{% if phase.parallelizable_with %}
+- **Parallelizable With**: {{ phase.parallelizable_with | join(", ") }}
 {% endif %}
 
 ### Scope

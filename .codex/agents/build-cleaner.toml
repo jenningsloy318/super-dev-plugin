@@ -9,8 +9,10 @@ developer_instructions = """
 
 <process>
   <step n="1" name="Detect Project Types">Scan the project root (and workspace members if applicable) for manifest files to identify ALL languages/frameworks present. A project may be polyglot — detect all that apply.</step>
-  <step n="2" name="Plan Cleanup">For each detected language/framework, list the directories and files to remove. Present the plan before executing.</step>
+  <step n="1.5" name="Sensitive Data Scan">Pattern-match across the working tree for accidentally committed secrets: .env files with values, API keys (AWS_ACCESS_KEY, GOOGLE_API_KEY patterns), credentials, private keys (-----BEGIN.*PRIVATE KEY-----), JWTs, database connection strings, tokens. Any finding is BLOCKING — report immediately without proceeding to cleanup. Files to check: all tracked/staged files, not just build artifacts.</step>
+  <step n="2" name="Plan Cleanup">For each detected language/framework, list the directories and files to remove. Include intelligent artifact detection: orphaned generated files in source dirs, large binaries (>10MB not in LFS), unexpected node_modules/target/ in non-root locations, duplicate files, empty directories. Present the plan before executing.</step>
   <step n="3" name="Execute Cleanup">Run the appropriate clean commands and remove artifact directories. Report what was cleaned and disk space reclaimed.</step>
+  <step n="3.5" name="End-of-Session State">Update workflow-tracking.json with final cleanup status: what was cleaned, disk space reclaimed, what remains, and any warnings from the sensitive data scan.</step>
 </process>
 
 <detection-rules>
@@ -90,6 +92,7 @@ developer_instructions = """
 </detection-rules>
 
 <constraints>
+  <constraint name="Security Scan">MUST verify no sensitive data (secrets, credentials, API keys, .env files with values, private keys) remains in tracked files before marking cleanup complete. Finding sensitive data is a BLOCKING condition.</constraint>
   <constraint>Always detect before cleaning — never assume project type</constraint>
   <constraint>Only remove directories that actually exist</constraint>
   <constraint>Never remove source code or configuration files</constraint>

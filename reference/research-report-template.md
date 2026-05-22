@@ -90,6 +90,7 @@ gate-profile: null
     <row><cell>Learning Curve</cell><cell>[score 1-5]</cell><cell>[score 1-5]</cell><cell>[score 1-5]</cell></row>
     <row><cell>Maintenance Burden</cell><cell>[score 1-5]</cell><cell>[score 1-5]</cell><cell>[score 1-5]</cell></row>
     <row><cell>Project Fit</cell><cell>[score 1-5]</cell><cell>[score 1-5]</cell><cell>[score 1-5]</cell></row>
+    <row><cell>Innovation/Momentum</cell><cell>[score 1-5]</cell><cell>[score 1-5]</cell><cell>[score 1-5]</cell></row>
     <row><cell>TOTAL</cell><cell>[sum]</cell><cell>[sum]</cell><cell>[sum]</cell></row>
   </table>
 
@@ -194,6 +195,95 @@ gate-profile: null
   </subsection>
 </section>
 
+<section title="Community Discoveries" optional="true">
+  <paragraph>Insights discovered from developer community platforms (Reddit, HN, GitHub Discussions, Dev.to, X/Twitter, Stack Overflow). Include only when community research yields relevant findings.</paragraph>
+
+  <table>
+    <row header="true">
+      <cell>ID</cell>
+      <cell>Insight</cell>
+      <cell>Source</cell>
+      <cell>Date</cell>
+      <cell>Momentum</cell>
+      <cell>Consensus</cell>
+    </row>
+    <row>
+      <cell>COM-001</cell>
+      <cell>[community insight or discovery]</cell>
+      <cell>[platform + URL]</cell>
+      <cell>[date]</cell>
+      <cell>[0.0-1.0]</cell>
+      <cell>[Yes/No]</cell>
+    </row>
+  </table>
+
+  <rule>Momentum scoring formula: momentum = (engagement_normalized × 0.4) + (recency_score × 0.35) + (authority × 0.25). Engagement normalized 0-1 within source type. Recency: less than 3mo = 1.0, 3-6mo = 0.8, 6-12mo = 0.5, 12-18mo = 0.3, over 18mo = 0.0. Authority: verified_maintainer = 1.0, recognized_expert = 0.9, active_contributor = 0.7, general = 0.5.</rule>
+
+  <subsection title="Community Pulse">
+    <paragraph>Summary of active community discussions, recurring pain points, and novel solutions emerging from developer discourse.</paragraph>
+    <list type="unordered">
+      <item name="Active Discussions">[topics with high recent engagement]</item>
+      <item name="Pain Points">[recurring problems the community is reporting]</item>
+      <item name="Novel Solutions">[creative approaches being shared and upvoted]</item>
+    </list>
+  </subsection>
+</section>
+
+<section title="New Technologies and Approaches" optional="true">
+  <paragraph>Technologies and approaches less than 12 months old that are relevant to the research topic. Include only when innovation_potential > 0.4.</paragraph>
+
+  <table>
+    <row header="true">
+      <cell>Technology</cell>
+      <cell>First Release</cell>
+      <cell>Maturity</cell>
+      <cell>Innovation Potential</cell>
+      <cell>Relevance</cell>
+      <cell>Source</cell>
+    </row>
+    <row>
+      <cell>[technology name]</cell>
+      <cell>[date of first release]</cell>
+      <cell>[Early/Growing/Stable]</cell>
+      <cell>[0.0-1.0]</cell>
+      <cell>[High/Medium/Low]</cell>
+      <cell>SRC-NNN</cell>
+    </row>
+  </table>
+
+  <rule>Innovation potential formula: potential = (community_momentum × 0.3) + (problem_fit × 0.3) + (adoption_ease × 0.2) + (maturity_trajectory × 0.2). Only include technologies with potential > 0.4. Filtering criteria: first release within 12 months, active development (commits within 3 months), community traction (stars > 100 OR downloads > 1000).</rule>
+</section>
+
+<section title="AI Workflow Patterns" optional="true">
+  <paragraph>Patterns discovered from AI company documentation and community practices for improving agent-assisted development workflows.</paragraph>
+
+  <table>
+    <row header="true">
+      <cell>Pattern</cell>
+      <cell>Category</cell>
+      <cell>Source</cell>
+      <cell>Applicability</cell>
+    </row>
+    <row>
+      <cell>[pattern name and description]</cell>
+      <cell>[Prompt Engineering / Agent Coordination / Tool Use / Context Management]</cell>
+      <cell>SRC-NNN</cell>
+      <cell>[High/Medium/Low relevance to current task]</cell>
+    </row>
+  </table>
+</section>
+
+<section title="Internal Improvement Suggestions" optional="true">
+  <paragraph>Findings from research that could improve the super-dev plugin workflow itself. Include only when research yields applicable improvements.</paragraph>
+
+  <list type="unordered">
+    <item name="IMP-001">[technique] — Stage [N] — Impact: [High/Medium/Low] — Sketch: [brief implementation approach]</item>
+    <item name="IMP-002">[technique] — Stage [N] — Impact: [High/Medium/Low] — Sketch: [brief implementation approach]</item>
+  </list>
+
+  <paragraph>[If none: "No internal improvement opportunities identified."]</paragraph>
+</section>
+
 <section title="Contradictions Found">
   <paragraph>Sources that disagree on key points:</paragraph>
   <table>
@@ -254,8 +344,13 @@ To ensure reliable downstream parsing:
 1. Source IDs MUST use format: `SRC-NNN` (zero-padded, e.g., SRC-001)
 2. Best Practice IDs MUST use format: `BP-NNN`
 3. Issue IDs MUST use format: `ISS-NNN`
-4. Confidence values MUST be one of: `High`, `Medium`, `Low`
-5. Recency/Freshness values MUST be one of: `Fresh`, `Current`, `Dated`, `Outdated`
-6. Options Comparison table MUST have at least 3 options with numeric scores (1-5)
-7. Every claim MUST cite at least one SRC-NNN reference
-8. Contradictions section MUST be present (even if "No contradictions found")
+4. Community Discovery IDs MUST use format: `COM-NNN`
+5. Internal Improvement IDs MUST use format: `IMP-NNN`
+6. Confidence values MUST be one of: `High`, `Medium`, `Low`
+7. Recency/Freshness values MUST be one of: `Fresh`, `Current`, `Dated`, `Outdated`
+8. Options Comparison table MUST have at least 3 options with numeric scores (1-5)
+9. Every claim MUST cite at least one SRC-NNN reference
+10. Contradictions section MUST be present (even if "No contradictions found")
+11. Momentum scores MUST be numeric 0.0-1.0 (two decimal places)
+12. Innovation Potential scores MUST be numeric 0.0-1.0 (two decimal places)
+13. Optional sections (Community Discoveries, New Technologies, AI Workflow Patterns, Internal Improvement Suggestions) MUST be omitted entirely when no relevant findings exist — do not include empty sections

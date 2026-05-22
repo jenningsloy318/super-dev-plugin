@@ -4,6 +4,12 @@ A comprehensive team-lead-driven development workflow plugin for Claude Code wit
 
 Enhanced with best practices from [everything-claude-code](https://github.com/affaan-m/everything-claude-code)
 
+v2.4.31 — Enhanced Research and Stage Capabilities:
+- Enhanced Research: search-agent gains community discovery mode (Reddit/HN/forums) and AI documentation traversal mode with momentum scoring and emerging consensus detection
+- Research Agent: 4-pass research pipeline (best practices → community discovery → AI doc traversal → innovation discovery) with internal improvement suggestions
+- Stage 1–13 Quality Upgrades: Every workflow stage strengthened with 2026 best practices (interview-pattern requirements, hypothesis-tree debugging, architecture smells, AI-aware design, task DAG specs, OWASP 2025 reviews, CONTEST adversarial verdicts, BDD traceability)
+- Codex CLI Parity: All agent enhancements mirrored in `.codex/agents/*.toml`
+
 v2.3.52 — Stage-Based Workflow with Implementation Completeness:
 - Terminology Clarity: Workflow steps renamed from "Phase" to "Stage" (Stage 1–13). "Phase" now exclusively refers to implementation-plan phases (Phase 1, 2, 3…)
 - Implementation Completeness Loop: Stage 9/10 now iterates through ALL implementation-plan phases before proceeding to Stage 11

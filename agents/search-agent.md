@@ -38,7 +38,7 @@ model: inherit
 <input>
   <field name="plugin_root" required="true">Absolute path to the plugin root directory (passed by Team Lead)</field>
   <field name="query" required="true">Search string</field>
-  <field name="mode" required="false">code | docs | academic | web | social | github | all (default: all)</field>
+  <field name="mode" required="false">code | docs | academic | web | social | github | community | ai-docs | all (default: all)</field>
   <field name="maxResults" required="false">Default 10</field>
   <field name="minConfidence" required="false">0-1, default 0.5</field>
   <field name="expandQuery" required="false">Boolean, default true</field>
@@ -68,6 +68,111 @@ mcp__exa__web_search_exa (query: "[query]", type: "auto")
 <constraint name="Error Handling">
   Fallback to secondary script for failed mode. Retry once on transient errors. If fewer than 3 results, broaden query and retry. Record all failures in provenance.
 </constraint>
+
+<process name="Community Mode">
+  Mode `community` performs site-filtered searches targeting developer community platforms for real-world experience, pain points, and emerging patterns.
+
+  Site filters:
+  - Reddit: `site:reddit.com/r/programming OR r/ExperiencedDevs OR r/{stack-subreddit} {query} {year}`
+  - HackerNews: `site:news.ycombinator.com {query} {year}`
+  - GitHub Discussions: `site:github.com/*/discussions {query}`
+  - Dev.to: `site:dev.to {query} {year}`
+  - X/Twitter: Exa social mode with `{query}` and expert/verified filters
+  - Stack Overflow: `site:stackoverflow.com [tag:{tech}] {query}`
+
+  Quality thresholds (discard results below these):
+  - Reddit: 10+ upvotes
+  - GitHub Issues/Discussions: 5+ reactions
+  - HackerNews: 10+ points
+  - Stack Overflow: accepted answer OR 5+ upvotes
+  - Content length: 100+ words
+  - No duplicates, no spam, no self-promotion without substance
+
+  Output enrichment: Each result includes engagement metrics (upvotes/points/reactions), author authority level, and computed momentum score.
+
+  Graceful degradation: If a community platform is unreachable or returns zero results, proceed with available platforms and note the gap in provenance. Do not fail the entire search due to one platform being unavailable.
+</process>
+
+<process name="AI Docs Mode">
+  Mode `ai-docs` performs targeted searches of AI company documentation and framework guides for workflow patterns, agent techniques, and tool-use optimizations.
+
+  Provider matrix:
+  - Anthropic: `site:docs.anthropic.com OR site:anthropic.com/engineering OR site:anthropic.com/research OR site:code.claude.com/docs {query}`
+  - OpenAI: `site:platform.openai.com OR site:openai.com/blog OR site:cookbook.openai.com {query}`
+  - Google: `site:ai.google.dev OR site:cloud.google.com/vertex-ai OR site:deepmind.google/research {query}`
+  - Frameworks: `site:docs.langchain.com OR site:docs.crewai.com OR site:microsoft.github.io/autogen OR site:dspy.ai {query}`
+
+  Search topics per provider: prompt engineering, agent orchestration, tool use, context management, multi-agent patterns, structured output, function calling, memory management.
+
+  Process:
+  1. Expand query with AI-specific terms (e.g., "agent", "tool use", "chain of thought")
+  2. Run site-filtered Firecrawl searches for each provider group
+  3. Extract patterns: technique name, category, implementation notes
+  4. Cross-reference patterns across providers (convergence strengthens confidence)
+  5. Assess applicability to the original research query
+
+  Categories for classification: Prompt Engineering, Agent Coordination, Tool Use, Context Management.
+
+  Graceful degradation: If a provider's documentation is unreachable, proceed with available providers and note the gap in provenance.
+</process>
+
+<process name="Momentum Scoring">
+  Applied to results from `community` and `ai-docs` modes to quantify signal strength.
+
+  Formula: momentum = (engagement_normalized × 0.4) + (recency_score × 0.35) + (authority × 0.25)
+
+  Engagement normalization (per platform):
+  - Reddit: upvotes / subreddit_median_upvotes, capped at 1.0
+  - HackerNews: points / 100, capped at 1.0
+  - GitHub: (stars + reactions) / category_median, capped at 1.0
+  - Stack Overflow: votes / 50, capped at 1.0
+  - Dev.to: (reactions + comments) / 100, capped at 1.0
+  - AI docs: 1.0 (official documentation is inherently authoritative)
+
+  Recency scoring:
+  - Less than 3 months: 1.0
+  - 3-6 months: 0.8
+  - 6-12 months: 0.5
+  - 12-18 months: 0.3
+  - Over 18 months: 0.0
+
+  Authority levels:
+  - verified_maintainer: 1.0
+  - recognized_expert: 0.9
+  - active_contributor: 0.7
+  - general: 0.5
+
+  Thresholds:
+  - High momentum (>= 0.7): Strong signal, prioritize
+  - Medium momentum (0.4-0.7): Noteworthy, include in findings
+  - Low momentum (< 0.4): Weak signal, include only if corroborated
+</process>
+
+<process name="Emerging Consensus Detection">
+  When 3+ independent sources converge on the same recommendation within a 6-month window, flag as "Emerging Consensus."
+
+  Independence criteria: different authors AND different platforms. Multiple posts by the same author or on the same thread do not count as independent sources.
+
+  Detection process:
+  1. Group findings by recommendation/conclusion
+  2. For each group with 3+ entries, check publication dates span <= 6 months
+  3. Verify source independence (author + platform diversity)
+  4. If criteria met, mark with consensus flag and source count
+
+  Output: Add "Consensus: Yes" flag and "[N] independent sources" annotation to matching results.
+</process>
+
+<process name="Innovation Discovery Guidance">
+  When invoked for innovation/technology discovery, apply these search strategies:
+  1. Direct: `"{topic} new approach {current_year} {previous_year}"`
+  2. Alternatives: `"{current_tech} alternative new {current_year}"`
+  3. Cross-domain: `"{problem_type} solution {adjacent_domain}"`
+  4. Emerging: `"emerging {topic} technology {current_year}"`
+
+  Filter results to technologies with: first release within 12 months, active development (commits within 3 months), community traction (stars > 100 OR downloads > 1000).
+
+  Score innovation potential: potential = (community_momentum × 0.3) + (problem_fit × 0.3) + (adoption_ease × 0.2) + (maturity_trajectory × 0.2). Only report technologies with potential > 0.4.
+</process>
 
 <references>
   <ref>Script location: `${PLUGIN_ROOT}/scripts/` — includes Exa, DeepWiki, Context7, GitHub wrappers</ref>

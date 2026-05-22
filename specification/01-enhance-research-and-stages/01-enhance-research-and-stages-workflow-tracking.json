@@ -1,0 +1,47 @@
+{
+  "featureName": "Enhance Research Stage and All Stages with Industry Best Practices",
+  "specDirectory": "specification/01-enhance-research-and-stages",
+  "worktreePath": "/home/jenningsl/development/personal/jenningsloy318/super-dev-plugin/.worktree/01-enhance-research-and-stages",
+  "startedAt": "2026-05-22T10:00:00Z",
+  "stages": [
+    { "id": 1, "name": "spec-setup", "status": "complete", "startedAt": "2026-05-22T10:00:00Z", "completedAt": "2026-05-22T10:01:00Z", "docs": [], "files": { "created": [], "modified": [], "deleted": [] } },
+    { "id": 2, "name": "requirements-bdd", "status": "complete", "startedAt": "2026-05-22T10:01:00Z", "completedAt": "2026-05-22T10:21:00Z", "docs": ["01-requirements.md", "02-bdd-scenarios.md"], "files": { "created": [], "modified": [], "deleted": [] } },
+    { "id": 3, "name": "research", "status": "complete", "startedAt": "2026-05-22T10:21:00Z", "completedAt": "2026-05-22T10:31:00Z", "docs": ["03-research-report.md"], "files": { "created": [], "modified": [], "deleted": [] } },
+    { "id": 4, "name": "debug-analysis", "status": "skipped", "startedAt": null, "completedAt": null, "docs": [], "files": { "created": [], "modified": [], "deleted": [] } },
+    { "id": 5, "name": "code-assessment", "status": "complete", "startedAt": "2026-05-22T10:31:00Z", "completedAt": "2026-05-22T10:46:00Z", "docs": ["04-code-assessment.md"], "files": { "created": [], "modified": [], "deleted": [] } },
+    { "id": 6, "name": "design", "status": "complete", "startedAt": "2026-05-22T10:46:00Z", "completedAt": "2026-05-22T10:52:00Z", "docs": ["05-architecture.md"], "files": { "created": [], "modified": [], "deleted": [] } },
+    { "id": 7, "name": "specification-writing", "status": "complete", "startedAt": "2026-05-22T10:52:00Z", "completedAt": "2026-05-22T10:50:00Z", "docs": ["06-specification.md", "07-implementation-plan.md", "08-task-list.md"], "files": { "created": [], "modified": [], "deleted": [] } },
+    { "id": 8, "name": "specification-review", "status": "complete", "startedAt": "2026-05-22T10:50:00Z", "completedAt": "2026-05-22T10:56:00Z", "docs": ["09-spec-review.md"], "files": { "created": [], "modified": [], "deleted": [] } },
+    { "id": 9, "name": "implementation", "status": "complete", "startedAt": "2026-05-22T10:56:00Z", "completedAt": "2026-05-22T11:50:00Z", "docs": [], "files": { "created": [], "modified": [], "deleted": [] } },
+    { "id": 10, "name": "code-review", "status": "complete", "startedAt": "2026-05-22T11:50:00Z", "completedAt": "2026-05-22T11:58:00Z", "docs": ["11-code-review.md", "12-adversarial-review.md"], "files": { "created": [], "modified": [], "deleted": [] } },
+    { "id": 11, "name": "documentation", "status": "complete", "startedAt": "2026-05-22T11:58:00Z", "completedAt": "2026-05-22T12:07:00Z", "docs": ["13-handoff.md"], "files": { "created": [], "modified": [], "deleted": [] } },
+    { "id": 12, "name": "cleanup-confirmation", "status": "complete", "startedAt": "2026-05-22T12:07:00Z", "completedAt": "2026-05-22T12:08:00Z", "docs": [], "files": { "created": [], "modified": [], "deleted": [] } },
+    { "id": 13, "name": "commit-merge", "status": "in_progress", "startedAt": "2026-05-22T12:08:00Z", "completedAt": null, "docs": [], "files": { "created": [], "modified": [], "deleted": [] } }
+  ],
+  "implementationPhases": [
+    { "phaseNumber": 1, "name": "Foundation (Templates + Search Agent)", "status": "complete", "startedAt": "2026-05-22T10:56:00Z", "completedAt": "2026-05-22T11:01:00Z", "reviewIterations": 0 },
+    { "phaseNumber": 2, "name": "Core Research Agent", "status": "complete", "startedAt": "2026-05-22T11:01:00Z", "completedAt": "2026-05-22T11:20:00Z", "reviewIterations": 0 },
+    { "phaseNumber": 3, "name": "Analysis Agents", "status": "complete", "startedAt": "2026-05-22T11:20:00Z", "completedAt": "2026-05-22T11:25:00Z", "reviewIterations": 0 },
+    { "phaseNumber": 4, "name": "Design & Spec Agents", "status": "complete", "startedAt": "2026-05-22T11:25:00Z", "completedAt": "2026-05-22T11:28:00Z", "reviewIterations": 0 },
+    { "phaseNumber": 5, "name": "Review Agents", "status": "complete", "startedAt": "2026-05-22T11:28:00Z", "completedAt": "2026-05-22T11:33:00Z", "reviewIterations": 0 },
+    { "phaseNumber": 6, "name": "Finalization Agents", "status": "complete", "startedAt": "2026-05-22T11:33:00Z", "completedAt": "2026-05-22T11:37:00Z", "reviewIterations": 0 },
+    { "phaseNumber": 7, "name": "Codex Parity", "status": "complete", "startedAt": "2026-05-22T11:37:00Z", "completedAt": "2026-05-22T11:50:00Z", "reviewIterations": 0 }
+  ],
+  "tasks": [],
+  "iteration": {
+    "currentPhase": 1,
+    "totalPhases": 7,
+    "loops": 0,
+    "lastReviewVerdict": null
+  },
+  "team": {
+    "name": "super-dev-enhance-research-and-stages",
+    "teammates": [],
+    "messages": []
+  },
+  "status": {
+    "allStagesComplete": false,
+    "allTasksComplete": false,
+    "workflowDone": false
+  }
+}

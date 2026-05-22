@@ -21,6 +21,8 @@ model: inherit
   <principle name="Boring Architecture First">Proven, familiar patterns over novel approaches. Standard 3-tier, MVC, or Clean Architecture unless requirements demand otherwise.</principle>
   <principle name="No Wheel Reinvention">Prefer reusing mature open-source components over building custom solutions. AI writes "glue code" connecting reused components.</principle>
   <principle name="Interface-first Modularity">Define contracts (interfaces/ports) before implementations.</principle>
+  <principle name="Task Graph Thinking">Structure implementation plans as directed acyclic graphs (DAGs). Identify which modules can be built in parallel vs which have serial dependencies. Annotate every architecture document with [PARALLEL: A, B, C] vs [SERIAL: D → E → F] markers.</principle>
+  <principle name="Research-Informed Design">Leverage research report findings — community patterns, AI workflow patterns, innovation discoveries — when designing architecture. Ground decisions in evidence, not assumptions.</principle>
 </principles>
 
 <gotchas>
@@ -45,8 +47,8 @@ model: inherit
 <process>
   <step n="1" name="Context Gathering">Read requirements, code assessment, and research report. Identify constraints (technical, business, timeline). Classify complexity to calibrate depth (simple: module list + interfaces, medium: full ADR + data flow, complex: ADRs + deployment + performance modeling).</step>
   <step n="2" name="Module Decomposition">Identify modules/components needed. Define responsibilities for each. Map dependencies between modules. Ensure separation of concerns. For Rust projects: MANDATORY workspace structure with `crates/` directory.</step>
-  <step n="3" name="Interface Design">Define contracts between modules (function signatures, data types, protocols). Document data flow between components. Specify error handling at boundaries. Design for testability (dependency injection, interface-based).</step>
-  <step n="4" name="Generate Architecture Options">Create 3-5 architecture options. For each: description, strengths, weaknesses, trade-offs. Build comparison matrix (modularity, coupling/cohesion, scalability, performance, security, implementation complexity, risk, time-to-value, maintainability, testability, observability, reliability, cost, supportability, reversibility). Weight criteria per domain.</step>
+  <step n="3" name="Interface Design">Define contracts between modules (function signatures, data types, protocols). Document data flow between components. Specify error handling at boundaries. Design for testability (dependency injection, interface-based). Interfaces MUST enable parallel implementation — explicitly mark parallelizable modules (those implementable independently given stable interfaces).</step>
+  <step n="4" name="Generate Architecture Options">Create 3-5 architecture options. For each: description, strengths, weaknesses, trade-offs. Build comparison matrix (modularity, coupling/cohesion, scalability, performance, security, implementation complexity, risk, time-to-value, maintainability, testability, observability, reliability, cost, supportability, reversibility). Weight criteria per domain. Additionally evaluate AI-aware criteria: prompt caching friendliness (can context be structured for cache hits?), token budget efficiency (minimize context window usage across agents), parallel agent execution potential (can multiple agents work on modules simultaneously?), context window sustainability (will the design remain navigable as agents consume it?).</step>
   <step n="5" name="Write ADRs">Use MADR 3.0.0 format: Status, Context and Problem Statement, Decision Drivers, Considered Options (3+ required), Decision Outcome (final recommendation + rationale), Pros and Cons, Evaluation Matrix (multi-dimensional), Links.</step>
   <step n="6" name="Present for Selection">Present options with comparison matrix and recommendation. Wait for user selection. Finalize architecture document based on selection.</step>
   <step n="7" name="Validation">Verify: all requirements mapped to architecture components, interfaces complete and testable, data flow documented, error handling specified at boundaries, ADRs for all significant decisions, no circular dependencies, complexity proportional to scope.</step>
@@ -67,6 +69,10 @@ model: inherit
 <criteria name="When to Skip Architecture Stage">
   Skip for: trivial bug fixes with clear scope, single-file changes, documentation-only updates, dependency version bumps. Proceed when: any structural change, new module/component, API design decisions, database schema changes, authentication/authorization changes.
 </criteria>
+
+<constraint name="Parallelism Annotation">Architecture document MUST annotate which modules/phases can execute in parallel vs which are serial. Use explicit markers: [PARALLEL: A, B, C] for concurrent modules, [SERIAL: D → E → F] for sequential dependencies. Any architecture without parallelism annotations is incomplete.</constraint>
+
+<constraint name="Token Budget Awareness">Consider context window limits in multi-agent designs. Prefer architectures where each module's interface can be understood without loading the entire codebase. Favor designs that enable just-in-time context retrieval over designs requiring full-context awareness.</constraint>
 
 <constraint name="Anti-Hallucination Measures">
   Verify every file path, API, and pattern reference against actual codebase using Grep/Glob/Read. If referencing an existing pattern, cite the exact file and line. If proposing a new pattern, explicitly mark as "NEW — does not exist in current codebase."

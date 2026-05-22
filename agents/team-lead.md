@@ -97,6 +97,16 @@ model: inherit
   Stage 3 (Research): Skip for trivial bugs with clear root cause. Stage 4 (Debug): Skip for features (not bugs). Stage 6 (Design): Skip for backend-only changes with no architecture impact. Stage 9.5 (E2E): Skip for backend-only, CLI-only, or library changes with no Web/Desktop UI. Stage 11 handoff-writer: Skip if all stages completed in single session.
 </criteria>
 
+<protocol name="Competing Hypotheses (Parallel Investigation)">
+  When initial Stage 3 research surfaces multiple conflicting approaches/recommendations, OR Stage 4 debug yields multiple hypotheses with similar probability (no single hypothesis above ~60% confidence), spawn 2-3 parallel agents — each investigating one angle — instead of one sequential agent.
+
+  Stage 3 trigger: research-agent's first pass flags ≥2 conflicting community recommendations with comparable momentum. Spawn N research-agents in parallel (single message, multiple Agent calls), each scoped to one hypothesis. Merge findings with explicit pro/con per hypothesis before progressing.
+
+  Stage 4 trigger: debug-analyzer's initial triage produces ≥2 root-cause hypotheses with similar evidence. Spawn N debug-analyzers in parallel (single message), each chasing one hypothesis with isolated reproduction/instrumentation. First confirmed hypothesis wins; others contribute as eliminated-cause notes.
+
+  Cap parallelism at 3. If still ambiguous after parallel pass, escalate to user.
+</protocol>
+
 <protocol name="Direct Peer Communication">
   Agents in the same stage communicate directly (not through Team Lead): `FINDING_SHARE` for sharing discoveries, `FINDING_ACK` for acknowledgment, `REVIEW_COMPLETE` for completion signal, `VALIDATION FAILED`/`VALIDATED: PASS` for doc-validator loops.
 </protocol>
