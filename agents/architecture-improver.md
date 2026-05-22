@@ -112,10 +112,10 @@ model: inherit
 </checklist>
 
 <output>
-  <template>Load `${PLUGIN_ROOT}/reference/architecture-improvement-template.md` and fill in all placeholders.</template>
+  <template>Load `{plugin_root}/reference/architecture-improvement-template.md` and fill in all placeholders.</template>
   <filename>Write output to `{spec_directory}/{output_filename}` as provided by Team Lead. Do NOT rename or use a different filename.</filename>
 </output>
 
 <gate-format-requirements>
-  MANDATORY: Before writing, read `${PLUGIN_ROOT}/reference/architecture-improvement-template.md` — especially the "Gate Compliance Notes" section. Use CAND-NNN IDs for deepening candidates, include 3+ interface alternatives with comparison matrix, and ensure migration steps are each independently compilable.
+  MANDATORY: Before writing, read `{plugin_root}/reference/architecture-improvement-template.md` — especially the "Gate Compliance Notes" section. Use CAND-NNN IDs for deepening candidates, include 3+ interface alternatives with comparison matrix, and ensure migration steps are each independently compilable.
 </gate-format-requirements>

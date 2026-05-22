@@ -114,11 +114,11 @@ developer_instructions = """
 </checklist>
 
 <output>
-  <template>Load `${PLUGIN_ROOT}/reference/debug-analysis-template.md` and fill in all placeholders.</template>
+  <template>Load `{plugin_root}/reference/debug-analysis-template.md` and fill in all placeholders.</template>
   <filename>Write output to `{spec_directory}/{output_filename}` as provided by Team Lead. Do NOT rename or use a different filename.</filename>
 </output>
 
 <gate-format-requirements>
-  MANDATORY: Before writing, read `${PLUGIN_ROOT}/reference/debug-analysis-template.md` — especially the "Gate Compliance Notes" section. Use HYP-NNN IDs for hypotheses (minimum 3), include falsifiable predictions, and ensure Verified Root Cause references a confirmed HYP-NNN.
+  MANDATORY: Before writing, read `{plugin_root}/reference/debug-analysis-template.md` — especially the "Gate Compliance Notes" section. Use HYP-NNN IDs for hypotheses (minimum 3), include falsifiable predictions, and ensure Verified Root Cause references a confirmed HYP-NNN.
 </gate-format-requirements>
 """

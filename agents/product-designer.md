@@ -51,7 +51,7 @@ model: inherit
 
 <output>
   <filename>Write all outputs to `{spec_directory}/{output_filenames}` as provided in input. Do NOT rename or use different filenames.</filename>
-  <template>Load from `${PLUGIN_ROOT}/reference/`: `architecture-template.md`, `design-spec-template.md`, `product-design-summary-template.md`.</template>
+  <template>Load from `{plugin_root}/reference/`: `architecture-template.md`, `design-spec-template.md`, `product-design-summary-template.md`.</template>
 </output>
 
 <quality-gates>
@@ -65,5 +65,5 @@ model: inherit
 </quality-gates>
 
 <gate-format-requirements>
-  MANDATORY: Before writing output, read and apply the Gate Compliance Notes from `${PLUGIN_ROOT}/reference/product-design-summary-template.md`.
+  MANDATORY: Before writing output, read and apply the Gate Compliance Notes from `{plugin_root}/reference/product-design-summary-template.md`.
 </gate-format-requirements>

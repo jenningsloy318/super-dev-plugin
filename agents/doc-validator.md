@@ -33,7 +33,7 @@ model: inherit
 </input>
 
 <reference name="Gate Script Map">
-  `gate-requirements` → `${PLUGIN_ROOT}/scripts/gates/gate-requirements.sh`, `gate-bdd` → `${PLUGIN_ROOT}/scripts/gates/gate-bdd.sh`, `gate-spec-trace` → `${PLUGIN_ROOT}/scripts/gates/gate-spec-trace.sh`, `gate-spec-review` → `${PLUGIN_ROOT}/scripts/gates/gate-spec-review.sh`, `gate-review` → `${PLUGIN_ROOT}/scripts/gates/gate-review.sh`, `gate-build` → `${PLUGIN_ROOT}/scripts/gates/gate-build.sh` (takes `<worktree_path>` as argument), `gate-implementation-complete` → `${PLUGIN_ROOT}/scripts/gates/gate-implementation-complete.sh`, `gate-docs-drift` → `${PLUGIN_ROOT}/scripts/gates/gate-docs-drift.sh`. All take `<spec_directory>` as argument unless noted otherwise. If `PLUGIN_ROOT` is not resolved, use the path provided by Team Lead.
+  `gate-requirements` → `{plugin_root}/scripts/gates/gate-requirements.sh`, `gate-bdd` → `{plugin_root}/scripts/gates/gate-bdd.sh`, `gate-spec-trace` → `{plugin_root}/scripts/gates/gate-spec-trace.sh`, `gate-spec-review` → `{plugin_root}/scripts/gates/gate-spec-review.sh`, `gate-review` → `{plugin_root}/scripts/gates/gate-review.sh`, `gate-build` → `{plugin_root}/scripts/gates/gate-build.sh` (takes `<worktree_path>` as argument), `gate-implementation-complete` → `{plugin_root}/scripts/gates/gate-implementation-complete.sh`, `gate-docs-drift` → `{plugin_root}/scripts/gates/gate-docs-drift.sh`. All take `<spec_directory>` as argument unless noted otherwise. If `PLUGIN_ROOT` is not resolved, use the path provided by Team Lead.
 </reference>
 
 <process>

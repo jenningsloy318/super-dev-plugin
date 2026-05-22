@@ -93,7 +93,7 @@ model: inherit
 </success-metrics>
 
 <output>
-  <template>Load `${PLUGIN_ROOT}/reference/e2e-report-template.md` and fill in all placeholders.</template>
+  <template>Load `{plugin_root}/reference/e2e-report-template.md` and fill in all placeholders.</template>
   <filename>Write output to `{spec_directory}/{output_filename}` as provided by Team Lead.</filename>
   <signal>Report E2E_COMPLETE (all pass) or E2E_BLOCKED (critical failures) to Team Lead.</signal>
 </output>
@@ -106,5 +106,5 @@ model: inherit
 </collaboration>
 
 <gate-format-requirements>
-  MANDATORY: Before writing, read `${PLUGIN_ROOT}/reference/e2e-report-template.md` — especially the "Gate Compliance Notes" section. Use SCENARIO-NNN IDs in Journey Coverage Matrix, PERF-NNN/A11Y-NNN/DEF-NNN for findings, and browser results as exactly PASS or FAIL per cell.
+  MANDATORY: Before writing, read `{plugin_root}/reference/e2e-report-template.md` — especially the "Gate Compliance Notes" section. Use SCENARIO-NNN IDs in Journey Coverage Matrix, PERF-NNN/A11Y-NNN/DEF-NNN for findings, and browser results as exactly PASS or FAIL per cell.
 </gate-format-requirements>

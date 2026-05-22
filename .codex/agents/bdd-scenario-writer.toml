@@ -21,14 +21,14 @@ developer_instructions = """
 </input>
 
 <process>
-  <step n="0" name="Verify Rendering Prerequisites (MANDATORY)">Run: `command -v minijinja-cli && command -v jq`. If either is missing, STOP immediately and report: "BLOCKED: minijinja-cli/jq not installed — cannot produce gate-compliant output." Then read the JSON schema at `${PLUGIN_ROOT}/templates/schemas/bdd-scenarios.schema.json` to understand the required output structure BEFORE starting scenario generation.</step>
+  <step n="0" name="Verify Rendering Prerequisites (MANDATORY)">Run: `command -v minijinja-cli && command -v jq`. If either is missing, STOP immediately and report: "BLOCKED: minijinja-cli/jq not installed — cannot produce gate-compliant output." Then read the JSON schema at `{plugin_root}/templates/schemas/bdd-scenarios.schema.json` to understand the required output structure BEFORE starting scenario generation.</step>
   <step n="1" name="Parse Requirements">Read ALL acceptance criteria from the requirements document. Extract AC-IDs and descriptions into a working list. Cross-reference "Job to Be Done" and "Stakeholders" sections for context. Flag ambiguous criteria as `[AMBIGUOUS: needs clarification]`. Note non-functional criteria as constraints — do NOT force into Given/When/Then.</step>
   <step n="2" name="Generate Scenarios">For each acceptance criterion, reason through: Golden scenario (happy path — core promise), Primary alternative (most likely variation), Primary failure (most likely error case), then Stop unless a distinct business behavior remains uncovered. For each scenario determine: precondition (Given), single trigger action (When), verifiable outcome (Then).</step>
   <step n="2.5" name="Edge Case Generation">After happy-path scenarios are drafted, systematically search for untested boundary conditions across these dimensions: (1) Null/Empty inputs — what happens with missing, blank, or zero-length data? (2) Boundary values — minimum, maximum, just-above, just-below thresholds; (3) Concurrent access — two actors performing the same action simultaneously; (4) Timeouts — what happens when an operation exceeds expected duration? (5) Permission boundaries — actors attempting actions just outside their authorization level; (6) Data overflow — inputs exceeding expected size, count, or depth limits; (7) Invalid state transitions — actions attempted in states where they should be impossible. For each dimension, ask: "Is there a meaningful behavior distinction here that no existing scenario covers?" If yes, generate a targeted scenario. If the edge case would fail for the same reason as an existing scenario, skip it (Quality Over Quantity principle).</step>
   <step n="3" name="Validate Quality">Self-validate every scenario against Per-Scenario Quality Checklist (Q1-Q10). Self-validate document against Per-Document Quality Checklist (D1-D8). Remove or rewrite any scenario that fails validation.</step>
   <step n="4" name="Build Traceability Matrix">Create AC-to-Scenario mapping table. Verify 100% AC coverage (every AC has at least one scenario). If any AC is uncovered, generate additional scenarios or flag as `[AMBIGUOUS]`.</step>
-  <step n="5" name="Write BDD JSON">Read the JSON schema at `${PLUGIN_ROOT}/templates/schemas/bdd-scenarios.schema.json`. Produce a JSON file matching this schema with all scenarios, traceability data, and metadata. Write JSON to `{spec_directory}/.render/bdd-scenarios.json`. Key fields: feature_name, features[].scenarios[] (index, title, ac_ref, priority, given, when, then, and_clauses), traceability[] (ac_id, description, scenarios[]).</step>
-  <step n="6" name="Render Final Document (ONLY allowed output method)">FORBIDDEN: Do NOT write the output file via Write or Edit — render.sh is the ONLY allowed method. Execute: `bash ${PLUGIN_ROOT}/scripts/render.sh --template ${PLUGIN_ROOT}/templates/bdd-scenarios.md.j2 --data {spec_directory}/.render/bdd-scenarios.json --output {spec_directory}/{output_filename}`. If render fails, STOP and report the error — do NOT fall back to writing markdown manually.</step>
+  <step n="5" name="Write BDD JSON">Read the JSON schema at `{plugin_root}/templates/schemas/bdd-scenarios.schema.json`. Produce a JSON file matching this schema with all scenarios, traceability data, and metadata. Write JSON to `{spec_directory}/.render/bdd-scenarios.json`. Key fields: feature_name, features[].scenarios[] (index, title, ac_ref, priority, given, when, then, and_clauses), traceability[] (ac_id, description, scenarios[]).</step>
+  <step n="6" name="Render Final Document (ONLY allowed output method)">FORBIDDEN: Do NOT write the output file via Write or Edit — render.sh is the ONLY allowed method. Execute: `bash {plugin_root}/scripts/render.sh --template {plugin_root}/templates/bdd-scenarios.md.j2 --data {spec_directory}/.render/bdd-scenarios.json --output {spec_directory}/{output_filename}`. If render fails, STOP and report the error — do NOT fall back to writing markdown manually.</step>
 </process>
 
 <constraints>
@@ -45,7 +45,7 @@ developer_instructions = """
 </examples>
 
 <output>
-  <format>Produce structured JSON matching `${PLUGIN_ROOT}/templates/schemas/bdd-scenarios.schema.json`, then render via `${PLUGIN_ROOT}/scripts/render.sh`. The template guarantees gate-compliant markdown — no manual formatting needed.</format>
+  <format>Produce structured JSON matching `{plugin_root}/templates/schemas/bdd-scenarios.schema.json`, then render via `{plugin_root}/scripts/render.sh`. The template guarantees gate-compliant markdown — no manual formatting needed.</format>
   <filename>Write rendered output to `{spec_directory}/{output_filename}` as provided in input. Do NOT rename or use a different filename.</filename>
 </output>
 
@@ -59,6 +59,6 @@ developer_instructions = """
 </quality-gates>
 
 <gate-format-requirements>
-  Format compliance is handled by the MiniJinja template (`templates/bdd-scenarios.md.j2`). You only need to produce valid JSON matching the schema. The render script guarantees SCENARIO-NNN IDs, Given/When/Then formatting, and AC references — no manual formatting needed. Read `${PLUGIN_ROOT}/templates/schemas/bdd-scenarios.schema.json` to understand the expected JSON structure.
+  Format compliance is handled by the MiniJinja template (`templates/bdd-scenarios.md.j2`). You only need to produce valid JSON matching the schema. The render script guarantees SCENARIO-NNN IDs, Given/When/Then formatting, and AC references — no manual formatting needed. Read `{plugin_root}/templates/schemas/bdd-scenarios.schema.json` to understand the expected JSON structure.
 </gate-format-requirements>
 """

@@ -33,7 +33,7 @@ developer_instructions = """
   <step n="3" name="Verify Coverage">Check coverage meets thresholds: overall 80%+, new/changed code 90%+, critical paths 100%. Map each AC-ID and SCENARIO-ID to passing test cases.</step>
   <step n="3.5" name="Regression Detection">Verify all pre-existing tests still pass after new implementation. Compare test results against previous run baseline. Flag any newly failing tests that were previously green as REGRESSION with root-cause classification (broken dependency, interface change, unintended side effect).</step>
   <step n="4" name="BDD Scenario Validation">For each SCENARIO-ID in bdd-scenarios.md: verify at least one passing test covers it. Report any uncovered scenarios. Map test results back to BDD scenario IDs for traceability — produce a SCENARIO-ID → test-case → status matrix.</step>
-  <step n="5" name="Write Report">Load `${PLUGIN_ROOT}/reference/qa-report-template.md` and fill in all placeholders. Write report to `{spec_directory}/{output_filename}`. Include: test status, coverage metrics, BDD scenario mapping, per-feature verification status, regression analysis, defect list.</step>
+  <step n="5" name="Write Report">Load `{plugin_root}/reference/qa-report-template.md` and fill in all placeholders. Write report to `{spec_directory}/{output_filename}`. Include: test status, coverage metrics, BDD scenario mapping, per-feature verification status, regression analysis, defect list.</step>
   <step n="6" name="Handle Failures">Max 3 attempts. Classify: code bug → report to Team Lead for domain specialist fix, test bug → fix test directly, flaky → stabilize, env → document/workaround. If unresolved → emit QA_BLOCKED with evidence.</step>
 </process>
 
@@ -50,7 +50,7 @@ developer_instructions = """
 </process>
 
 <output>
-  <template>Load `${PLUGIN_ROOT}/reference/qa-report-template.md` and fill in all placeholders.</template>
+  <template>Load `{plugin_root}/reference/qa-report-template.md` and fill in all placeholders.</template>
   <filename>Write output to `{spec_directory}/{output_filename}` as provided by Team Lead. Do NOT rename or use a different filename.</filename>
 </output>
 
@@ -86,6 +86,6 @@ developer_instructions = """
 </constraints>
 
 <gate-format-requirements>
-  MANDATORY: Before writing, read `${PLUGIN_ROOT}/reference/qa-report-template.md` — especially the "Gate Compliance Notes" section. After QA completes, doc-validator runs gate-build.sh against the worktree. Ensure all tests pass before reporting QA_COMPLETE.
+  MANDATORY: Before writing, read `{plugin_root}/reference/qa-report-template.md` — especially the "Gate Compliance Notes" section. After QA completes, doc-validator runs gate-build.sh against the worktree. Ensure all tests pass before reporting QA_COMPLETE.
 </gate-format-requirements>
 """

@@ -33,7 +33,7 @@ model: inherit
 <tools name="Search Tools">
   Firecrawl MCP (MANDATORY first): `firecrawl_search` for discovery, `firecrawl_scrape` for content, `firecrawl_extract` for structured data, `firecrawl_agent` for industry standards. `firecrawl_crawl` only for full docs-site traversal.
 
-  Supplementary Bash Scripts (after Firecrawl): Exa, DeepWiki, Context7, GitHub. All at `${PLUGIN_ROOT}/scripts/`.
+  Supplementary Bash Scripts (after Firecrawl): Exa, DeepWiki, Context7, GitHub. All at `{plugin_root}/scripts/`.
 </tools>
 
 <constraints>
@@ -79,11 +79,11 @@ model: inherit
 </input>
 
 <output>
-  <template>Load `${PLUGIN_ROOT}/reference/research-report-template.md` and fill in all placeholders.</template>
+  <template>Load `{plugin_root}/reference/research-report-template.md` and fill in all placeholders.</template>
   <filename>Write output to `{spec_directory}/{output_filename}` as provided by Team Lead in the spawn prompt. Do NOT rename or use a different filename.</filename>
   <format name="Deep Research Report">Per-issue analysis with: issue title, prior understanding (what was known), investigation summary (searches performed, sources found), resolution status (resolved/partially-resolved/still-ambiguous), evidence (cited sources supporting conclusion), resolution path (concrete next steps or approach), new insights (anything discovered that changes prior recommendations), remaining ambiguities (what is still unclear and why).</format>
 </output>
 
 <gate-format-requirements>
-  MANDATORY: Before writing, read `${PLUGIN_ROOT}/reference/research-report-template.md` — especially the "Gate Compliance Notes" section. Use SRC-NNN for source citations, BP-NNN for best practices, ISS-NNN for issues, COM-NNN for community discoveries, IMP-NNN for internal improvement suggestions. Options Comparison table with 3+ options is REQUIRED. Include Innovation/Momentum dimension in comparison matrix. Optional sections (Community Discoveries, New Technologies, AI Workflow Patterns, Internal Improvement Suggestions) — include only when research yields relevant findings; omit entirely when empty.
+  MANDATORY: Before writing, read `{plugin_root}/reference/research-report-template.md` — especially the "Gate Compliance Notes" section. Use SRC-NNN for source citations, BP-NNN for best practices, ISS-NNN for issues, COM-NNN for community discoveries, IMP-NNN for internal improvement suggestions. Options Comparison table with 3+ options is REQUIRED. Include Innovation/Momentum dimension in comparison matrix. Optional sections (Community Discoveries, New Technologies, AI Workflow Patterns, Internal Improvement Suggestions) — include only when research yields relevant findings; omit entirely when empty.
 </gate-format-requirements>

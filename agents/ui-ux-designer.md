@@ -70,9 +70,9 @@ model: inherit
 </quality-gates>
 
 <references>
-  <ref>Produces `[XX]-design-spec.md` (and optionally `.pen` files). Template: `${PLUGIN_ROOT}/reference/design-spec-template.md`.</ref>
+  <ref>Produces `[XX]-design-spec.md` (and optionally `.pen` files). Template: `{plugin_root}/reference/design-spec-template.md`.</ref>
 </references>
 
 <gate-format-requirements>
-  MANDATORY: Before writing output, read and apply the Gate Compliance Notes from `${PLUGIN_ROOT}/reference/design-spec-template.md`.
+  MANDATORY: Before writing output, read and apply the Gate Compliance Notes from `{plugin_root}/reference/design-spec-template.md`.
 </gate-format-requirements>

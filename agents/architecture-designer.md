@@ -79,7 +79,7 @@ model: inherit
 </constraint>
 
 <output>
-  <template>Load `${PLUGIN_ROOT}/reference/architecture-template.md` and fill in all placeholders.</template>
+  <template>Load `{plugin_root}/reference/architecture-template.md` and fill in all placeholders.</template>
   <filename>Write output to `{spec_directory}/{output_filename}` as provided by Team Lead. Do NOT rename or use a different filename.</filename>
 </output>
 
@@ -95,5 +95,5 @@ model: inherit
 </quality-gates>
 
 <gate-format-requirements>
-  MANDATORY: Before writing, read `${PLUGIN_ROOT}/reference/architecture-template.md` and follow its structure exactly. This document is consumed by spec-writer in Stage 7 — consistent format ensures downstream agents can parse it reliably.
+  MANDATORY: Before writing, read `{plugin_root}/reference/architecture-template.md` and follow its structure exactly. This document is consumed by spec-writer in Stage 7 — consistent format ensures downstream agents can parse it reliably.
 </gate-format-requirements>

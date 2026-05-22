@@ -23,7 +23,7 @@ developer_instructions = """
 </input>
 
 <process>
-  <step n="0" name="Verify Rendering Prerequisites (MANDATORY)">Run: `command -v minijinja-cli && command -v jq`. If either is missing, STOP immediately and report: "BLOCKED: minijinja-cli/jq not installed — cannot produce gate-compliant output." Then read the JSON schema at `${PLUGIN_ROOT}/templates/schemas/implementation-summary.schema.json` to understand the required output structure BEFORE starting analysis.</step>
+  <step n="0" name="Verify Rendering Prerequisites (MANDATORY)">Run: `command -v minijinja-cli && command -v jq`. If either is missing, STOP immediately and report: "BLOCKED: minijinja-cli/jq not installed — cannot produce gate-compliant output." Then read the JSON schema at `{plugin_root}/templates/schemas/implementation-summary.schema.json` to understand the required output structure BEFORE starting analysis.</step>
   <step n="1" name="Gather Evidence">
     - Read the implementation plan and task list from spec_directory
     - Run `git diff base_sha` to see all working-tree changes since the phase started (includes tdd-guide tests + domain specialist code)
@@ -40,12 +40,12 @@ developer_instructions = """
     - Note any deviations from the spec or plan
     - Record challenges (workarounds, unexpected complexity, blocked approaches)
   </step>
-  <step n="4" name="Write Summary JSON">Read the JSON schema at `${PLUGIN_ROOT}/templates/schemas/implementation-summary.schema.json`. Produce JSON with: feature_name, phase_number, phase_name, status, overview, files_changed, key_decisions, deviations, test_results, next_steps. CRITICAL: no field value may contain TODO, FIXME, or TBD markers. Write to `{spec_directory}/.render/implementation-summary.json`.</step>
-  <step n="5" name="Render Final Document (ONLY allowed output method)">FORBIDDEN: Do NOT write the output file via Write or Edit — render.sh is the ONLY allowed method. Execute: `bash ${PLUGIN_ROOT}/scripts/render.sh --template ${PLUGIN_ROOT}/templates/implementation-summary.md.j2 --data {spec_directory}/.render/implementation-summary.json --output {spec_directory}/{output_filename}`. If render fails, STOP and report the error — do NOT fall back to writing markdown manually.</step>
+  <step n="4" name="Write Summary JSON">Read the JSON schema at `{plugin_root}/templates/schemas/implementation-summary.schema.json`. Produce JSON with: feature_name, phase_number, phase_name, status, overview, files_changed, key_decisions, deviations, test_results, next_steps. CRITICAL: no field value may contain TODO, FIXME, or TBD markers. Write to `{spec_directory}/.render/implementation-summary.json`.</step>
+  <step n="5" name="Render Final Document (ONLY allowed output method)">FORBIDDEN: Do NOT write the output file via Write or Edit — render.sh is the ONLY allowed method. Execute: `bash {plugin_root}/scripts/render.sh --template {plugin_root}/templates/implementation-summary.md.j2 --data {spec_directory}/.render/implementation-summary.json --output {spec_directory}/{output_filename}`. If render fails, STOP and report the error — do NOT fall back to writing markdown manually.</step>
 </process>
 
 <output>
-  <format>Produce structured JSON matching `${PLUGIN_ROOT}/templates/schemas/implementation-summary.schema.json`, then render via `${PLUGIN_ROOT}/scripts/render.sh`. The template guarantees: no TODO/FIXME/TBD markers, files changed table, test results section.</format>
+  <format>Produce structured JSON matching `{plugin_root}/templates/schemas/implementation-summary.schema.json`, then render via `{plugin_root}/scripts/render.sh`. The template guarantees: no TODO/FIXME/TBD markers, files changed table, test results section.</format>
   <filename>Write output to `{spec_directory}/{output_filename}` as provided by Team Lead. Do NOT rename or use a different filename.</filename>
 </output>
 
@@ -56,6 +56,6 @@ developer_instructions = """
 </constraints>
 
 <gate-format-requirements>
-  Format compliance is handled by the MiniJinja template (`templates/implementation-summary.md.j2`). You only need to produce valid JSON matching the schema. The template guarantees: no TODO/FIXME/TBD markers, proper files-changed info, test results section. Read `${PLUGIN_ROOT}/templates/schemas/implementation-summary.schema.json` for the expected structure.
+  Format compliance is handled by the MiniJinja template (`templates/implementation-summary.md.j2`). You only need to produce valid JSON matching the schema. The template guarantees: no TODO/FIXME/TBD markers, proper files-changed info, test results section. Read `{plugin_root}/templates/schemas/implementation-summary.schema.json` for the expected structure.
 </gate-format-requirements>
 """
