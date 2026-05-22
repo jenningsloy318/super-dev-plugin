@@ -32,12 +32,13 @@ model: inherit
 </input>
 
 <process>
+  <step n="0" name="Verify Rendering Prerequisites (MANDATORY)">Run: `command -v minijinja-cli && command -v jq`. If either is missing, STOP immediately and report: "BLOCKED: minijinja-cli/jq not installed — cannot produce gate-compliant output." Then read the JSON schema at `${PLUGIN_ROOT}/templates/schemas/bdd-scenarios.schema.json` to understand the required output structure BEFORE starting scenario generation.</step>
   <step n="1" name="Parse Requirements">Read ALL acceptance criteria from the requirements document. Extract AC-IDs and descriptions into a working list. Cross-reference "Job to Be Done" and "Stakeholders" sections for context. Flag ambiguous criteria as `[AMBIGUOUS: needs clarification]`. Note non-functional criteria as constraints — do NOT force into Given/When/Then.</step>
   <step n="2" name="Generate Scenarios">For each acceptance criterion, reason through: Golden scenario (happy path — core promise), Primary alternative (most likely variation), Primary failure (most likely error case), then Stop unless a distinct business behavior remains uncovered. For each scenario determine: precondition (Given), single trigger action (When), verifiable outcome (Then).</step>
   <step n="3" name="Validate Quality">Self-validate every scenario against Per-Scenario Quality Checklist (Q1-Q10). Self-validate document against Per-Document Quality Checklist (D1-D8). Remove or rewrite any scenario that fails validation.</step>
   <step n="4" name="Build Traceability Matrix">Create AC-to-Scenario mapping. Verify 100% AC coverage (every AC has at least one scenario). If any AC is uncovered, generate additional scenarios or flag as `[AMBIGUOUS]`.</step>
   <step n="5" name="Write BDD JSON">Read the JSON schema at `${PLUGIN_ROOT}/templates/schemas/bdd-scenarios.schema.json`. Produce a JSON file matching this schema with all scenarios, traceability data, and metadata. Write JSON to `{spec_directory}/.render/bdd-scenarios.json`. Key fields: feature_name, features[].scenarios[] (index, title, ac_ref, priority, given, when, then, and_clauses), traceability[] (ac_id, description, scenarios[]).</step>
-  <step n="6" name="Render Final Document">Execute: `bash ${PLUGIN_ROOT}/scripts/render.sh --template ${PLUGIN_ROOT}/templates/bdd-scenarios.md.j2 --data {spec_directory}/.render/bdd-scenarios.json --output {spec_directory}/{output_filename}`. This produces gate-compliant markdown deterministically.</step>
+  <step n="6" name="Render Final Document (ONLY allowed output method)">FORBIDDEN: Do NOT write the output file via Write or Edit — render.sh is the ONLY allowed method. Execute: `bash ${PLUGIN_ROOT}/scripts/render.sh --template ${PLUGIN_ROOT}/templates/bdd-scenarios.md.j2 --data {spec_directory}/.render/bdd-scenarios.json --output {spec_directory}/{output_filename}`. If render fails, STOP and report the error — do NOT fall back to writing markdown manually.</step>
 </process>
 
 <constraints>

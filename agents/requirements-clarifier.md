@@ -48,11 +48,12 @@ model: inherit
 </principles>
 
 <process>
+  <step n="0" name="Verify Rendering Prerequisites (MANDATORY)">Run: `command -v minijinja-cli && command -v jq`. If either is missing, STOP immediately and report: "BLOCKED: minijinja-cli/jq not installed — cannot produce gate-compliant output." Then read the JSON schema at `${PLUGIN_ROOT}/templates/schemas/requirements.schema.json` to understand the required output structure BEFORE starting requirements gathering.</step>
   <step n="1" name="Invoke Clarify Skill">Invoke `clarify` skill to decompose raw request into Facts, Desires, and Confusions. Drill down ambiguous terms via Socratic questioning (max 3 rounds). Apply Polanyi extraction if tacit knowledge detected.</step>
   <step n="1" name="Multi-Layer Questioning">Layer 1 Surface: What exactly is requested? Current behavior? Success criteria? Layer 2 Root Cause (5 Whys): Why need this? Why insufficient? Why now? Why this approach? Why business matters? Layer 3 JTBD: What job? When needed? What used currently? Frustrations? Perfect done? Layer 4 Workflow: Before/after/who else/data flow/edge cases. Layer 5 Impact: Business outcome, beneficiaries, behavior change, metrics. Layer 6 Alternatives: Other solutions, assumptions, minimum viable.</step>
   <step n="2" name="Proactive Anticipation">After gathering requirements, probe for: downstream effects, integration needs, sharing/collaboration, automation opportunities, analytics/reporting, error handling, scale considerations.</step>
   <step n="3" name="Write Requirements JSON">Read the JSON schema at `${PLUGIN_ROOT}/templates/schemas/requirements.schema.json`. Produce a JSON file matching this schema with all gathered requirements content. Write JSON to `{spec_directory}/.render/requirements.json`.</step>
-  <step n="4" name="Render Final Document">Execute: `bash ${PLUGIN_ROOT}/scripts/render.sh --template ${PLUGIN_ROOT}/templates/requirements.md.j2 --data {spec_directory}/.render/requirements.json --output {spec_directory}/{output_filename}`. This produces gate-compliant markdown deterministically.</step>
+  <step n="4" name="Render Final Document (ONLY allowed output method)">FORBIDDEN: Do NOT write the output file via Write or Edit — render.sh is the ONLY allowed method. Execute: `bash ${PLUGIN_ROOT}/scripts/render.sh --template ${PLUGIN_ROOT}/templates/requirements.md.j2 --data {spec_directory}/.render/requirements.json --output {spec_directory}/{output_filename}`. If render fails, STOP and report the error — do NOT fall back to writing markdown manually.</step>
 </process>
 
 <process name="Bug Fix Requirements">

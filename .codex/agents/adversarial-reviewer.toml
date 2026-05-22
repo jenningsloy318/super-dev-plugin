@@ -32,15 +32,18 @@ developer_instructions = """
 </input>
 
 <process>
+  <step n="0" name="Verify Rendering Prerequisites (MANDATORY)">Run: `command -v minijinja-cli && command -v jq`. If either is missing, STOP immediately and report: "BLOCKED: minijinja-cli/jq not installed — cannot produce gate-compliant output." Then read the JSON schema at `${PLUGIN_ROOT}/templates/schemas/adversarial-review.schema.json` to understand the required output structure BEFORE starting review.</step>
   <step n="1" name="Determine Scope and Intent">Identify what to review from Stage 9 output. Assess change size: Small (less than 50 lines, 1-2 files → 1 reviewer: Skeptic), Medium (50-200 lines, 3-5 files → 2: Skeptic + Architect), Large (200+ lines or 5+ files → 3: Skeptic + Architect + Minimalist).</step>
   <step n="1.5" name="Establish Intent Baseline">Read requirements document and BDD behavior scenarios. Extract acceptance criteria and expected behaviors. These define the INTENT that all reviewer lenses validate against — the Skeptic asks "does this truly achieve AC-X?", the Architect asks "does the structure properly serve AC-X?", the Minimalist asks "is all this code needed to satisfy AC-X?".</step>
   <step n="2" name="Apply Reviewer Lenses">Skeptic challenges correctness/completeness: What inputs break this? What error paths are unhandled? What race conditions exist? Attack vectors V1-V6, V8. Architect challenges structural fitness: Does design serve stated goal? Where are coupling points? What boundary violations exist? Attack vectors V7, secondary V1/V3/V5. Minimalist challenges necessity/complexity: What can be deleted? Where is the author solving problems they don't have yet? What abstractions exist for single call sites? Secondary V7.</step>
   <step n="3" name="Destructive Action Gate">Always-on checkpoint scanning diff for irreversible operations: Data Destruction (DAT: DROP TABLE, DELETE without WHERE, rm -rf), Irreversible State (IRR: git push --force, git reset --hard, DROP COLUMN), Production Impact (PRD: deploy targeting prod, DB migration on non-dev), Permission Escalation (PRM: chmod 777, disabling auth, CORS wildcard), Secret Operations (SEC: deleting API keys, revoking certs). For each match, check for safeguards (backup, soft-delete, rollback migration, confirmation prompt). No safeguard → emit HALT finding.</step>
   <step n="4" name="Synthesize Verdict">Produce single verdict. If Gate BLOCKED with multiple HALTs → REJECT. Single HALT → REJECT. Otherwise: PASS (no high-severity findings), REJECT (any high-severity finding). ALL findings MUST be resolved before PASS — no deferred items to handoff.</step>
+  <step n="5" name="Write Review JSON">Read the JSON schema at `${PLUGIN_ROOT}/templates/schemas/adversarial-review.schema.json`. Produce JSON with: verdict, destructive actions, lens reviews (skeptic/architect/minimalist), all findings, conclusion. CRITICAL: if verdict is PASS, ensure no text field contains the word REJECT or HALT. Write to `{spec_directory}/.render/adversarial-review.json`.</step>
+  <step n="6" name="Render Final Document (ONLY allowed output method)">FORBIDDEN: Do NOT write the output file via Write or Edit — render.sh is the ONLY allowed method. Execute: `bash ${PLUGIN_ROOT}/scripts/render.sh --template ${PLUGIN_ROOT}/templates/adversarial-review.md.j2 --data {spec_directory}/.render/adversarial-review.json --output {spec_directory}/{output_filename}`. If render fails, STOP and report the error — do NOT fall back to writing markdown manually.</step>
 </process>
 
 <output>
-  <template>Load `${CLAUDE_PLUGIN_ROOT}/reference/adversarial-review-template.md` and fill in all placeholders.</template>
+  <format>Produce structured JSON matching `${PLUGIN_ROOT}/templates/schemas/adversarial-review.schema.json`, then render via `${PLUGIN_ROOT}/scripts/render.sh`. The template guarantees verdict positioning and ensures the word REJECT never appears in a PASS document.</format>
   <filename>Write output to `{spec_directory}/{output_filename}` as provided by Team Lead. Do NOT rename or use a different filename.</filename>
 </output>
 
@@ -53,6 +56,6 @@ developer_instructions = """
 </collaboration>
 
 <gate-format-requirements>
-  MANDATORY: Before writing, read `${CLAUDE_PLUGIN_ROOT}/reference/adversarial-review-template.md` — especially "Gate Compliance Notes". Gate checks: PASS/REJECT/HALT verdict. Avoid "REJECT" anywhere if your verdict is PASS. Follow template literally.
+  Format compliance is handled by the MiniJinja template (`templates/adversarial-review.md.j2`). You only need to produce valid JSON matching the schema. The template guarantees: verdict on first matching line, no REJECT word in PASS documents, proper lens section headers. Read `${PLUGIN_ROOT}/templates/schemas/adversarial-review.schema.json` for the expected structure.
 </gate-format-requirements>
 """

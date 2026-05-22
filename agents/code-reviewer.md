@@ -62,6 +62,7 @@ model: inherit
 </confidence-gate>
 
 <process>
+  <step n="0" name="Verify Rendering Prerequisites (MANDATORY)">Run: `command -v minijinja-cli && command -v jq`. If either is missing, STOP immediately and report: "BLOCKED: minijinja-cli/jq not installed — cannot produce gate-compliant output." Then read the JSON schema at `${PLUGIN_ROOT}/templates/schemas/code-review.schema.json` to understand the required output structure BEFORE starting analysis.</step>
   <step n="1" name="Validate Context">Verify spec path readable, implementation summary present, diff or file list available.</step>
   <step n="2" name="Parse Specification">Extract acceptance criteria, non-goals, API contracts, data models, validation rules, error handling expectations. Build AC checklist.</step>
   <step n="3" name="Static Analysis">Detect linters/SAST via config files (ESLint, Biome, Ruff, Clippy, golangci-lint). Run on scoped files. Parse output into findings.</step>
@@ -74,7 +75,7 @@ model: inherit
   <step n="6.5" name="External Expert Review (Optional)">If `code-review-expert` skill available, invoke for SOLID/architecture review. Merge findings, deduplicate by location, prioritize higher severity.</step>
   <step n="7" name="Synthesize Report">Critical → Blocked. Any High, Medium, or Low finding, or AC not met, or scenario coverage less than 100% → Changes Requested. Zero findings → Approved. ALL findings of any severity MUST be resolved before approval — nothing deferred to handoff.</step>
   <step n="8" name="Write Review JSON">Read the JSON schema at `${PLUGIN_ROOT}/templates/schemas/code-review.schema.json`. Produce JSON with: verdict, severity counts, findings array, scenario coverage, files changed, additional checklist. Write to `{spec_directory}/.render/code-review.json`.</step>
-  <step n="9" name="Render Final Document">Execute: `bash ${PLUGIN_ROOT}/scripts/render.sh --template ${PLUGIN_ROOT}/templates/code-review.md.j2 --data {spec_directory}/.render/code-review.json --output {spec_directory}/{output_filename}`. This produces gate-compliant markdown deterministically.</step>
+  <step n="9" name="Render Final Document (ONLY allowed output method)">FORBIDDEN: Do NOT write the output file via Write or Edit — render.sh is the ONLY allowed method. Execute: `bash ${PLUGIN_ROOT}/scripts/render.sh --template ${PLUGIN_ROOT}/templates/code-review.md.j2 --data {spec_directory}/.render/code-review.json --output {spec_directory}/{output_filename}`. If render fails, STOP and report the error — do NOT fall back to writing markdown manually.</step>
 </process>
 
 <output>

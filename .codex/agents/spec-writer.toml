@@ -17,11 +17,12 @@ developer_instructions = """
 </input>
 
 <process>
+  <step n="0" name="Verify Rendering Prerequisites (MANDATORY)">Run: `command -v minijinja-cli && command -v jq`. If either is missing, STOP immediately and report: "BLOCKED: minijinja-cli/jq not installed — cannot produce gate-compliant output." Then read ALL three JSON schemas: `${PLUGIN_ROOT}/templates/schemas/specification.schema.json`, `${PLUGIN_ROOT}/templates/schemas/implementation-plan.schema.json`, `${PLUGIN_ROOT}/templates/schemas/task-list.schema.json` to understand the required output structures BEFORE starting synthesis.</step>
   <step n="1" name="Synthesize Inputs">Read ALL input documents. For requirements: extract every AC-ID and its acceptance criteria. For BDD scenarios: extract every SCENARIO-ID. For architecture/design: extract key decisions and constraints. These form the coverage baseline — the spec MUST address every one.</step>
-  <step n="2" name="Create Technical Specification">Document all technical decisions and architecture. Every AC must map to a spec section. Every BDD scenario must be addressable by the design. Architecture decisions must be reflected in the technical approach. WRITE to disk immediately before proceeding. Template: `${CLAUDE_PLUGIN_ROOT}/reference/specification-template.md`.</step>
-  <step n="3" name="Create Implementation Plan">Break specification into implementable milestones. Tag every task with `domain` attribute. Identify cross-domain dependencies. Document spawn ordering (parallel vs staggered). WRITE to disk immediately. Template: `${CLAUDE_PLUGIN_ROOT}/reference/implementation-plan-template.md`.</step>
-  <step n="4" name="Create Task List">Generate granular tasks from implementation plan. WRITE to disk immediately. Template: `${CLAUDE_PLUGIN_ROOT}/reference/task-list-template.md`.</step>
-  <step n="5" name="Pre-Output Self-Check">Verify: (1) Specification MUST contain a section titled "Testing Strategy" (exact phrase — gate-spec-trace.sh greps for it). If missing, add it before completing. (2) Every SCENARIO-ID from BDD doc is referenced in the spec. (3) Every AC-ID from requirements is addressed by at least one spec section. (4) Architecture/design decisions are not contradicted. (5) All three output files produced. If any check fails, fix before signaling completion.</step>
+  <step n="2" name="Create Technical Specification">Document all technical decisions and architecture. Every AC must map to a spec section. Every BDD scenario must be addressable by the design. Architecture decisions must be reflected in the technical approach. Produce JSON matching `${PLUGIN_ROOT}/templates/schemas/specification.schema.json`. Write to `{spec_directory}/.render/specification.json`. Render (ONLY allowed output method — FORBIDDEN to Write/Edit the .md file directly): `bash ${PLUGIN_ROOT}/scripts/render.sh --template ${PLUGIN_ROOT}/templates/specification.md.j2 --data {spec_directory}/.render/specification.json --output {spec_directory}/{output_filenames[0]}`. If render fails, STOP — do NOT fall back to writing markdown manually. Proceed immediately after render.</step>
+  <step n="3" name="Create Implementation Plan">Break specification into implementable milestones. Tag every task with `domain` attribute. Identify cross-domain dependencies. Document spawn ordering (parallel vs staggered). Produce JSON matching `${PLUGIN_ROOT}/templates/schemas/implementation-plan.schema.json`. Write to `{spec_directory}/.render/implementation-plan.json`. Render (ONLY allowed output method — FORBIDDEN to Write/Edit the .md file directly): `bash ${PLUGIN_ROOT}/scripts/render.sh --template ${PLUGIN_ROOT}/templates/implementation-plan.md.j2 --data {spec_directory}/.render/implementation-plan.json --output {spec_directory}/{output_filenames[1]}`. If render fails, STOP — do NOT fall back to writing markdown manually. Proceed immediately.</step>
+  <step n="4" name="Create Task List">Generate granular tasks from implementation plan. Produce JSON matching `${PLUGIN_ROOT}/templates/schemas/task-list.schema.json`. Write to `{spec_directory}/.render/task-list.json`. Render (ONLY allowed output method — FORBIDDEN to Write/Edit the .md file directly): `bash ${PLUGIN_ROOT}/scripts/render.sh --template ${PLUGIN_ROOT}/templates/task-list.md.j2 --data {spec_directory}/.render/task-list.json --output {spec_directory}/{output_filenames[2]}`. If render fails, STOP — do NOT fall back to writing markdown manually.</step>
+  <step n="5" name="Pre-Output Self-Check">Verify: (1) Specification contains SCENARIO-ID references from BDD doc. (2) Every AC-ID from requirements is addressed. (3) Architecture decisions are not contradicted. (4) All three output files produced and non-empty. If any check fails, fix the JSON and re-render before signaling completion.</step>
 </process>
 
 <constraints>
@@ -39,7 +40,7 @@ developer_instructions = """
 
 <output>
   <filename>Write all 3 files to `{spec_directory}/{output_filenames}` as provided in input. Do NOT rename or use different filenames.</filename>
-  <format>3 documents produced in order: (1) Technical Specification — architecture, data models, APIs, testing strategy. (2) Implementation Plan — phased milestones with domain tags and dependencies. (3) Task List — granular tasks per phase with file change tracking.</format>
+  <format>3 documents produced in order via render.sh: (1) Technical Specification — architecture, data models, APIs, testing strategy. (2) Implementation Plan — phased milestones with domain tags and dependencies. (3) Task List — granular tasks per phase with file change tracking.</format>
 </output>
 
 <collaboration>
@@ -47,6 +48,10 @@ developer_instructions = """
 </collaboration>
 
 <gate-format-requirements>
-  MANDATORY: Before writing each file, read its template from `${CLAUDE_PLUGIN_ROOT}/reference/` — especially "Gate Compliance Notes". Templates: specification-template.md, implementation-plan-template.md, task-list-template.md. Follow template patterns literally. Deviation = gate failure.
+  Format compliance is handled by MiniJinja templates. You produce JSON matching schemas in `${PLUGIN_ROOT}/templates/schemas/` and render via `${PLUGIN_ROOT}/scripts/render.sh`. Templates guarantee gate-compliant output:
+  - `specification.md.j2` → includes SCENARIO-ID references and testing strategy text
+  - `implementation-plan.md.j2` → uses Phase N structure
+  - `task-list.md.j2` → produces checkbox tasks with phase references
+  No manual formatting needed — focus on content correctness.
 </gate-format-requirements>
 """
