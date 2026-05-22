@@ -39,7 +39,7 @@
     "super-dev:bdd-scenario-writer": {
       "stage": "2",
       "description": "BDD Scenario Writing (Stage 2) requires completed requirements",
-      "previousStages": [2],
+      "previousStages": [1],
       "requires": ["[doc-index]-requirements.md"],
       "sections": {
         "[doc-index]-requirements.md": ["Acceptance Criteria"]
