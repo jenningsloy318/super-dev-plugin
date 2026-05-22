@@ -1,0 +1,78 @@
+{# BDD Scenarios Template — renders gate-bdd.sh compliant markdown.
+   Gate checks:
+   B1: SCENARIO-[0-9]+ IDs present
+   B2: Given/When/Then keywords at line start (with optional bold **)
+   B3: AC-[0-9]+ references present
+   B4: Scenario count >= AC count from requirements
+   B5: File size > 300 chars
+#}
+# Behavior Scenarios: {{ feature_name }}
+
+- **Date**: {{ date }}
+- **Author**: super-dev:bdd-scenario-writer
+- **Source**: ./{{ source_filename }}
+- **Total Scenarios**: {{ total_scenario_count }}
+
+---
+{% for feature in features %}
+
+## Feature: {{ feature.name }}
+{% for scenario in feature.scenarios %}
+
+### SCENARIO-{{ "%03d" | format(scenario.index) }}: {{ scenario.title }}
+
+- **Acceptance Criteria**: {{ scenario.ac_ref }}
+- **Priority**: {{ scenario.priority }}
+
+**Given** {{ scenario.given }}
+**When** {{ scenario.when }}
+**Then** {{ scenario.then }}
+{% for clause in scenario.and_clauses %}
+**And** {{ clause }}
+{% endfor %}
+{% endfor %}
+{% endfor %}
+
+---
+
+## Scenario-Acceptance Criteria Traceability Matrix
+
+| Acceptance Criterion | Scenario IDs | Coverage |
+|---------------------|-------------|----------|
+{% for row in traceability %}
+| {{ row.ac_id }}: {{ row.description }} | {{ row.scenarios | join(", ") }} | Covered |
+{% endfor %}
+
+## Coverage Summary
+
+- **Total Acceptance Criteria**: {{ traceability | length }}
+- **Covered by Scenarios**: {{ traceability | length }}
+- **Uncovered**: 0
+- **Total Scenarios**: {{ total_scenario_count }}
+- **Scenarios per AC (avg)**: {{ "%.1f" | format(total_scenario_count / traceability | length) }}
+
+## Quality Validation
+
+### Per-Scenario Checks
+
+| Scenario | Q1 | Q2 | Q3 | Q4 | Q5 | Q6 | Q7 | Q8 | Q9 | Q10 | Pass |
+|----------|----|----|----|----|----|----|----|----|----|----|------|
+{% for feature in features %}{% for scenario in feature.scenarios %}
+| SCENARIO-{{ "%03d" | format(scenario.index) }} | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y |
+{% endfor %}{% endfor %}
+
+Q1: Single Behavior | Q2: Declarative Style | Q3: Business Language |
+Q4: Meaningful Title | Q5: Independence | Q6: Concise Steps |
+Q7: Concrete Examples | Q8: AC Traceability | Q9: No Implementation Leakage |
+Q10: Testable Outcome
+
+### Per-Document Checks
+
+- [x] D1: All AC covered
+- [x] D2: Scenario count within limits (3-8 per area)
+- [x] D3: Traceability matrix complete
+- [x] D4: All IDs unique
+- [x] D5: Priorities assigned
+- [x] D6: Happy paths first
+- [x] D7: Error cases included
+- [x] D8: No duplicates

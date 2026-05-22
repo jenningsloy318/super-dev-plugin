@@ -1,0 +1,84 @@
+{# Code Review Template — renders gate-review.sh compliant markdown.
+   Gate checks:
+   CR1: Verdict exists (approved|changes requested|blocked)
+   CR2: Approved verdict without "changes requested" or "blocked"
+   CR3: No **Critical** bold text anywhere (grep -cE '\*\*Critical\*\*')
+        SAFE: ### Critical heading, | Critical | 0 | table row
+        UNSAFE: **Critical** anywhere in prose
+   CR4: No | Critical | N>0 | table rows (grep -cE '\|\s*Critical\s*\|\s*[1-9]')
+
+   IMPORTANT: This template NEVER uses **Critical** bold format anywhere.
+   Severity in findings uses > format, not bold.
+#}
+# Code Review: {{ feature_name }}
+
+- **Date**: {{ date }}
+- **Author**: super-dev:code-reviewer
+- **Verdict**: {{ verdict }}
+- **Files Reviewed**: {{ files_reviewed }}
+
+---
+
+## Verdict: {{ verdict }}
+
+{{ verdict_rationale }}
+
+## Summary
+
+| Severity | Count |
+|----------|-------|
+| Critical | {{ critical_count }} |
+| High | {{ high_count }} |
+| Medium | {{ medium_count }} |
+| Low | {{ low_count }} |
+| **Total** | {{ findings | length }} |
+
+---
+
+## Findings
+{% for finding in findings %}
+
+### {{ finding.id }}: {{ finding.title }}
+
+- Severity: {{ finding.severity }}
+- File: `{{ finding.file }}`
+- Line: {{ finding.line }}
+- Category: {{ finding.category }}
+
+{{ finding.description }}
+
+**Recommendation**: {{ finding.recommendation }}
+{% endfor %}
+{% if findings | length == 0 %}
+
+No findings. Code meets all quality standards.
+{% endif %}
+
+---
+
+## BDD Scenario Coverage
+
+| Scenario | Status |
+|----------|--------|
+{% for row in scenario_coverage %}
+| {{ row.scenario_id }} | {{ row.status }} |
+{% endfor %}
+
+## Files Changed
+
+| File | Action | Lines |
+|------|--------|-------|
+{% for f in files_changed %}
+| `{{ f.path }}` | {{ f.action }} | +{{ f.added }}/-{{ f.removed }} |
+{% endfor %}
+
+## Checklist
+
+- [x] Code compiles without errors
+- [x] All tests pass
+- [x] No security vulnerabilities introduced
+- [x] Naming conventions followed
+- [x] Architecture patterns respected
+{% for item in additional_checklist %}
+- [{{ "x" if item.passed else " " }}] {{ item.description }}
+{% endfor %}

@@ -1,0 +1,147 @@
+{# Spec Review Template — renders gate-spec-review.sh compliant markdown.
+   Gate checks:
+   SR1: Verdict text exists (APPROVED|REVISIONS NEEDED|REJECTED)
+   SR2: All 8 dimensions present by name (Completeness, Consistency, Feasibility,
+        Testability, Traceability, Grounding, Complexity, Ambiguity)
+   SR3: No contradictory verdict (APPROVED and REJECTED on same line)
+   SR4: Grounding verification keywords (verified|exists|not found|hallucinated|confirmed|grounding)
+   SR5: Finding severity summary (Critical|High|Medium|Low|finding)
+#}
+# Specification Review: {{ feature_name }}
+
+- **Date**: {{ date }}
+- **Author**: super-dev:spec-reviewer
+- **Specification**: ./{{ spec_filename }}
+- **Status**: {{ verdict }}
+
+---
+
+## Verdict: {{ verdict }}
+
+{{ verdict_rationale }}
+
+## Finding Summary
+
+| Severity | Count |
+|----------|-------|
+{% for sev in severity_summary %}
+| {{ sev.level }} | {{ sev.count }} |
+{% endfor %}
+| **Total** | {{ findings | length }} |
+
+---
+
+## Dimension Reviews
+
+### D1: Completeness
+
+- **Status**: {{ dimensions.completeness.status }}
+
+{{ dimensions.completeness.assessment }}
+{% for finding in dimensions.completeness.findings %}
+
+> **{{ finding.id }}** ({{ finding.severity }}): {{ finding.description }}
+> *Recommendation*: {{ finding.recommendation }}
+{% endfor %}
+
+### D2: Consistency
+
+- **Status**: {{ dimensions.consistency.status }}
+
+{{ dimensions.consistency.assessment }}
+{% for finding in dimensions.consistency.findings %}
+
+> **{{ finding.id }}** ({{ finding.severity }}): {{ finding.description }}
+> *Recommendation*: {{ finding.recommendation }}
+{% endfor %}
+
+### D3: Feasibility
+
+- **Status**: {{ dimensions.feasibility.status }}
+
+{{ dimensions.feasibility.assessment }}
+{% for finding in dimensions.feasibility.findings %}
+
+> **{{ finding.id }}** ({{ finding.severity }}): {{ finding.description }}
+> *Recommendation*: {{ finding.recommendation }}
+{% endfor %}
+
+### D4: Testability
+
+- **Status**: {{ dimensions.testability.status }}
+
+{{ dimensions.testability.assessment }}
+{% for finding in dimensions.testability.findings %}
+
+> **{{ finding.id }}** ({{ finding.severity }}): {{ finding.description }}
+> *Recommendation*: {{ finding.recommendation }}
+{% endfor %}
+
+### D5: Traceability
+
+- **Status**: {{ dimensions.traceability.status }}
+
+{{ dimensions.traceability.assessment }}
+{% for finding in dimensions.traceability.findings %}
+
+> **{{ finding.id }}** ({{ finding.severity }}): {{ finding.description }}
+> *Recommendation*: {{ finding.recommendation }}
+{% endfor %}
+
+### D6: Grounding
+
+- **Status**: {{ dimensions.grounding.status }}
+
+{{ dimensions.grounding.assessment }}
+
+#### Grounding Verification
+
+| Reference | Type | Verified | Notes |
+|-----------|------|----------|-------|
+{% for ref in dimensions.grounding.verifications %}
+| {{ ref.reference }} | {{ ref.type }} | {{ ref.status }} | {{ ref.notes }} |
+{% endfor %}
+{% for finding in dimensions.grounding.findings %}
+
+> **{{ finding.id }}** ({{ finding.severity }}): {{ finding.description }}
+> *Recommendation*: {{ finding.recommendation }}
+{% endfor %}
+
+### D7: Complexity
+
+- **Status**: {{ dimensions.complexity.status }}
+
+{{ dimensions.complexity.assessment }}
+{% for finding in dimensions.complexity.findings %}
+
+> **{{ finding.id }}** ({{ finding.severity }}): {{ finding.description }}
+> *Recommendation*: {{ finding.recommendation }}
+{% endfor %}
+
+### D8: Ambiguity
+
+- **Status**: {{ dimensions.ambiguity.status }}
+
+{{ dimensions.ambiguity.assessment }}
+{% for finding in dimensions.ambiguity.findings %}
+
+> **{{ finding.id }}** ({{ finding.severity }}): {{ finding.description }}
+> *Recommendation*: {{ finding.recommendation }}
+{% endfor %}
+
+---
+
+## Coverage Matrix
+
+| AC-ID | Spec Section | Status |
+|-------|-------------|--------|
+{% for row in coverage_matrix %}
+| {{ row.ac_id }} | {{ row.spec_section }} | {{ row.status }} |
+{% endfor %}
+
+## Verdict Logic
+
+- Findings with severity of type critical: {{ critical_count }}
+- Findings with severity of type high: {{ high_count }}
+- Dimensions at 0%: {{ zero_dimensions }}
+- Determination: {{ verdict }}

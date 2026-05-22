@@ -1,0 +1,99 @@
+{# Adversarial Review Template — renders gate-review.sh compliant markdown.
+   Gate checks:
+   AR1: Verdict text (PASS|REJECT|HALT) on first matching line
+   AR2: grep takes first line matching (PASS|REJECT|HALT) and checks:
+        - "PASS" is present AND "REJECT" is NOT present on that line
+
+   CRITICAL SAFETY RULES:
+   - The word REJECT must NEVER appear anywhere in a PASS document
+   - The word HALT must NEVER appear anywhere in a PASS document
+   - The verdict line below is the FIRST occurrence the gate will find
+   - This template guarantees the verdict field is placed before any content
+#}
+# Adversarial Review: {{ feature_name }}
+
+- **Date**: {{ date }}
+- **Author**: super-dev:adversarial-reviewer
+- **Verdict**: {{ verdict }}
+
+---
+
+## Verdict: {{ verdict }}
+
+{{ verdict_rationale }}
+
+## Destructive Action Gate
+
+{% if destructive_actions | length > 0 %}
+| Category | Pattern | Safeguard | Status |
+|----------|---------|-----------|--------|
+{% for action in destructive_actions %}
+| {{ action.category }} | {{ action.pattern }} | {{ action.safeguard }} | {{ action.status }} |
+{% endfor %}
+{% else %}
+No destructive actions detected in the implementation.
+{% endif %}
+
+---
+
+## Lens Reviews
+
+### Skeptic Lens
+
+{{ skeptic.assessment }}
+{% for finding in skeptic.findings %}
+
+> **{{ finding.id }}** ({{ finding.severity }}): {{ finding.description }}
+> *Attack Vector*: {{ finding.vector }}
+> *Mitigation*: {{ finding.mitigation }}
+{% endfor %}
+{% if skeptic.findings | length == 0 %}
+
+No findings from the Skeptic lens.
+{% endif %}
+
+### Architect Lens
+
+{{ architect.assessment }}
+{% for finding in architect.findings %}
+
+> **{{ finding.id }}** ({{ finding.severity }}): {{ finding.description }}
+> *Attack Vector*: {{ finding.vector }}
+> *Mitigation*: {{ finding.mitigation }}
+{% endfor %}
+{% if architect.findings | length == 0 %}
+
+No findings from the Architect lens.
+{% endif %}
+
+### Minimalist Lens
+
+{{ minimalist.assessment }}
+{% for finding in minimalist.findings %}
+
+> **{{ finding.id }}** ({{ finding.severity }}): {{ finding.description }}
+> *Attack Vector*: {{ finding.vector }}
+> *Mitigation*: {{ finding.mitigation }}
+{% endfor %}
+{% if minimalist.findings | length == 0 %}
+
+No findings from the Minimalist lens.
+{% endif %}
+
+---
+
+## Finding Summary
+
+| ID | Lens | Severity | Vector | Status |
+|----|------|----------|--------|--------|
+{% for finding in all_findings %}
+| {{ finding.id }} | {{ finding.lens }} | {{ finding.severity }} | {{ finding.vector }} | {{ finding.status }} |
+{% endfor %}
+{% if all_findings | length == 0 %}
+
+No findings across all lenses. Implementation is clean.
+{% endif %}
+
+## Conclusion
+
+{{ conclusion }}

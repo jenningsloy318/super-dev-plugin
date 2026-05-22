@@ -1,0 +1,121 @@
+{# Specification Template (HYBRID) — renders gate-spec-trace.sh compliant markdown.
+   Gate checks:
+   S1: Contains SCENARIO-[0-9]+ references (at least 1)
+   S2: Contains testing strategy text (testing strategy|test plan|test approach|test coverage|unit test|integration test|e2e test|testing|tests)
+   S3: Task list file exists (checked separately, not in this template)
+   S4: Implementation plan file exists (checked separately, not in this template)
+
+   HYBRID: Fixed header sections guarantee gate compliance.
+   Free-form content sections allow flexible technical writing.
+#}
+# Technical Specification: {{ feature_name }}
+
+- **Date**: {{ date }}
+- **Author**: super-dev:spec-writer
+- **Requirements**: ./{{ requirements_filename }}
+- **BDD Scenarios**: ./{{ bdd_filename }}
+{% if architecture_filename %}
+- **Architecture**: ./{{ architecture_filename }}
+{% endif %}
+
+---
+
+## 1. Overview
+
+{{ overview }}
+
+## 2. Architecture
+{% for section in architecture_sections %}
+
+### 2.{{ loop.index }}. {{ section.title }}
+
+{{ section.content }}
+{% endfor %}
+
+## 3. Data Models
+{% for model in data_models %}
+
+### 3.{{ loop.index }}. {{ model.name }}
+
+{{ model.description }}
+
+```{{ model.language | default("") }}
+{{ model.schema }}
+```
+{% endfor %}
+
+## 4. API Design
+{% for endpoint in api_endpoints %}
+
+### 4.{{ loop.index }}. {{ endpoint.method }} {{ endpoint.path }}
+
+{{ endpoint.description }}
+
+{% if endpoint.request_body %}
+**Request Body:**
+```json
+{{ endpoint.request_body }}
+```
+{% endif %}
+
+**Response:**
+```json
+{{ endpoint.response }}
+```
+
+**Error Cases:**
+{% for error in endpoint.errors %}
+- `{{ error.code }}`: {{ error.description }}
+{% endfor %}
+{% endfor %}
+
+## 5. Implementation Details
+{% for section in implementation_sections %}
+
+### 5.{{ loop.index }}. {{ section.title }}
+
+{{ section.content }}
+{% endfor %}
+
+## 6. Testing Strategy
+
+{{ testing_overview }}
+
+### 6.1. Unit Tests
+{% for test in unit_tests %}
+- {{ test }}
+{% endfor %}
+
+### 6.2. Integration Tests
+{% for test in integration_tests %}
+- {{ test }}
+{% endfor %}
+
+### 6.3. E2E Tests
+{% for test in e2e_tests %}
+- {{ test }}
+{% endfor %}
+
+### 6.4. BDD Scenario References
+
+| Scenario | Test Type | Coverage |
+|----------|-----------|----------|
+{% for ref in scenario_refs %}
+| {{ ref.scenario_id }} | {{ ref.test_type }} | {{ ref.coverage }} |
+{% endfor %}
+
+## 7. Non-Functional Requirements
+{% for nfr in non_functional %}
+
+### 7.{{ loop.index }}. {{ nfr.category }}
+
+{{ nfr.details }}
+{% endfor %}
+
+## 8. Risks and Mitigations
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+{% for risk in risks %}
+| {{ risk.description }} | {{ risk.likelihood }} | {{ risk.impact }} | {{ risk.mitigation }} |
+{% endfor %}

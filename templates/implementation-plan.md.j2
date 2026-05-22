@@ -1,0 +1,81 @@
+{# Implementation Plan Template (HYBRID) — renders gate-spec-trace.sh compliant (file existence).
+   Also validated by gate-implementation-complete.sh:
+   IC1: File exists
+   IC2: Has phases matching: Phase [0-9]+ or ## Phase [0-9]+
+   IC3-IC5: Tracking JSON (separate concern)
+
+   HYBRID: Phase structure is fixed (guaranteed regex match).
+   Content within phases is free-form.
+#}
+# Implementation Plan: {{ feature_name }}
+
+- **Date**: {{ date }}
+- **Author**: super-dev:spec-writer
+- **Specification**: ./{{ spec_filename }}
+- **Total Phases**: {{ phases | length }}
+- **Estimated Effort**: {{ total_effort }}
+
+---
+
+## Implementation Phases
+
+| Phase | Name | Domain | Effort | Dependencies |
+|-------|------|--------|--------|-------------|
+{% for phase in phases %}
+| Phase {{ phase.number }} | {{ phase.name }} | {{ phase.domain }} | {{ phase.effort }} | {{ phase.dependencies | join(", ") if phase.dependencies else "None" }} |
+{% endfor %}
+
+---
+{% for phase in phases %}
+
+## Phase {{ phase.number }}: {{ phase.name }}
+
+- **Domain**: {{ phase.domain }}
+- **Effort**: {{ phase.effort }}
+- **Objective**: {{ phase.objective }}
+{% if phase.dependencies %}
+- **Dependencies**: {{ phase.dependencies | join(", ") }}
+{% endif %}
+
+### Scope
+
+{{ phase.scope }}
+
+### Tasks
+
+{% for task in phase.tasks %}
+{{ loop.index }}. {{ task.description }}
+   - Files: {{ task.files | join(", ") }}
+   - Type: {{ task.type }}
+{% endfor %}
+
+### Acceptance Criteria
+
+{% for ac in phase.acceptance_criteria %}
+- {{ ac }}
+{% endfor %}
+
+### Risks
+
+{% for risk in phase.risks %}
+- {{ risk }}
+{% endfor %}
+{% endfor %}
+
+---
+
+## Cross-Cutting Concerns
+{% for concern in cross_cutting %}
+
+### {{ concern.title }}
+
+{{ concern.description }}
+{% endfor %}
+
+## Milestone Summary
+
+| Milestone | Phase | Deliverable | Verification |
+|-----------|-------|-------------|-------------|
+{% for m in milestones %}
+| {{ m.name }} | Phase {{ m.phase }} | {{ m.deliverable }} | {{ m.verification }} |
+{% endfor %}

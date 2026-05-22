@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Spec Review Input",
+  "description": "Structured input for spec-review.md.j2 template. Produces gate-spec-review.sh compliant markdown.",
+  "type": "object",
+  "required": ["feature_name", "date", "spec_filename", "verdict", "verdict_rationale", "severity_summary", "dimensions", "findings", "coverage_matrix", "critical_count", "high_count", "zero_dimensions"],
+  "properties": {
+    "feature_name": { "type": "string" },
+    "date": { "type": "string" },
+    "spec_filename": { "type": "string" },
+    "verdict": {
+      "type": "string",
+      "enum": ["Approved", "Approved with Revisions", "Revisions Needed", "Rejected"],
+      "description": "Must contain APPROVED, REVISIONS NEEDED, or REJECTED for the gate"
+    },
+    "verdict_rationale": { "type": "string" },
+    "severity_summary": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["level", "count"],
+        "properties": {
+          "level": { "type": "string", "enum": ["Critical", "High", "Medium", "Low"] },
+          "count": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "critical_count": { "type": "integer", "minimum": 0 },
+    "high_count": { "type": "integer", "minimum": 0 },
+    "zero_dimensions": { "type": "integer", "minimum": 0 },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "severity", "description", "recommendation"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^SR-\\d{3}$" },
+          "severity": { "type": "string", "enum": ["Critical", "High", "Medium", "Low"] },
+          "description": { "type": "string" },
+          "recommendation": { "type": "string" }
+        }
+      }
+    },
+    "dimensions": {
+      "type": "object",
+      "required": ["completeness", "consistency", "feasibility", "testability", "traceability", "grounding", "complexity", "ambiguity"],
+      "properties": {
+        "completeness": { "$ref": "#/$defs/dimension" },
+        "consistency": { "$ref": "#/$defs/dimension" },
+        "feasibility": { "$ref": "#/$defs/dimension" },
+        "testability": { "$ref": "#/$defs/dimension" },
+        "traceability": { "$ref": "#/$defs/dimension" },
+        "grounding": { "$ref": "#/$defs/dimension_with_verifications" },
+        "complexity": { "$ref": "#/$defs/dimension" },
+        "ambiguity": { "$ref": "#/$defs/dimension" }
+      }
+    },
+    "coverage_matrix": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["ac_id", "spec_section", "status"],
+        "properties": {
+          "ac_id": { "type": "string" },
+          "spec_section": { "type": "string" },
+          "status": { "type": "string", "enum": ["Covered", "Partial", "Missing"] }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "dimension": {
+      "type": "object",
+      "required": ["status", "assessment", "findings"],
+      "properties": {
+        "status": { "type": "string", "enum": ["Pass", "Fail", "Partial"] },
+        "assessment": { "type": "string" },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "severity", "description", "recommendation"],
+            "properties": {
+              "id": { "type": "string" },
+              "severity": { "type": "string" },
+              "description": { "type": "string" },
+              "recommendation": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "dimension_with_verifications": {
+      "allOf": [
+        { "$ref": "#/$defs/dimension" },
+        {
+          "type": "object",
+          "required": ["verifications"],
+          "properties": {
+            "verifications": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["reference", "type", "status", "notes"],
+                "properties": {
+                  "reference": { "type": "string" },
+                  "type": { "type": "string" },
+                  "status": { "type": "string", "enum": ["Verified", "Not Found", "Confirmed", "Hallucinated"] },
+                  "notes": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

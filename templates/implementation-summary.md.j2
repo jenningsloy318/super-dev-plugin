@@ -1,0 +1,70 @@
+{# Implementation Summary Template — renders gate-docs-drift.sh compliant (file existence + minimal TODOs).
+   Gate checks (gate-docs-drift.sh):
+   DD4: Implementation summary file exists and is non-empty
+   DD5: No excessive placeholders (≤3 TODO/FIXME/TBD total across all spec md files)
+
+   This template never produces TODO/FIXME/TBD markers.
+#}
+# Implementation Summary: {{ feature_name }}
+
+- **Date**: {{ date }}
+- **Author**: super-dev:impl-summary-writer
+- **Phase**: {{ phase_number }}{% if phase_name %} — {{ phase_name }}{% endif %}
+
+- **Status**: {{ status }}
+
+---
+
+## Overview
+
+{{ overview }}
+
+## Files Changed
+
+| File | Action | Lines | Purpose |
+|------|--------|-------|---------|
+{% for f in files_changed %}
+| `{{ f.path }}` | {{ f.action }} | +{{ f.added }}/-{{ f.removed }} | {{ f.purpose }} |
+{% endfor %}
+
+## Key Decisions
+{% for decision in key_decisions %}
+
+### {{ loop.index }}. {{ decision.title }}
+
+- **Context**: {{ decision.context }}
+- **Decision**: {{ decision.decision }}
+- **Rationale**: {{ decision.rationale }}
+{% if decision.file_ref %}- **Reference**: `{{ decision.file_ref }}`{% endif %}
+{% endfor %}
+
+## Deviations from Spec
+{% if deviations | length > 0 %}
+{% for dev in deviations %}
+
+### {{ dev.title }}
+
+- **Spec said**: {{ dev.spec_said }}
+- **Actual**: {{ dev.actual }}
+- **Reason**: {{ dev.reason }}
+{% endfor %}
+{% else %}
+
+No deviations from specification.
+{% endif %}
+
+## Test Results
+
+- **Unit Tests**: {{ test_results.unit_pass }}/{{ test_results.unit_total }} passing
+- **Integration Tests**: {{ test_results.integration_pass }}/{{ test_results.integration_total }} passing
+{% if test_results.e2e_total > 0 %}- **E2E Tests**: {{ test_results.e2e_pass }}/{{ test_results.e2e_total }} passing{% endif %}
+
+## Next Steps
+{% if next_steps | length > 0 %}
+{% for step in next_steps %}
+{{ loop.index }}. {{ step }}
+{% endfor %}
+{% else %}
+
+Phase complete. No remaining items.
+{% endif %}
