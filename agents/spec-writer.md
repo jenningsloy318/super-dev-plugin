@@ -31,10 +31,10 @@ model: inherit
 
 <process>
   <step n="1" name="Synthesize Inputs">Read ALL input documents. For requirements: extract every AC-ID and its acceptance criteria. For BDD scenarios: extract every SCENARIO-ID. For architecture/design: extract key decisions and constraints. These form the coverage baseline — the spec MUST address every one.</step>
-  <step n="2" name="Create Technical Specification">Document all technical decisions and architecture. Every AC must map to a spec section. Every BDD scenario must be addressable by the design. Architecture decisions must be reflected in the technical approach. WRITE to disk immediately before proceeding. Template: `${PLUGIN_ROOT}/reference/specification-template.md`.</step>
-  <step n="3" name="Create Implementation Plan">Break specification into implementable milestones. Tag every task with `domain` attribute. Identify cross-domain dependencies. Document spawn ordering (parallel vs staggered). WRITE to disk immediately. Template: `${PLUGIN_ROOT}/reference/implementation-plan-template.md`.</step>
-  <step n="4" name="Create Task List">Generate granular tasks from implementation plan. WRITE to disk immediately. Template: `${PLUGIN_ROOT}/reference/task-list-template.md`.</step>
-  <step n="5" name="Pre-Output Self-Check">Verify: (1) Specification MUST contain a section titled "Testing Strategy" (exact phrase — gate-spec-trace.sh greps for it). If missing, add it before completing. (2) Every SCENARIO-ID from BDD doc is referenced in the spec. (3) Every AC-ID from requirements is addressed by at least one spec section. (4) Architecture/design decisions are not contradicted. (5) All three output files produced. If any check fails, fix before signaling completion.</step>
+  <step n="2" name="Create Technical Specification">Document all technical decisions and architecture. Every AC must map to a spec section. Every BDD scenario must be addressable by the design. Architecture decisions must be reflected in the technical approach. Produce JSON matching `${PLUGIN_ROOT}/templates/schemas/specification.schema.json`. Write to `{spec_directory}/.render/specification.json`. Render via: `bash ${PLUGIN_ROOT}/scripts/render.sh --template ${PLUGIN_ROOT}/templates/specification.md.j2 --data {spec_directory}/.render/specification.json --output {spec_directory}/{output_filenames[0]}`. Proceed immediately after render.</step>
+  <step n="3" name="Create Implementation Plan">Break specification into implementable milestones. Tag every task with `domain` attribute. Identify cross-domain dependencies. Document spawn ordering. Produce JSON matching `${PLUGIN_ROOT}/templates/schemas/implementation-plan.schema.json`. Write to `{spec_directory}/.render/implementation-plan.json`. Render via: `bash ${PLUGIN_ROOT}/scripts/render.sh --template ${PLUGIN_ROOT}/templates/implementation-plan.md.j2 --data {spec_directory}/.render/implementation-plan.json --output {spec_directory}/{output_filenames[1]}`. Proceed immediately.</step>
+  <step n="4" name="Create Task List">Generate granular tasks from implementation plan. Produce JSON matching `${PLUGIN_ROOT}/templates/schemas/task-list.schema.json`. Write to `{spec_directory}/.render/task-list.json`. Render via: `bash ${PLUGIN_ROOT}/scripts/render.sh --template ${PLUGIN_ROOT}/templates/task-list.md.j2 --data {spec_directory}/.render/task-list.json --output {spec_directory}/{output_filenames[2]}`.</step>
+  <step n="5" name="Pre-Output Self-Check">Verify: (1) Specification contains SCENARIO-ID references from BDD doc. (2) Every AC-ID from requirements is addressed. (3) Architecture decisions are not contradicted. (4) All three output files produced and non-empty. If any check fails, fix the JSON and re-render before signaling completion.</step>
 </process>
 
 <constraints>
@@ -60,9 +60,9 @@ model: inherit
 </collaboration>
 
 <gate-format-requirements>
-  MANDATORY: Before writing each file, read its template from `${PLUGIN_ROOT}/reference/` — especially the "Gate Compliance Notes" section:
-  - `specification-template.md` → must include SCENARIO-ID references and testing strategy text
-  - `implementation-plan-template.md` → must use Phase N structure
-  - `task-list-template.md` → must exist as separate file
-  Follow template patterns literally. The gate uses EXACT regex. Deviation = gate failure.
+  Format compliance is handled by MiniJinja templates. You produce JSON matching schemas in `${PLUGIN_ROOT}/templates/schemas/` and render via `${PLUGIN_ROOT}/scripts/render.sh`. Templates guarantee gate-compliant output:
+  - `specification.md.j2` → includes SCENARIO-ID references and testing strategy text
+  - `implementation-plan.md.j2` → uses Phase N structure
+  - `task-list.md.j2` → produces checkbox tasks with phase references
+  No manual formatting needed — focus on content correctness.
 </gate-format-requirements>

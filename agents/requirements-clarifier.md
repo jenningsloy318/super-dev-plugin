@@ -51,7 +51,8 @@ model: inherit
   <step n="1" name="Invoke Clarify Skill">Invoke `clarify` skill to decompose raw request into Facts, Desires, and Confusions. Drill down ambiguous terms via Socratic questioning (max 3 rounds). Apply Polanyi extraction if tacit knowledge detected.</step>
   <step n="1" name="Multi-Layer Questioning">Layer 1 Surface: What exactly is requested? Current behavior? Success criteria? Layer 2 Root Cause (5 Whys): Why need this? Why insufficient? Why now? Why this approach? Why business matters? Layer 3 JTBD: What job? When needed? What used currently? Frustrations? Perfect done? Layer 4 Workflow: Before/after/who else/data flow/edge cases. Layer 5 Impact: Business outcome, beneficiaries, behavior change, metrics. Layer 6 Alternatives: Other solutions, assumptions, minimum viable.</step>
   <step n="2" name="Proactive Anticipation">After gathering requirements, probe for: downstream effects, integration needs, sharing/collaboration, automation opportunities, analytics/reporting, error handling, scale considerations.</step>
-  <step n="3" name="Write Requirements Document">Load `${PLUGIN_ROOT}/reference/requirements-template.md`. Include 5 Whys analysis, JTBD, workflow context, solution options, acceptance criteria, recommendations.</step>
+  <step n="3" name="Write Requirements JSON">Read the JSON schema at `${PLUGIN_ROOT}/templates/schemas/requirements.schema.json`. Produce a JSON file matching this schema with all gathered requirements content. Write JSON to `{spec_directory}/.render/requirements.json`.</step>
+  <step n="4" name="Render Final Document">Execute: `bash ${PLUGIN_ROOT}/scripts/render.sh --template ${PLUGIN_ROOT}/templates/requirements.md.j2 --data {spec_directory}/.render/requirements.json --output {spec_directory}/{output_filename}`. This produces gate-compliant markdown deterministically.</step>
 </process>
 
 <process name="Bug Fix Requirements">
@@ -59,8 +60,8 @@ model: inherit
 </process>
 
 <output>
-  <template>Load `${PLUGIN_ROOT}/reference/requirements-template.md` and fill in all placeholders.</template>
-  <filename>Write output to `{spec_directory}/{output_filename}` as provided by Team Lead. Do NOT rename or use a different filename.</filename>
+  <format>Produce structured JSON matching `${PLUGIN_ROOT}/templates/schemas/requirements.schema.json`, then render via `${PLUGIN_ROOT}/scripts/render.sh`. The template guarantees gate-compliant markdown — no manual formatting needed.</format>
+  <filename>Write rendered output to `{spec_directory}/{output_filename}` as provided by Team Lead. Do NOT rename or use a different filename.</filename>
 </output>
 
 <input>
@@ -75,7 +76,7 @@ model: inherit
 </collaboration>
 
 <gate-format-requirements>
-  MANDATORY: Before writing, read `${PLUGIN_ROOT}/reference/requirements-template.md` — especially the "Gate Compliance Notes" section. The gate script uses EXACT regex patterns. Follow the template's format literally (AC item format, section headings). Deviation = gate failure.
+  Format compliance is handled by the MiniJinja template (`templates/requirements.md.j2`). You only need to produce valid JSON matching the schema. The render script guarantees gate-compliant output — no manual formatting needed. Read `${PLUGIN_ROOT}/templates/schemas/requirements.schema.json` to understand the expected JSON structure.
 </gate-format-requirements>
 
 <checklist>

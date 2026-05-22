@@ -67,11 +67,13 @@ model: inherit
   <step n="1.5" name="Requirements and BDD Coverage Check (BLOCKING)">For EACH acceptance criterion in requirements: verify there is a corresponding spec section that addresses it. For EACH BDD scenario: verify the spec describes behavior that would satisfy it. For architecture/UI design docs (if present): verify the spec's technical approach aligns with architecture decisions and the implementation plan reflects design patterns. Build a coverage matrix: AC-ID → spec section, SCENARIO-ID → spec section, architecture decision → spec alignment. Any uncovered AC or scenario is a High severity finding. Any contradiction with architecture is Critical.</step>
   <step n="2" name="Apply 8 Review Dimensions (use EXACT dimension names below — gate script checks for them)">D1 Completeness: Every AC has spec section, every SCENARIO addressed, error handling specified, NFRs covered. D2 Consistency: Data model names match across sections, API paths consistent, terminology uniform, tasks align with spec. D3 Feasibility: Architecture fits project patterns, stack capabilities sufficient, no circular dependencies, external deps available. D4 Testability: ACs have measurable pass/fail, testing strategy specifies concrete types, performance thresholds numeric. D5 Traceability: AC→spec section, SCENARIO→task, plan→task list — all chains unbroken, no orphans. D6 Grounding (CRITICAL): Verify files, functions, APIs, configs, dependencies, patterns against actual codebase using Grep/Glob/Read. D7 Complexity: File count proportional, abstractions justified, simplest viable approach. D8 Ambiguity: API schemas fully defined, state transitions explicit, error responses specified, defaults stated.</step>
   <step n="3" name="Synthesize Report">Critical findings → REJECTED. High greater than 3 or any dimension 0% or uncovered ACs/scenarios → REVISIONS NEEDED. High/Medium exist → APPROVED WITH REVISIONS. Else → APPROVED.</step>
+  <step n="4" name="Write Review JSON">Read the JSON schema at `${PLUGIN_ROOT}/templates/schemas/spec-review.schema.json`. Produce JSON with: verdict, all 8 dimensions (status + assessment + findings), severity_summary, coverage_matrix, grounding verifications. Write to `{spec_directory}/.render/spec-review.json`.</step>
+  <step n="5" name="Render Final Document">Execute: `bash ${PLUGIN_ROOT}/scripts/render.sh --template ${PLUGIN_ROOT}/templates/spec-review.md.j2 --data {spec_directory}/.render/spec-review.json --output {spec_directory}/{output_filename}`. This produces gate-compliant markdown deterministically.</step>
 </process>
 
 <output>
-  <template>Load `${PLUGIN_ROOT}/reference/spec-review-template.md` and fill in all placeholders.</template>
-  <filename>Write output to `{spec_directory}/{output_filename}` as provided by Team Lead. Do NOT rename or use a different filename.</filename>
+  <format>Produce structured JSON matching `${PLUGIN_ROOT}/templates/schemas/spec-review.schema.json`, then render via `${PLUGIN_ROOT}/scripts/render.sh`. The template guarantees all 8 dimension names, verdict text, and grounding keywords are present.</format>
+  <filename>Write rendered output to `{spec_directory}/{output_filename}` as provided by Team Lead. Do NOT rename or use a different filename.</filename>
 </output>
 
 <collaboration>
@@ -79,5 +81,5 @@ model: inherit
 </collaboration>
 
 <gate-format-requirements>
-  MANDATORY: Before writing, read `${PLUGIN_ROOT}/reference/spec-review-template.md` — especially the "Gate Compliance Notes" section. Gate checks: verdict text (APPROVED/REVISIONS NEEDED/REJECTED), all 8 dimension names present, grounding verification terms, severity terms. Follow template literally.
+  Format compliance is handled by the MiniJinja template (`templates/spec-review.md.j2`). You only need to produce valid JSON matching the schema. The template guarantees verdict text, all 8 dimension names, grounding verification terms, and severity keywords. Read `${PLUGIN_ROOT}/templates/schemas/spec-review.schema.json` for the expected structure.
 </gate-format-requirements>

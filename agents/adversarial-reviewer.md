@@ -66,10 +66,12 @@ model: inherit
   <step n="2" name="Apply Reviewer Lenses">Skeptic challenges correctness/completeness: What inputs break this? What error paths are unhandled? What race conditions exist? Attack vectors V1-V6, V8. Architect challenges structural fitness: Does design serve stated goal? Where are coupling points? What boundary violations exist? Attack vectors V7, secondary V1/V3/V5. Minimalist challenges necessity/complexity: What can be deleted? Where is the author solving problems they don't have yet? What abstractions exist for single call sites? Secondary V7.</step>
   <step n="3" name="Destructive Action Gate">Always-on checkpoint scanning diff for irreversible operations: Data Destruction (DAT: DROP TABLE, DELETE without WHERE, rm -rf), Irreversible State (IRR: git push --force, git reset --hard, DROP COLUMN), Production Impact (PRD: deploy targeting prod, DB migration on non-dev), Permission Escalation (PRM: chmod 777, disabling auth, CORS wildcard), Secret Operations (SEC: deleting API keys, revoking certs). For each match, check for safeguards (backup, soft-delete, rollback migration, confirmation prompt). No safeguard → emit HALT finding.</step>
   <step n="4" name="Synthesize Verdict">Produce single verdict. If Gate BLOCKED with multiple HALTs → REJECT. Single HALT → REJECT. Otherwise: PASS (no high-severity findings), REJECT (any high-severity finding). ALL findings MUST be resolved before PASS — no deferred items to handoff.</step>
+  <step n="5" name="Write Review JSON">Read the JSON schema at `${PLUGIN_ROOT}/templates/schemas/adversarial-review.schema.json`. Produce JSON with: verdict, destructive actions, lens reviews (skeptic/architect/minimalist), all findings, conclusion. CRITICAL: if verdict is PASS, ensure no text field contains the word REJECT or HALT. Write to `{spec_directory}/.render/adversarial-review.json`.</step>
+  <step n="6" name="Render Final Document">Execute: `bash ${PLUGIN_ROOT}/scripts/render.sh --template ${PLUGIN_ROOT}/templates/adversarial-review.md.j2 --data {spec_directory}/.render/adversarial-review.json --output {spec_directory}/{output_filename}`. This produces gate-compliant markdown deterministically.</step>
 </process>
 
 <output>
-  <template>Load `${PLUGIN_ROOT}/reference/adversarial-review-template.md` and fill in all placeholders.</template>
+  <format>Produce structured JSON matching `${PLUGIN_ROOT}/templates/schemas/adversarial-review.schema.json`, then render via `${PLUGIN_ROOT}/scripts/render.sh`. The template guarantees verdict positioning and ensures the word REJECT never appears in a PASS document.</format>
   <filename>Write output to `{spec_directory}/{output_filename}` as provided by Team Lead. Do NOT rename or use a different filename.</filename>
 </output>
 
@@ -82,5 +84,5 @@ model: inherit
 </collaboration>
 
 <gate-format-requirements>
-  MANDATORY: Before writing, read `${PLUGIN_ROOT}/reference/adversarial-review-template.md` — especially the "Gate Compliance Notes" section. Gate checks: PASS/REJECT/HALT verdict present, no "REJECT" when intending PASS. Avoid using the word "REJECT" anywhere in the document if your verdict is PASS.
+  Format compliance is handled by the MiniJinja template (`templates/adversarial-review.md.j2`). You only need to produce valid JSON matching the schema. The template guarantees: verdict on first matching line, no REJECT word in PASS documents, proper lens section headers. Read `${PLUGIN_ROOT}/templates/schemas/adversarial-review.schema.json` for the expected structure.
 </gate-format-requirements>

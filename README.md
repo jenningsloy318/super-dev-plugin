@@ -15,6 +15,29 @@ v2.3.52 — Stage-Based Workflow with Implementation Completeness:
 
 *Inspired by: gstack (Garry Tan), Boris's Claude Code workflow, agentic engineering best practices 2026, @zodchiii's Claude Code hooks, and Anthropic's official skill design lessons.*
 
+## Prerequisites
+
+The plugin requires two CLI tools for deterministic template rendering:
+
+```bash
+# Install minijinja-cli (template engine)
+curl -sSfL https://github.com/mitsuhiko/minijinja/releases/latest/download/minijinja-cli-installer.sh -o /tmp/minijinja-cli-installer.sh
+bash /tmp/minijinja-cli-installer.sh
+
+# Install jq (JSON validation)
+# Debian/Ubuntu
+sudo apt-get install jq
+# macOS
+brew install jq
+```
+
+Verify both are available:
+
+```bash
+minijinja-cli --version
+jq --version
+```
+
 ## Installation
 
 ### Claude Code
@@ -201,8 +224,10 @@ super-dev-plugin/
 │   ├── continuous-learning/       # Auto-extract patterns from sessions
 │   └── strategic-compact/         # Manual compaction suggestions
 │
-├── templates/                  # Reference materials and examples
-│   └── reference/                # Reference documentation
+├── templates/                  # MiniJinja templates + JSON schemas
+│   ├── *.md.j2                    # 9 MiniJinja templates (gate-compliant rendering)
+│   ├── schemas/*.schema.json      # JSON schemas for structured agent output
+│   └── reference/                 # Reference documentation
 │       ├── architecture-patterns.md  # Software architecture patterns, SOLID, ADRs
 │       ├── ui-ux-patterns.md         # UI/UX design patterns, wireframes, accessibility
 │       ├── debugging-patterns.md     # Systematic debugging methodology, root cause analysis
@@ -211,8 +236,8 @@ super-dev-plugin/
 │       ├── backend-patterns.md       # API, database, caching patterns
 │       ├── frontend-patterns.md      # React, Next.js patterns
 │       ├── coding-standards.md       # Language best practices
-│       ├── bdd-patterns.md            # BDD scenario writing patterns and reference
-│       ├── *-template.md              # XML-tagged document templates (14 files)
+│       ├── bdd-patterns.md           # BDD scenario writing patterns and reference
+│       ├── *-template.md             # XML-tagged document templates (5 remaining)
 │       └── project-guidelines-example.md
 │
 ├── rules/                      # Always-follow guidelines (7 files, XML-tagged)
@@ -246,7 +271,9 @@ super-dev-plugin/
 │   └── statusline.json          # Example statusline config
 │
 └── scripts/                    # Utility scripts
-    └── (existing scripts)
+    ├── render.sh                  # Template renderer (validates JSON + minijinja-cli)
+    ├── gates/                     # Per-document gate validation scripts
+    └── (other scripts)
 ```
 
 ## Workflow Stages
@@ -442,9 +469,9 @@ Systematic debugging methodology, root cause analysis, evidence collection, and 
 
 Multi-source research, option presentation, Time MCP integration, and synthesis techniques.
 
-### Document Templates (XML-tagged)
+### Document Templates
 
-14 XML-tagged document templates in `reference/*-template.md`. Each agent loads its template at runtime for consistent document formatting. Templates cover: requirements, bdd-scenarios, specification, implementation-plan, task-list, handoff, code-review, adversarial-review, implementation-summary, architecture, design-spec, product-design-summary, spec-review, qa-report.
+9 MiniJinja templates in `templates/*.md.j2` with matching JSON schemas in `templates/schemas/`. Agents produce structured JSON and call `scripts/render.sh` for deterministic, gate-compliant markdown rendering. Remaining agents use XML-tagged templates in `reference/*-template.md`.
 
 ### testing-patterns
 

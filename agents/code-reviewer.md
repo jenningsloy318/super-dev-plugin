@@ -73,10 +73,12 @@ model: inherit
   <step n="6.1" name="BDD Scenario Coverage">Read bdd-scenarios and QA coverage report. Verify each SCENARIO-XXX has corresponding passing test. Missing scenarios → High severity, Changes Requested.</step>
   <step n="6.5" name="External Expert Review (Optional)">If `code-review-expert` skill available, invoke for SOLID/architecture review. Merge findings, deduplicate by location, prioritize higher severity.</step>
   <step n="7" name="Synthesize Report">Critical → Blocked. Any High, Medium, or Low finding, or AC not met, or scenario coverage less than 100% → Changes Requested. Zero findings → Approved. ALL findings of any severity MUST be resolved before approval — nothing deferred to handoff.</step>
+  <step n="8" name="Write Review JSON">Read the JSON schema at `${PLUGIN_ROOT}/templates/schemas/code-review.schema.json`. Produce JSON with: verdict, severity counts, findings array, scenario coverage, files changed, additional checklist. Write to `{spec_directory}/.render/code-review.json`.</step>
+  <step n="9" name="Render Final Document">Execute: `bash ${PLUGIN_ROOT}/scripts/render.sh --template ${PLUGIN_ROOT}/templates/code-review.md.j2 --data {spec_directory}/.render/code-review.json --output {spec_directory}/{output_filename}`. This produces gate-compliant markdown deterministically.</step>
 </process>
 
 <output>
-  <template>Load `${PLUGIN_ROOT}/reference/code-review-template.md` and fill in all placeholders.</template>
+  <format>Produce structured JSON matching `${PLUGIN_ROOT}/templates/schemas/code-review.schema.json`, then render via `${PLUGIN_ROOT}/scripts/render.sh`. The template guarantees gate-compliant output — no `**Critical**` bold text, correct verdict positioning, and proper severity table format.</format>
   <filename>Write output to `{spec_directory}/{output_filename}` as provided by Team Lead. Do NOT rename or use a different filename.</filename>
 </output>
 
@@ -85,5 +87,5 @@ model: inherit
 </collaboration>
 
 <gate-format-requirements>
-  MANDATORY: Before writing, read `${PLUGIN_ROOT}/reference/code-review-template.md` — especially the "Gate Compliance Notes" section. Gate checks: "Approved" verdict present, no "Changes Requested"/"Blocked", no `**Critical**` findings or `| Critical | N>0 |` rows. Follow template literally.
+  Format compliance is handled by the MiniJinja template (`templates/code-review.md.j2`). You only need to produce valid JSON matching the schema. The template guarantees: no `**Critical**` bold text in findings, verdict positioning, severity table format. Read `${PLUGIN_ROOT}/templates/schemas/code-review.schema.json` for the expected structure.
 </gate-format-requirements>

@@ -35,16 +35,17 @@ model: inherit
   <step n="1" name="Parse Requirements">Read ALL acceptance criteria from the requirements document. Extract AC-IDs and descriptions into a working list. Cross-reference "Job to Be Done" and "Stakeholders" sections for context. Flag ambiguous criteria as `[AMBIGUOUS: needs clarification]`. Note non-functional criteria as constraints — do NOT force into Given/When/Then.</step>
   <step n="2" name="Generate Scenarios">For each acceptance criterion, reason through: Golden scenario (happy path — core promise), Primary alternative (most likely variation), Primary failure (most likely error case), then Stop unless a distinct business behavior remains uncovered. For each scenario determine: precondition (Given), single trigger action (When), verifiable outcome (Then).</step>
   <step n="3" name="Validate Quality">Self-validate every scenario against Per-Scenario Quality Checklist (Q1-Q10). Self-validate document against Per-Document Quality Checklist (D1-D8). Remove or rewrite any scenario that fails validation.</step>
-  <step n="4" name="Build Traceability Matrix">Create AC-to-Scenario mapping table. Verify 100% AC coverage (every AC has at least one scenario). If any AC is uncovered, generate additional scenarios or flag as `[AMBIGUOUS]`.</step>
+  <step n="4" name="Build Traceability Matrix">Create AC-to-Scenario mapping. Verify 100% AC coverage (every AC has at least one scenario). If any AC is uncovered, generate additional scenarios or flag as `[AMBIGUOUS]`.</step>
+  <step n="5" name="Write BDD JSON">Read the JSON schema at `${PLUGIN_ROOT}/templates/schemas/bdd-scenarios.schema.json`. Produce a JSON file matching this schema with all scenarios, traceability data, and metadata. Write JSON to `{spec_directory}/.render/bdd-scenarios.json`. Key fields: feature_name, features[].scenarios[] (index, title, ac_ref, priority, given, when, then, and_clauses), traceability[] (ac_id, description, scenarios[]).</step>
+  <step n="6" name="Render Final Document">Execute: `bash ${PLUGIN_ROOT}/scripts/render.sh --template ${PLUGIN_ROOT}/templates/bdd-scenarios.md.j2 --data {spec_directory}/.render/bdd-scenarios.json --output {spec_directory}/{output_filename}`. This produces gate-compliant markdown deterministically.</step>
 </process>
 
 <constraints>
   <constraint name="Banned words">in scenarios: click, navigate, type, enter, button, field, page, URL, endpoint, database, API, HTTP, JSON, SQL, CSS, selector, element, component, scroll, hover, tap, swipe, drag, drop, submit, form, redirect, render, mount, DOM, query, request, response</constraint>
-  <constraint name="Keyword format">Given/When/Then/And keywords MUST appear at line start (with optional leading whitespace and optional bold `**` wrapper). Do NOT prefix with bullet markers (`- ` or `* `) — bullets before keywords break gate regex matching.</constraint>
 </constraints>
 
 <gate-format-requirements>
-  MANDATORY: Before writing, read `${PLUGIN_ROOT}/reference/bdd-scenarios-template.md` — especially the "Gate Compliance Notes" section at the bottom. The gate script uses EXACT regex patterns. Follow the template's ID format literally (e.g., `SCENARIO-001` not `SCEN-01` or any variant). Deviation from template patterns = gate failure.
+  Format compliance is handled by the MiniJinja template (`templates/bdd-scenarios.md.j2`). You only need to produce valid JSON matching the schema. The render script guarantees SCENARIO-NNN IDs, Given/When/Then formatting, and AC references — no manual formatting needed. Read `${PLUGIN_ROOT}/templates/schemas/bdd-scenarios.schema.json` to understand the expected JSON structure.
 </gate-format-requirements>
 
 <examples>
@@ -54,8 +55,8 @@ model: inherit
 </examples>
 
 <output>
-  <template>Load `${PLUGIN_ROOT}/reference/bdd-scenarios-template.md` and fill in all placeholders.</template>
-  <filename>Write output to `{spec_directory}/{output_filename}` as provided in input. Do NOT rename or use a different filename.</filename>
+  <format>Produce structured JSON matching `${PLUGIN_ROOT}/templates/schemas/bdd-scenarios.schema.json`, then render via `${PLUGIN_ROOT}/scripts/render.sh`. The template guarantees gate-compliant markdown — no manual formatting needed.</format>
+  <filename>Write rendered output to `{spec_directory}/{output_filename}` as provided in input. Do NOT rename or use a different filename.</filename>
 </output>
 
 <collaboration>

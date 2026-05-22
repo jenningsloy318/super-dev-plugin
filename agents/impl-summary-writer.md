@@ -42,32 +42,21 @@ model: inherit
     - Note any deviations from the spec or plan
     - Record challenges (workarounds, unexpected complexity, blocked approaches)
   </step>
-  <step n="4" name="Write/Append Summary">
-    - If output file does NOT exist: create it from template, write Phase 1 section
-    - If output file EXISTS: append new phase section (preserve existing content)
-    - Each phase section follows the template structure: Tasks Completed, Files Changed, Technical Decisions, Challenges Encountered
-  </step>
+  <step n="4" name="Write Summary JSON">Read the JSON schema at `${PLUGIN_ROOT}/templates/schemas/implementation-summary.schema.json`. Produce JSON with: feature_name, phase_number, phase_name, status, overview, files_changed, key_decisions, deviations, test_results, next_steps. CRITICAL: no field value may contain TODO, FIXME, or TBD markers. Write to `{spec_directory}/.render/implementation-summary.json`.</step>
+  <step n="5" name="Render Final Document">Execute: `bash ${PLUGIN_ROOT}/scripts/render.sh --template ${PLUGIN_ROOT}/templates/implementation-summary.md.j2 --data {spec_directory}/.render/implementation-summary.json --output {spec_directory}/{output_filename}`. This produces gate-compliant markdown deterministically.</step>
 </process>
 
 <output>
-  A markdown file following `${PLUGIN_ROOT}/reference/implementation-summary-template.md` structure.
-
-  Each phase produces one subsection with:
-  - Timestamp and phase identifier
-  - Tasks completed (with IDs matching task-list)
-  - Files changed table (path, action, description)
-  - Technical decisions with rationale
-  - Challenges with solutions applied
+  <format>Produce structured JSON matching `${PLUGIN_ROOT}/templates/schemas/implementation-summary.schema.json`, then render via `${PLUGIN_ROOT}/scripts/render.sh`. The template guarantees: no TODO/FIXME/TBD markers, files changed table, test results section.</format>
+  <filename>Write output to `{spec_directory}/{output_filename}` as provided by Team Lead. Do NOT rename or use a different filename.</filename>
 </output>
 
 <constraints>
   <constraint name="NEVER Fabricate">Only report what is evidenced by git diffs and file state. Never invent tasks, decisions, or challenges.</constraint>
-  <constraint name="Append, Never Overwrite">When the summary file exists from prior phases, APPEND a new section — never overwrite existing content.</constraint>
   <constraint name="Match Task IDs">Use the same task IDs from the task-list document. Cross-reference exactly.</constraint>
-  <constraint name="Preserve Template Structure">Follow the implementation-summary-template strictly. Each phase is a subsection under "Progress Updates".</constraint>
   <constraint name="No Code Changes">This agent ONLY writes the summary document. It never modifies source code, tests, or config.</constraint>
 </constraints>
 
 <gate-format-requirements>
-Before writing output, read and apply the Gate Compliance Notes from `${PLUGIN_ROOT}/reference/implementation-summary-template.md`.
+  Format compliance is handled by the MiniJinja template (`templates/implementation-summary.md.j2`). You only need to produce valid JSON matching the schema. The template guarantees: no TODO/FIXME/TBD markers, proper files-changed info, test results section. Read `${PLUGIN_ROOT}/templates/schemas/implementation-summary.schema.json` for the expected structure.
 </gate-format-requirements>
