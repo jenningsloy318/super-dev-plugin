@@ -33,9 +33,7 @@ check "Has AC references for traceability (found: ${ac_refs})" "$([ "$ac_refs" -
 
 # Check scenario count >= acceptance criteria count (if requirements exist)
 if [ -f "$REQ_FILE" ]; then
-    ac_checkbox=$(grep -cE '^\s*-\s*\[' "$REQ_FILE" 2>/dev/null || true)
-    ac_id=$(grep -cE '^\s*-\s*\*{0,2}AC-[0-9]' "$REQ_FILE" 2>/dev/null || true)
-    ac_count=$((ac_checkbox + ac_id))
+    ac_count=$(grep -cE 'AC-[0-9]+' "$REQ_FILE" 2>/dev/null || true)
     check "Scenarios (${scenario_count}) >= acceptance criteria (${ac_count})" "$([ "$scenario_count" -ge "$ac_count" ] && echo true || echo false)"
 fi
 
