@@ -63,7 +63,14 @@ model: inherit
   <field name="plugin_root" required="true">Absolute path to the plugin root directory (passed by Team Lead)</field>
 </input>
 
-<collaboration>
-  Runs as Step 9.2 in the sequential TDD workflow: tdd-guide (9.1) → ios-developer (9.2) → impl-summary-writer (9.3) → qa-agent (9.4). Receives test files from Step 9.1 and makes them pass.
+<process name="Visual Verification (mandatory before phase complete)">
+  Before declaring phase complete, produce a render artifact via one of:
+  - **Tier 1 (preferred): pixel-property assertions in XCTest.** Use `XCUIScreenshot` or `view.snapshot()` and assert dimensions/opaque-pixel coverage/key colors. Example: `let snap = view.snapshot(); XCTAssertEqual(snap.size.width, 200)`.
+  - **Tier 2: snapshot tests via swift-snapshot-testing.** Commit reference snapshot, fail on perceptual diff.
+  - **Tier 3: simulator screenshot.** `xcrun simctl io booted screenshot path`.
+
+  After implementation passes unit tests, visual-verifier (Step 9.4) is spawned by Team Lead. Write the snapshot/property assertion BEFORE the SwiftUI/UIKit change when feasible (TDD). See `{plugin_root}/agents/visual-verifier.md`. Failure blocks phase completion.
+</process><collaboration>
+  Runs as Step 9.2 in the sequential TDD workflow: tdd-guide (9.1) → ios-developer (9.2) → impl-summary-writer (9.3) → visual-verifier (9.4) → qa-agent (9.5). Receives test files from Step 9.1 and makes them pass.
 </collaboration>
 

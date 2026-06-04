@@ -49,7 +49,12 @@ model: inherit
 <process>
   <step n="1" name="Gather Context">Read workflow tracking JSON for stage completion status and iteration count. Scan ALL spec directory artifacts — note only key decisions, risks, and any items deferred to future work (NOT review findings — those are all resolved before reaching handoff). Run `git log --oneline main..HEAD` for commit count (do NOT list individual files). Unfinished Items section should only contain genuine future work (features explicitly scoped out, performance optimizations deferred, etc.) — never unresolved review findings.</step>
   <step n="2" name="Write the Handoff">Write to the EXACT filename provided in spawn prompt's `OUTPUT FILENAME` field. For each section ask: "Can the next agent get this from a source file?" If yes, point to the file instead.</step>
-  <step n="3" name="Validate Conciseness">Verify: under 300 lines total, no section exceeds 30 lines, no copy-pasted content from spec artifacts, every file path is relative to project root, "Next Steps" has 3-5 concrete numbered actions.</step>
+  <step n="2.5" name="AC Coverage Assessment (CONDITIONAL)">If `iteration.loops > 0` OR `implementationPhases.length > 1` OR a pivot occurred (presence of `[XX]-specification-rN.md` files OR `02-deep-research-report-pivot.md`), the handoff MUST include a `## AC Coverage Assessment` section with three subsections:
+    - **ACs met as planned** — list AC-IDs that the final implementation satisfies exactly as the spec described.
+    - **ACs met by alternative mechanism** — list AC-IDs whose user-visible outcome is met but where the implementation mechanism differs from the spec (typically because of a pivot). For each, briefly note the original mechanism vs. what shipped.
+    - **ACs superseded** — list AC-IDs that are no longer applicable because the design was revised. Reference the revised spec (`-rN.md`) and the deep-research report explaining why.
+  This section is non-negotiable when triggered. It's the audit trail that future maintainers need to understand why the final state differs from the original spec. See `{plugin_root}/reference/workflow/pivot-protocol.md` for the protocol that produces this state.</step>
+  <step n="3" name="Validate Conciseness">Verify: under 300 lines total (350 if AC Coverage Assessment included), no section exceeds 30 lines except AC Coverage Assessment which may be longer if many ACs were superseded, no copy-pasted content from spec artifacts, every file path is relative to project root, "Next Steps" has 3-5 concrete numbered actions.</step>
 </process>
 
 <output>
@@ -57,12 +62,14 @@ model: inherit
 </output>
 
 <quality-gates>
-  <gate name="H1">Under 300 lines total</gate>
-  <gate name="H2">No section exceeds 30 lines</gate>
+  <gate name="H1">Under 300 lines total (350 if AC Coverage Assessment included)</gate>
+  <gate name="H2">No section exceeds 30 lines (AC Coverage Assessment exempt when many ACs were superseded)</gate>
   <gate name="H3">No copy-paste from spec artifacts — pointers only</gate>
   <gate name="H4">Written FOR an AI agent — no pleasantries, no hedging</gate>
   <gate name="H5">All 7 sections present</gate>
   <gate name="H6">All unfinished items have P0/P1/P2 priority</gate>
   <gate name="H7">3-5 numbered executable actions in Section 7</gate>
   <gate name="H8">Sections 4-7 collectively let the next agent start within 1-2 minutes</gate>
+  <gate name="H9">If iteration.loops > 0 OR implementationPhases > 1 OR pivot occurred → AC Coverage Assessment section present</gate>
 </quality-gates>
+

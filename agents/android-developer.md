@@ -74,7 +74,14 @@ model: inherit
   <field name="plugin_root" required="true">Absolute path to the plugin root directory (passed by Team Lead)</field>
 </input>
 
-<collaboration>
-  Runs as Step 9.2 in the sequential TDD workflow: tdd-guide (9.1) → android-developer (9.2) → impl-summary-writer (9.3) → qa-agent (9.4). Receives test files from Step 9.1 and makes them pass.
+<process name="Visual Verification (mandatory before phase complete)">
+  Before declaring phase complete, produce a render artifact via one of:
+  - **Tier 1 (preferred): Compose pixel-property assertions.** `composeRule.onNodeWithTag("...").captureToImage().asAndroidBitmap()` then assert dimensions/opaque-ratio. Example: `assertThat(bmp.opaqueRatio()).isGreaterThan(0.30f)`.
+  - **Tier 2: Paparazzi snapshot tests.** Commit reference PNGs, fail on perceptual diff. JVM-only — no emulator needed.
+  - **Tier 3: emulator screenshot via `adb shell screencap`.** Use only when a full Activity/Compose composition is required.
+
+  After implementation passes unit tests, visual-verifier (Step 9.4) is spawned by Team Lead. Write the Compose property assertion BEFORE the UI change when feasible (TDD). See `{plugin_root}/agents/visual-verifier.md`. Failure blocks phase completion.
+</process><collaboration>
+  Runs as Step 9.2 in the sequential TDD workflow: tdd-guide (9.1) → android-developer (9.2) → impl-summary-writer (9.3) → visual-verifier (9.4) → qa-agent (9.5). Receives test files from Step 9.1 and makes them pass.
 </collaboration>
 

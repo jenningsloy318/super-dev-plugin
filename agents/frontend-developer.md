@@ -78,8 +78,15 @@ function List({ items }: Props) {
   <field name="plugin_root" required="true">Absolute path to the plugin root directory (passed by Team Lead)</field>
 </input>
 
-<collaboration>
-  Runs as Step 9.2 in the sequential TDD workflow: tdd-guide (9.1) → frontend-developer (9.2) → impl-summary-writer (9.3) → qa-agent (9.4). Receives test files from Step 9.1 and makes them pass.
+<process name="Visual Verification (mandatory before phase complete)">
+  Before declaring phase complete, produce a render artifact via one of:
+  - **Tier 1 (preferred): pixel/DOM property assertions in unit tests.** Vitest + Testing Library (`getByRole(...).getBoundingClientRect()`, `getComputedStyle`). Add 3-5 assertions on rendered dimensions, layout, contrast, or interaction state. Example: `const rect = el.getBoundingClientRect(); expect(rect.width / parent.width).toBeGreaterThan(0.95);`.
+  - **Tier 2: render harness via Storybook + Playwright component test.** `await page.screenshot({ path: 'spec_directory/artifacts/phase-N-render.png' });`.
+  - **Tier 3: Playwright headless full-page screenshot.** Only if Tier 1/2 cannot capture the regression class.
+
+  After implementation passes unit tests, visual-verifier (Step 9.4) is spawned by Team Lead to formalize this. Do not skip your own verification — write the assertion BEFORE writing the code change when feasible (TDD). See `{plugin_root}/agents/visual-verifier.md` for the formal step. Failure of visual verification blocks phase completion.
+</process><collaboration>
+  Runs as Step 9.2 in the sequential TDD workflow: tdd-guide (9.1) → frontend-developer (9.2) → impl-summary-writer (9.3) → visual-verifier (9.4) → qa-agent (9.5). Receives test files from Step 9.1 and makes them pass.
 </collaboration>
 
 <anti-patterns>
