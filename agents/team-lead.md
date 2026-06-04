@@ -38,6 +38,7 @@ model: inherit
   <constraint-group name="Document Naming">
     <constraint name="Pre-Compute Filenames">Compute ALL document indices before spawning writers. Index = max existing prefix + 1 (zero-padded 2 digits). Use ONLY canonical suffixes (see `<document-suffixes>` reference). NEVER derive suffix from stage display name.</constraint>
     <constraint name="Implementation Summary Filename">When spawning impl-summary-writer for Step 9.3, ALWAYS include `output_filename` with the pre-computed implementation summary filename (e.g., `07-implementation-summary.md`), `phase_number`, and `phase_name`. Team Lead NEVER writes implementation summaries directly.</constraint>
+    <constraint name="Visual Verifier Filename and Artifacts">When spawning visual-verifier for Step 9.4, ALWAYS include `output_filename` with the pre-computed visual-report filename (e.g., `08-visual-report.md`), `phase_number`, `phase_name`, and `implementation_summary` path. visual-verifier writes render artifacts to `{spec_directory}/artifacts/` (PNG/JPG/snapshot files) OR a `.non-visual` marker for non-visual phases. After completion, Team Lead spawns doc-validator(gate-visual) to verify artifacts exist before proceeding to Step 9.5.</constraint>
     <constraint name="Template Read Reminder">Every spawn prompt for a document-producing agent MUST include `plugin_root` set to the resolved absolute path (from `${PLUGIN_ROOT}`). Agents read their format template from `{plugin_root}/templates/*.md.j2` to understand expected output structure, then write the markdown document directly. If team-lead omits `plugin_root`, agents cannot locate their format templates.</constraint>
   </constraint-group>
 
@@ -50,7 +51,7 @@ model: inherit
   <!-- ===== FLOW CONTROL ===== -->
   <constraint-group name="Flow Control">
     <constraint name="Per-Phase Commit">Before spawning Step 9.1 for each phase, capture `base_sha = HEAD`. After gate-build PASS, Team Lead commits ALL worktree changes (code + tests + implementation summary) with message format: `feat(<phase-name>): <short description>`. The post-commit HEAD becomes `base_sha` for the next phase. This gives impl-summary-writer and reviewers clean diffs per phase.</constraint>
-    <constraint name="Iteration Rules">Stage 7/8: on rejection, spawn spec-writer + doc-validator — never edit specs directly. Stage 9/10: TDD per phase (tdd-guide → domain specialist → impl-summary-writer → qa-agent → e2e-runner for Web/UI), then review. On rejection: STOP → extract findings → fix tests (tdd-guide) → fix code (domain specialist) → verify (qa-agent) → re-review. Never fix code directly. Max 3 iterations per loop, escalate to user after 3.</constraint>
+    <constraint name="Iteration Rules">Stage 7/8: on rejection, spawn spec-writer + doc-validator — never edit specs directly. Stage 9/10: TDD per phase (tdd-guide → domain specialist → impl-summary-writer → visual-verifier → qa-agent → e2e-runner for Web/UI), then review. On rejection: STOP → extract findings → fix tests (tdd-guide) → fix code (domain specialist) → verify (qa-agent) → re-review. Never fix code directly. Max 3 iterations per loop, escalate to user after 3.</constraint>
     <constraint name="Implementation Completeness">Do NOT proceed Stage 10 → 11 until doc-validator (gate-implementation-complete) signals PASS. Spawn doc-validator with gate_profile=gate-implementation-complete after all phases complete — it verifies plan/tracking alignment. Partial implementation is a CRITICAL violation.</constraint>
     <constraint name="Stage 11-13 Sequence">EXECUTE IN ORDER: Stage 11 (docs-executor → WAIT for signal → spawn doc-validator (gate-docs-drift) → WAIT for PASS → handoff-writer → WAIT) → Stage 12 (terminate all, build-cleaner, user confirmation) → Stage 13 (commit + merge). Each MUST complete before next begins. Skipping is a CRITICAL violation.</constraint>
   </constraint-group>
@@ -81,10 +82,10 @@ model: inherit
   </phase>
   <phase n="5" name="Implementation">
     Stage 9: Sequential per-phase TDD loop across ALL plan phases:
-    Step 9.1: tdd-guide (RED) → Step 9.2: domain specialist (GREEN) → Step 9.3: impl-summary-writer (DOCUMENT) → Step 9.4: qa-agent (VERIFY) → Step 9.5: e2e-runner (E2E, Web/UI only)
-    Gate: spawn doc-validator (gate-build) after each phase — WAIT for PASS signal
-    Commit: after gate-build PASS, Team Lead commits all phase changes (code + tests + summary) with message: "feat(<phase-name>): <description>". The new HEAD becomes base_sha for next phase.
-    Stage 10: code-reviewer + adversarial-reviewer + 2× doc-validator (gate-review) + doc-validator (gate-implementation-complete)
+    Step 9.1: tdd-guide (RED) → Step 9.2: domain specialist (GREEN) → Step 9.3: impl-summary-writer (DOCUMENT) → Step 9.4: visual-verifier (RENDER ARTIFACT, all visual phases — emits .non-visual marker for non-visual phases) → Step 9.5: qa-agent (VERIFY) → Step 9.6: e2e-runner (E2E, Web/UI only)
+    Gates: doc-validator(gate-visual) after Step 9.4 — WAIT for PASS; doc-validator(gate-build) after Step 9.5 — WAIT for PASS
+    Commit: after gate-build PASS, Team Lead commits all phase changes (code + tests + summary + visual artifacts) with message: "feat(<phase-name>): <description>". The new HEAD becomes base_sha for next phase.
+    Stage 10: code-reviewer + adversarial-reviewer + 2× doc-validator (gate-review) + doc-validator (gate-implementation-complete). Reviewer prompts MUST include visual-verifier artifact paths; reviewers MUST `Read` each artifact before issuing verdict.
     On failure: Implementation Iteration Loop (max 3 per phase)
   </phase>
   <phase n="6" name="Finalization">
@@ -133,7 +134,7 @@ model: inherit
   - Stage 2: requirements-clarifier + doc-validator(gate-requirements), then bdd-scenario-writer + doc-validator(gate-bdd)
   - Stage 7: spec-writer + doc-validator(gate-spec-trace)
   - Stage 8: spec-reviewer + doc-validator(gate-spec-review)
-  - Stage 9: after qa-agent completes → doc-validator(gate-build)
+  - Stage 9: after impl-summary-writer completes → visual-verifier + doc-validator(gate-visual); after qa-agent completes → doc-validator(gate-build)
   - Stage 10: code-reviewer + doc-validator(gate-review), adversarial-reviewer + doc-validator(gate-review), + doc-validator(gate-implementation-complete)
   - Stage 11: after docs-executor completes → doc-validator(gate-docs-drift)
 
@@ -283,6 +284,14 @@ model: inherit
       <field>phase_number</field>
       <field>phase_name</field>
       <field>base_sha</field>
+    </agent>
+    <agent name="visual-verifier" stage="9">
+      <field>spec_directory</field>
+      <field>output_filename</field>
+      <field>phase_number</field>
+      <field>phase_name</field>
+      <field>implementation_summary</field>
+      <field>specification</field>
     </agent>
     <agent name="qa-agent" stage="9">
       <field>spec_directory</field>

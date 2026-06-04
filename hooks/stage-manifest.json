@@ -96,10 +96,18 @@
     },
     "super-dev:qa-agent": {
       "stage": "9",
-      "description": "QA verification (Stage 9.3) requires specification, BDD scenarios, implementation plan, task list, and approved spec review",
+      "description": "QA verification (Stage 9.5) requires specification, BDD scenarios, implementation plan, task list, and approved spec review",
       "previousStages": [8],
       "requires": ["[doc-index]-specification.md", "[doc-index]-bdd-scenarios.md", "[doc-index]-implementation-plan.md", "[doc-index]-task-list.md", "[doc-index]-spec-review.md"],
       "sections": {}
+    },
+    "super-dev:visual-verifier": {
+      "stage": "9",
+      "description": "Visual verification (Stage 9.4) requires implementation summary from Step 9.3 — produces render artifacts (PNG/snapshot) or .non-visual marker. Gate: gate-visual.sh.",
+      "previousStages": [8],
+      "requires": ["[doc-index]-specification.md", "[doc-index]-implementation-plan.md", "[doc-index]-implementation-summary.md"],
+      "sections": {},
+      "gate": "gate-visual.sh"
     },
     "super-dev:docs-executor": {
       "stage": "11",
