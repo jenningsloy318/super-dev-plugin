@@ -53,6 +53,13 @@ model: inherit
   <field name="plugin_root" required="true">Absolute path to the plugin root directory (passed by Team Lead)</field>
 </input>
 
-<collaboration>
-  Runs as Step 9.2 in the sequential TDD workflow: tdd-guide (9.1) → dev-executor (9.2) → impl-summary-writer (9.3) → qa-agent (9.4). Receives test files from Step 9.1 and makes them pass. Team Lead waits for completion before spawning impl-summary-writer.
+<process name="Visual Verification (mandatory before phase complete, when applicable)">
+  Generic fallback covering any visual-output domain. Before declaring phase complete on a phase that touches rendering (UI, layout, custom-painted graphics, document layout, game UI), produce a render artifact via one of:
+  - **Tier 1 (preferred): pixel/DOM property assertions in the project's existing test framework.** Direct assertions on rendered output dimensions, opaque-pixel coverage, color sampling, or interaction state.
+  - **Tier 2: render harness binary/script.** Small program calling the production rendering pipeline that dumps a PNG/snapshot to `spec_directory/artifacts/`.
+  - **Tier 3: headless screenshot.** Tools depend on platform; visual-verifier picks based on detected build manifest.
+
+  After implementation passes unit tests, visual-verifier (Step 9.4) is spawned by Team Lead to formalize this. For non-visual phases (backend, library, CLI), visual-verifier writes a `.non-visual` marker and skips cleanly. See `{plugin_root}/agents/visual-verifier.md`. Failure of visual verification blocks phase completion.
+</process><collaboration>
+  Runs as Step 9.2 in the sequential TDD workflow: tdd-guide (9.1) → dev-executor (9.2) → impl-summary-writer (9.3) → visual-verifier (9.4) → qa-agent (9.5). Receives test files from Step 9.1 and makes them pass. Team Lead waits for completion before spawning impl-summary-writer.
 </collaboration>

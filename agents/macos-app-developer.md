@@ -67,6 +67,13 @@ model: inherit
   <field name="plugin_root" required="true">Absolute path to the plugin root directory (passed by Team Lead)</field>
 </input>
 
-<collaboration>
-  Runs as Step 9.2 in the sequential TDD workflow: tdd-guide (9.1) → macos-app-developer (9.2) → impl-summary-writer (9.3) → qa-agent (9.4). Receives test files from Step 9.1 and makes them pass.
+<process name="Visual Verification (mandatory before phase complete)">
+  Before declaring phase complete, produce a render artifact via one of:
+  - **Tier 1 (preferred): pixel-property assertions in Swift Testing.** Use `NSImage` byte sampling or SwiftUI `view.snapshot()`. Example: `XCTAssertGreaterThan(opaquePixels(snap), expectedMin)`.
+  - **Tier 2: swift-snapshot-testing for SwiftUI views.** Commit reference; fail on perceptual diff.
+  - **Tier 3: macOS `screencapture` CLI.** Only when full window/Liquid Glass material rendering must be verified.
+
+  After implementation passes unit tests, visual-verifier (Step 9.4) is spawned by Team Lead. Write the snapshot/property assertion BEFORE the SwiftUI change when feasible (TDD). See `{plugin_root}/agents/visual-verifier.md`. Failure blocks phase completion.
+</process><collaboration>
+  Runs as Step 9.2 in the sequential TDD workflow: tdd-guide (9.1) → macos-app-developer (9.2) → impl-summary-writer (9.3) → visual-verifier (9.4) → qa-agent (9.5). Receives test files from Step 9.1 and makes them pass.
 </collaboration>
