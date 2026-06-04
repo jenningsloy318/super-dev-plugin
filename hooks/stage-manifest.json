@@ -109,6 +109,14 @@
       "sections": {},
       "gate": "gate-visual.sh"
     },
+    "super-dev:prototype-runner": {
+      "stage": "6.5",
+      "description": "Empirical prototype (Stage 6.5, conditional) requires Stage 6 design output. Validates spec constants against real input before Stage 7 spec writing. Gate: gate-prototype.sh.",
+      "previousStages": [6],
+      "requires": ["[doc-index]-specification.md"],
+      "sections": {},
+      "gate": "gate-prototype.sh"
+    },
     "super-dev:docs-executor": {
       "stage": "11",
       "description": "Documentation (Stage 11) requires specification, all implementation phases complete, and gate-implementation-complete.sh PASS",

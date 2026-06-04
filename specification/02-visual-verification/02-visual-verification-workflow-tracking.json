@@ -20,8 +20,8 @@
   ],
   "implementationPhases": [
     { "phaseNumber": 1, "name": "Visual Verification Framework (visual-verifier agent + gate-visual.sh + Step 9.4)", "status": "complete", "startedAt": "2026-06-04T00:45:00Z", "completedAt": "2026-06-04T01:30:00Z", "reviewIterations": 0 },
-    { "phaseNumber": 2, "name": "Domain Agent Visual Rules (frontend/ios/android/macos/windows/qt-cpp updates)", "status": "in_progress", "startedAt": "2026-06-04T01:30:00Z", "completedAt": null, "reviewIterations": 0 },
-    { "phaseNumber": 3, "name": "Empirical Prototype Agent (prototype-runner + gate-prototype.sh + Stage 6.5)", "status": "pending", "startedAt": null, "completedAt": null, "reviewIterations": 0 },
+    { "phaseNumber": 2, "name": "Domain Agent Visual Rules (frontend/ios/android/macos/windows/qt-cpp updates)", "status": "complete", "startedAt": "2026-06-04T01:30:00Z", "completedAt": "2026-06-04T02:00:00Z", "reviewIterations": 0 },
+    { "phaseNumber": 3, "name": "Empirical Prototype Agent (prototype-runner + gate-prototype.sh + Stage 6.5)", "status": "in_progress", "startedAt": "2026-06-04T02:00:00Z", "completedAt": null, "reviewIterations": 0 },
     { "phaseNumber": 4, "name": "Pivot Protocol + Plan-vs-Actual Handoff Reconciliation", "status": "pending", "startedAt": null, "completedAt": null, "reviewIterations": 0 },
     { "phaseNumber": 5, "name": "Lessons Doc + super-dev Skill Checklist", "status": "pending", "startedAt": null, "completedAt": null, "reviewIterations": 0 }
   ],

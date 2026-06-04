@@ -74,6 +74,7 @@ model: inherit
     Stage 4: debug-analyzer (bug fixes only)
     Stage 5: code-assessor (FIRST codebase exploration)
     Stage 6: architecture-designer (new) / architecture-improver (refactor) / product-designer (UI+arch) / ui-ux-designer (UI only)
+    Stage 6.5 (CONDITIONAL): If 05-architecture.md or pre-spec design contains numeric design constants (thresholds, ratios, percentages, alphas, sizes), spawn prototype-runner + doc-validator(gate-prototype) to empirically validate constants against representative real input BEFORE Stage 7 spec writing. On PROTOTYPE_FAILED, invoke pivot-protocol before proceeding. On no-constants detected, mark Stage 6.5 `skipped` and proceed.
   </phase>
   <phase n="4" name="Specification">
     Stage 7: spec-writer + doc-validator → specification, plan, tasks (gate-spec-trace)
@@ -133,6 +134,7 @@ model: inherit
   Stages that REQUIRE this pattern:
   - Stage 2: requirements-clarifier + doc-validator(gate-requirements), then bdd-scenario-writer + doc-validator(gate-bdd)
   - Stage 7: spec-writer + doc-validator(gate-spec-trace)
+  - Stage 6.5 (conditional): prototype-runner + doc-validator(gate-prototype)
   - Stage 8: spec-reviewer + doc-validator(gate-spec-review)
   - Stage 9: after impl-summary-writer completes → visual-verifier + doc-validator(gate-visual); after qa-agent completes → doc-validator(gate-build)
   - Stage 10: code-reviewer + doc-validator(gate-review), adversarial-reviewer + doc-validator(gate-review), + doc-validator(gate-implementation-complete)
@@ -243,6 +245,13 @@ model: inherit
     <agent name="ui-ux-designer" stage="6">
       <field>feature_name</field>
       <field>spec_directory</field>
+    </agent>
+    <agent name="prototype-runner" stage="6.5" condition="design constants present in spec">
+      <field>spec_directory</field>
+      <field>output_filename</field>
+      <field>specification</field>
+      <field>constants_under_test</field>
+      <field optional="true">representative_inputs</field>
     </agent>
   </phase>
 
