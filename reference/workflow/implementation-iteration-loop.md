@@ -17,3 +17,18 @@ Loaded by: team-lead when Stage 10 code-reviewer verdict is not "Approved" OR ad
 7. **Re-review** — Spawn code-reviewer + adversarial-reviewer + doc-validators (parallel) again.
 8. **Exit criteria** — Loop exits when: code-reviewer returns "Approved" (zero findings of any severity) AND adversarial-reviewer returns PASS. **No partial approvals — ALL findings must be resolved.**
 9. **Cap** — Max 3 iterations per phase. After 3, escalate to user with findings.
+
+## Pivot branch (when iteration is the wrong tool)
+
+After iteration 2, if the same class of failure persists AND fixing it requires changing the spec's design (constants, algorithm, architecture) — NOT the implementation — switch to **pivot-protocol** instead of continuing iteration.
+
+**Trigger checklist (ALL must be true):**
+
+- Iteration ≥ 2 has failed.
+- Visual-verifier (Step 9.4) artifacts OR retroactive prototype-runner (Stage 6.5) output show the spec's expected outcome cannot be achieved with the spec's current design.
+- Code reviewer's findings note "implementation faithful to spec, but spec is wrong because X" (or equivalent).
+- Fix requires editing `05-architecture.md` / `06-specification.md`, not just `src/*`.
+
+When all four hold → invoke `reference/workflow/pivot-protocol.md` (skip continuing this loop). The pivot protocol pauses iteration, captures diagnostic artifacts, runs research-agent in pivot mode, requires user confirmation via AskUserQuestion, redrafts the spec with `-rN.md` suffix, banners the originals as historical, and resumes Stage 9 with the revised plan. See pivot-protocol.md for the full procedure.
+
+When the trigger checklist does NOT hold (i.e., bug is in implementation, not design) → continue with this loop.

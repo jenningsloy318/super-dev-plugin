@@ -127,10 +127,11 @@
     },
     "super-dev:handoff-writer": {
       "stage": "11",
-      "description": "Handoff (Stage 11, after docs-executor) requires specification directory with all artifacts",
+      "description": "Handoff (Stage 11, after docs-executor) requires specification directory with all artifacts. When implementationPhases > 1 OR iteration.loops > 0 OR pivot artifacts present, gate-handoff.sh enforces the AC Coverage Assessment section.",
       "previousStages": [10],
       "requires": ["[doc-index]-specification.md"],
-      "sections": {}
+      "sections": {},
+      "gate": "gate-handoff.sh"
     }
   }
 }

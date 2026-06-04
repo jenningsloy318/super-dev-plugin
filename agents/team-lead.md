@@ -53,7 +53,7 @@ model: inherit
     <constraint name="Per-Phase Commit">Before spawning Step 9.1 for each phase, capture `base_sha = HEAD`. After gate-build PASS, Team Lead commits ALL worktree changes (code + tests + implementation summary) with message format: `feat(<phase-name>): <short description>`. The post-commit HEAD becomes `base_sha` for the next phase. This gives impl-summary-writer and reviewers clean diffs per phase.</constraint>
     <constraint name="Iteration Rules">Stage 7/8: on rejection, spawn spec-writer + doc-validator — never edit specs directly. Stage 9/10: TDD per phase (tdd-guide → domain specialist → impl-summary-writer → visual-verifier → qa-agent → e2e-runner for Web/UI), then review. On rejection: STOP → extract findings → fix tests (tdd-guide) → fix code (domain specialist) → verify (qa-agent) → re-review. Never fix code directly. Max 3 iterations per loop, escalate to user after 3.</constraint>
     <constraint name="Implementation Completeness">Do NOT proceed Stage 10 → 11 until doc-validator (gate-implementation-complete) signals PASS. Spawn doc-validator with gate_profile=gate-implementation-complete after all phases complete — it verifies plan/tracking alignment. Partial implementation is a CRITICAL violation.</constraint>
-    <constraint name="Stage 11-13 Sequence">EXECUTE IN ORDER: Stage 11 (docs-executor → WAIT for signal → spawn doc-validator (gate-docs-drift) → WAIT for PASS → handoff-writer → WAIT) → Stage 12 (terminate all, build-cleaner, user confirmation) → Stage 13 (commit + merge). Each MUST complete before next begins. Skipping is a CRITICAL violation.</constraint>
+    <constraint name="Stage 11-13 Sequence">EXECUTE IN ORDER: Stage 11 (docs-executor → WAIT for signal → spawn doc-validator (gate-docs-drift) → WAIT for PASS → handoff-writer → WAIT → spawn doc-validator (gate-handoff, conditional) → WAIT for PASS) → Stage 12 (terminate all, build-cleaner, user confirmation) → Stage 13 (commit + merge). Each MUST complete before next begins. Skipping is a CRITICAL violation.</constraint>
   </constraint-group>
 
   <!-- ===== LIFECYCLE ===== -->
@@ -90,7 +90,7 @@ model: inherit
     On failure: Implementation Iteration Loop (max 3 per phase)
   </phase>
   <phase n="6" name="Finalization">
-    Stage 11: docs-executor → spawn doc-validator (gate-docs-drift) → WAIT for PASS → handoff-writer (skip handoff if single session)
+    Stage 11: docs-executor → spawn doc-validator (gate-docs-drift) → WAIT for PASS → handoff-writer → spawn doc-validator (gate-handoff, conditional) → WAIT for PASS (skip handoff if single session)
     Stage 12: terminate all, build-cleaner, user confirmation
     Stage 13: commit any remaining uncommitted changes (docs, handoff), merge worktree branch to main
   </phase>
@@ -138,7 +138,7 @@ model: inherit
   - Stage 8: spec-reviewer + doc-validator(gate-spec-review)
   - Stage 9: after impl-summary-writer completes → visual-verifier + doc-validator(gate-visual); after qa-agent completes → doc-validator(gate-build)
   - Stage 10: code-reviewer + doc-validator(gate-review), adversarial-reviewer + doc-validator(gate-review), + doc-validator(gate-implementation-complete)
-  - Stage 11: after docs-executor completes → doc-validator(gate-docs-drift)
+  - Stage 11: after docs-executor completes → doc-validator(gate-docs-drift); after handoff-writer completes → doc-validator(gate-handoff)
 
   If Team Lead spawns a writer WITHOUT its paired doc-validator, the gate will never be checked and the workflow will proceed with potentially invalid documents. This is a CRITICAL violation.
 </process>
