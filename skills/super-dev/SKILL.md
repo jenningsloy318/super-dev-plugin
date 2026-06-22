@@ -143,8 +143,8 @@ license: MIT
 </constraints>
 
 <rules>
-  <rule name="agent-team" mandatory="true">ALL work MUST use agent team. Create team via TeamCreate before spawning any agents, and persist the team name to `team.name` in the workflow tracking JSON.</rule>
-  <rule name="team-name-on-spawn" mandatory="true">EVERY Agent tool call MUST pass `team_name` (the value of `team.name` from the workflow tracking JSON). Spawning teammates as direct sub-agents — without `team_name` — is forbidden. If `team.name` is unset, complete Stage 1 setup before any spawn.</rule>
+  <rule name="agent-team-preflight" mandatory="true">Stage 1 MUST run `${PLUGIN_ROOT}/scripts/preflight-env.sh` before any Agent spawn. The script verifies `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` and Claude Code ≥ v2.1.178. Non-zero exit → ABORT, surface the script's remediation instructions to the user, do NOT spawn anything. As of v2.1.178 there is no `TeamCreate` step: the team is created automatically on the first Agent spawn once the env var is set.</rule>
+  <rule name="team-name-on-spawn">Pass `team_name` (matching `team.name` in the workflow tracking JSON) on every Agent spawn so teammates can address each other via `SendMessage`. As of v2.1.178 the harness derives the team name from the session if omitted, so a missing `team_name` is no longer fatal — but pairing every spawn with the same team_name keeps the audit trail consistent.</rule>
   <rule name="team-lead-delegation" mandatory="true">Team Lead NEVER implements directly. Only assigns tasks, spawns agents, coordinates, and verifies output.</rule>
   <ref>Generic dev rules (git-workflow, coding-style, testing, security, agents, patterns, performance, rust-project) live in `${PLUGIN_ROOT}/rules/*.md` and are loaded automatically.</ref>
 </rules>

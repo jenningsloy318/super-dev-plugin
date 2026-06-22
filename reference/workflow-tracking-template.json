@@ -204,10 +204,10 @@
 
   "team": {
     "$type": "object",
-    "$description": "Agent team metadata and communication log for the workflow session. MUST be populated at Stage 1 step 7 — every Agent tool spawn reads `team.name` and passes it as the `team_name` argument so teammates land inside the team (never as direct sub-agents).",
+    "$description": "Agent team metadata and communication log for the workflow session. Populated at Stage 1 step 7 for the audit trail. As of Claude Code v2.1.178 `TeamCreate`/`TeamDelete` have been removed: the harness creates the team automatically on the first Agent spawn and tears it down at session exit. Stage 1's `preflight-env.sh` must confirm `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` before any spawn; team_name on spawns enables `SendMessage` addressing but is no longer mandatory.",
     "name": {
       "$type": "string",
-      "$description": "Team name, always 'super-dev-[spec-name]' (each spec gets its own dedicated team). REQUIRED — set in Stage 1 step 6 via TeamCreate and persisted here in step 7. Team Lead MUST pass this value as `team_name` on every Agent spawn; an empty value is a Stage 1 setup failure and blocks all spawning.",
+      "$description": "Team name, conventionally 'super-dev-[spec-name]'. Recorded at Stage 1 step 7 for audit/log purposes. Passed as `team_name` on every Agent spawn for consistent `SendMessage` addressing. As of v2.1.178 this is informational — the harness derives a session-level team name if `team_name` is omitted, so a missing/empty value no longer blocks spawning.",
       "$example": "super-dev-add-auth-flow"
     },
     "teammates": {

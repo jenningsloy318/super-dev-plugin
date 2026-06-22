@@ -4,13 +4,14 @@ Loaded by: team-lead at Stage 1 entry.
 
 ## Steps
 
-1. **Spec Index** — Scan main repo's `specification/` for highest `[XX]` prefix. Next index = max + 1, zero-padded to 2 digits.
-2. **Spec Name** — Derive from user request, kebab-case lowercase (e.g., "add auth" → `add-auth`).
-3. **Spec Identifier** — `[spec-index]-[spec-name]` (e.g., `22-xml-restructure`). Used for worktree, branch, spec dir, and references.
-4. **Worktree** — `git worktree add .worktree/[spec-identifier] -b [spec-identifier]`. Then compute `WORKTREE_PATH="$(cd .worktree/[spec-identifier] && pwd)"` and store as the absolute path. **ALL subsequent operations MUST use this absolute path.**
-5. **Spec Directory** — `mkdir -p $WORKTREE_PATH/specification/[spec-identifier]`. Absolute path only.
-6. **Agent Team** — Create team `super-dev-[spec-name]` via TeamCreate. Persist name to workflow tracking JSON `team.name`.
-7. **Workflow JSON** — Create `[spec-identifier]-workflow-tracking.json` from `${PLUGIN_ROOT}/reference/workflow-tracking-template.json`.
+1. **Preflight** — Run `bash ${PLUGIN_ROOT}/scripts/preflight-env.sh`. The script verifies `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` and Claude Code ≥ v2.1.178. Non-zero exit → ABORT and surface the script's remediation message to the user. No Agent spawns until this passes.
+2. **Spec Index** — Scan main repo's `specification/` for highest `[XX]` prefix. Next index = max + 1, zero-padded to 2 digits.
+3. **Spec Name** — Derive from user request, kebab-case lowercase (e.g., "add auth" → `add-auth`).
+4. **Spec Identifier** — `[spec-index]-[spec-name]` (e.g., `22-xml-restructure`). Used for worktree, branch, spec dir, and references.
+5. **Worktree** — `git worktree add .worktree/[spec-identifier] -b [spec-identifier]`. Then compute `WORKTREE_PATH="$(cd .worktree/[spec-identifier] && pwd)"` and store as the absolute path. **ALL subsequent operations MUST use this absolute path.**
+6. **Spec Directory** — `mkdir -p $WORKTREE_PATH/specification/[spec-identifier]`. Absolute path only.
+7. **Team Name (informational)** — Compute the conventional name `super-dev-[spec-name]` and record it as `team.name` in the workflow tracking JSON for the audit trail. As of Claude Code v2.1.178 `TeamCreate` has been removed; the team is created automatically on the first Agent spawn, and the harness derives a session team name even if `team_name` is omitted from spawn args. Passing the recorded value on every spawn keeps the audit trail consistent and enables `SendMessage` addressing.
+8. **Workflow JSON** — Create `[spec-identifier]-workflow-tracking.json` from `${PLUGIN_ROOT}/reference/workflow-tracking-template.json`.
 
 ## Workflow JSON format (CRITICAL)
 
@@ -18,6 +19,6 @@ Loaded by: team-lead at Stage 1 entry.
 - `implementationPhases` MUST also be a JSON array.
 - Timestamps: ISO 8601 with seconds precision (e.g., `2026-05-04T14:30:25Z`).
 - Top-level field `worktreePath` MUST contain the absolute worktree path.
-- Top-level `team.name` MUST contain the team name from step 6.
+- Top-level `team.name` contains the team name from step 7 (informational; the harness owns the real value as of v2.1.178).
 
-Every subsequent agent spawn reads `team.name` from this field and passes it as `team_name`.
+Every subsequent agent spawn passes `team.name` as `team_name` for `SendMessage` addressing.
