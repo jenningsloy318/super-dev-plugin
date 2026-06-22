@@ -597,47 +597,64 @@ if (preflight.exit_code !== 0) {
 
 // Step 1.2 — Pull latest. Detect default branch first; never hard-code 'main'.
 log('Stage 1.2 pull-latest: fetching origin and fast-forwarding default branch');
+const RAW_SHELL_SCHEMA = {
+  type: 'object',
+  required: ['exit_code', 'stdout', 'stderr'],
+  additionalProperties: false,
+  properties: {
+    exit_code: { type: 'integer' },
+    stdout:    { type: 'string' },
+    stderr:    { type: 'string' },
+  },
+};
+
 const defaultBranchResult = await agent(
-  `Run this exactly and return ONLY the trimmed stdout (or the stderr if exit != 0):\n\n` +
+  `Run this shell snippet in a single Bash call and report the result. ` +
+  `Do NOT interpret success — report exactly what bash returns, even on non-zero exit:\n\n` +
   detectDefaultBranchSnippet(REPO_PATH) +
-  `\nReturn JSON: {"ok": bool, "branch": string, "error": string}.`,
+  `\nReturn JSON: {"exit_code": int, "stdout": string (trimmed), "stderr": string (verbatim)}.`,
   {
     label: 'detect-default-branch',
     phase: 'Stage 1 — Setup',
     agentType: 'general-purpose',
-    schema: {
-      type: 'object',
-      required: ['ok', 'branch'],
-      properties: { ok: { type: 'boolean' }, branch: { type: 'string' }, error: { type: 'string' } },
-    },
+    schema: RAW_SHELL_SCHEMA,
   },
 );
-if (!defaultBranchResult.ok) {
-  throw new Error(`Stage 1: cannot detect default branch — ${defaultBranchResult.error || 'unknown'}`);
+if (defaultBranchResult.exit_code !== 0) {
+  throw new Error(
+    `Stage 1: cannot detect default branch (exit ${defaultBranchResult.exit_code}).\n` +
+    `stdout: ${defaultBranchResult.stdout || '(empty)'}\n` +
+    `stderr: ${defaultBranchResult.stderr || '(empty)'}`
+  );
 }
-const DEFAULT_BRANCH = defaultBranchResult.branch;
+const DEFAULT_BRANCH = defaultBranchResult.stdout.trim();
+if (!DEFAULT_BRANCH) {
+  throw new Error(
+    `Stage 1: default-branch detection returned exit 0 but empty stdout.\n` +
+    `stderr: ${defaultBranchResult.stderr || '(empty)'}`
+  );
+}
 log(`Default branch resolved to: ${DEFAULT_BRANCH}`);
 
 const pullResult = await agent(
-  `Run this exactly. Report exit code and stderr verbatim — do NOT auto-rebase, force-pull, or stash:\n\n` +
+  `Run this shell snippet in a single Bash call and report the result. ` +
+  `Do NOT auto-rebase, force-pull, or stash. Do NOT interpret success — report ` +
+  `exactly what bash returns, even on non-zero exit:\n\n` +
   pullLatestSnippet(REPO_PATH, DEFAULT_BRANCH) +
-  `\nReturn JSON: {"ok": bool, "stderr": string}.`,
+  `\nReturn JSON: {"exit_code": int, "stdout": string (verbatim), "stderr": string (verbatim)}.`,
   {
     label: 'pull-latest',
     phase: 'Stage 1 — Setup',
     agentType: 'general-purpose',
-    schema: {
-      type: 'object',
-      required: ['ok'],
-      properties: { ok: { type: 'boolean' }, stderr: { type: 'string' } },
-    },
+    schema: RAW_SHELL_SCHEMA,
   },
 );
-if (!pullResult.ok) {
+if (pullResult.exit_code !== 0) {
   throw new Error(
-    `Stage 1: 'git pull --ff-only' failed on ${DEFAULT_BRANCH}. ` +
+    `Stage 1: 'git pull --ff-only' failed on ${DEFAULT_BRANCH} (exit ${pullResult.exit_code}). ` +
     `Resolve manually (divergence / dirty tree / detached HEAD) and retry.\n` +
-    `git stderr:\n${pullResult.stderr || '(empty)'}`
+    `stdout:\n${pullResult.stdout || '(empty)'}\n` +
+    `stderr:\n${pullResult.stderr || '(empty)'}`
   );
 }
 
@@ -2013,7 +2030,9 @@ printf '%s\\n' "\${ref#refs/remotes/origin/}"
 function pullLatestSnippet(repoPath, defaultBranch) {
   return `set -e
 cd ${shellQuote(repoPath)}
-git fetch origin --quiet
+# Fetch without --quiet so network errors surface verbatim in the captured
+# stderr. Same reason --quiet is dropped from checkout/pull below.
+git fetch origin
 if [ -n "$(git status --porcelain)" ]; then
   echo "ERROR: working tree has uncommitted changes — refusing to pull" >&2
   echo "Resolve manually: stash, commit, or discard before retrying." >&2
@@ -2023,7 +2042,10 @@ if ! git symbolic-ref -q HEAD >/dev/null; then
   echo "ERROR: HEAD is detached — checkout ${shellQuote(defaultBranch)} manually before retrying" >&2
   exit 2
 fi
-git checkout ${shellQuote(defaultBranch)} --quiet
+git checkout ${shellQuote(defaultBranch)}
+# --ff-only fails loudly on local divergence; the caller captures both
+# stdout and stderr from this shell so the rejection message reaches the
+# error path regardless of which channel git uses.
 git pull --ff-only origin ${shellQuote(defaultBranch)}
 `;
 }
