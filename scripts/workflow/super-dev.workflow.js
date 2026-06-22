@@ -1146,22 +1146,50 @@ const baseSpecInputs =
   (design ? `  - design: ${designDocList}\n` : '') +
   (prototype ? `  - prototype: ${prototype.doc_path}\n` : '');
 
-const spawnSpecWriter = (extraGuidance = '', iter = 1) => agent(
-  `${baseSpecInputs}\n` +
-  `Produce three documents:\n` +
-  `  1. ${shellQuote(SPEC_DIRECTORY + '/' + specName)}\n` +
-  `  2. ${shellQuote(SPEC_DIRECTORY + '/' + planName)} — implementation plan with phases\n` +
-  `  3. ${shellQuote(SPEC_DIRECTORY + '/' + tasksName)} — task list (DAG with phase numbers)\n` +
-  `Every AC from requirements and every BDD scenario MUST be traced into at least one phase. ` +
-  `Set phase_count to the number of phases in the plan; return SpecOutput.` +
-  (extraGuidance ? `\n\n--- Targeted revisions from prior review ---\n${extraGuidance}` : ''),
-  {
-    label: iter === 1 ? 'spec-writer' : `spec-writer:revise-${iter}`,
-    phase: 'Stage 7 — Specification',
-    agentType: 'super-dev:spec-writer',
-    schema: SPEC_OUTPUT,
-  },
-);
+const spawnSpecWriter = async (extraGuidance = '', iter = 1) => {
+  const result = await agent(
+    `${baseSpecInputs}\n` +
+    `Produce three documents:\n` +
+    `  1. ${shellQuote(SPEC_DIRECTORY + '/' + specName)}\n` +
+    `  2. ${shellQuote(SPEC_DIRECTORY + '/' + planName)} — implementation plan with phases\n` +
+    `  3. ${shellQuote(SPEC_DIRECTORY + '/' + tasksName)} — task list (DAG with phase numbers)\n` +
+    `Every AC from requirements and every BDD scenario MUST be traced into at least one phase. ` +
+    `Set phase_count to the number of phases in the plan; return SpecOutput.` +
+    (extraGuidance ? `\n\n--- Targeted revisions from prior review ---\n${extraGuidance}` : ''),
+    {
+      label: iter === 1 ? 'spec-writer' : `spec-writer:revise-${iter}`,
+      phase: 'Stage 7 — Specification',
+      agentType: 'super-dev:spec-writer',
+      schema: SPEC_OUTPUT,
+    },
+  );
+  // Pass through happy-path results untouched.
+  if (result && result.specification_path) return result;
+
+  // Disk-fallback path. Observed failure: spec-writer ran to completion
+  // (~70min), wrote all three docs, then the API connection dropped before
+  // the structured response reached the runtime — agent() returned null
+  // even though the artifacts were on disk. Synthesize SpecOutput from the
+  // existing files so the workflow doesn't lose the entire writer pass.
+  //
+  // Safety vs. Stage 8 spec-iteration revisions: when this runs during a
+  // revision pass, the on-disk files may be partially overwritten. That's
+  // OK — gate-spec-trace runs right after this and FAILs on inconsistent
+  // files, which triggers the Stage 8 loop to re-iterate. Recovery doesn't
+  // mask spec staleness; it only handles the "structured return lost in
+  // transit" case.
+  log(`Stage 7: spec-writer iter ${iter} returned ${result === null ? 'null' : 'incomplete object'} — attempting on-disk recovery`);
+  const recovered = await _recoverSpecFromDisk(SPEC_DIRECTORY, specName, planName, tasksName);
+  if (!recovered) {
+    throw new Error(
+      `Stage 7: spec-writer iter ${iter} returned no usable result and on-disk recovery failed. ` +
+      `Expected ${specName}, ${planName}, ${tasksName} in ${SPEC_DIRECTORY}. ` +
+      `If the writer was interrupted before writing any file, re-run the workflow.`
+    );
+  }
+  log(`Stage 7: recovered SpecOutput from disk (${recovered.phase_count} phases).`);
+  return recovered;
+};
 
 const spawnSpecTraceGate = () => agent(
   `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + specName)}, ${shellQuote(SPEC_DIRECTORY + '/' + planName)}, ` +
@@ -2123,6 +2151,65 @@ async function gatedPrototypeLoop(opts) {
  */
 async function gatedSpecTraceLoop(opts) {
   return _gatedLoop(opts);
+}
+
+// ----- Stage 7 disk recovery -------------------------------------------------
+//
+// Spec-writer occasionally completes its work (writes the three docs to
+// disk) but its structured return value is lost before reaching the
+// Workflow runtime — observed when the API connection drops in the gap
+// between final tool-call and the writer's response message. The Stage 7
+// closure inspects the return and, on null/incomplete, calls this helper
+// to synthesize SpecOutput from the on-disk artifacts so the workflow
+// doesn't burn 70+ minutes re-running the writer for files that already
+// exist.
+//
+// Implementation note: the Workflow runtime doesn't expose Node's fs to
+// script code (the script runs in an isolated environment), so the
+// existence + phase-count probe is delegated to a tiny general-purpose
+// subagent. The agent's only job is to check three files and count
+// "## Phase N:" headings in the plan — fast and cheap (~seconds).
+
+/**
+ * Probe disk for the three spec-writer outputs. Returns a SpecOutput-
+ * shaped object on success, null if any of the three files is missing.
+ * phase_count is parsed from "## Phase N:" headings in the plan; if no
+ * matches are found we fall back to 1 (the workflow body will surface a
+ * gate-spec-trace failure if the plan really has zero phases).
+ */
+async function _recoverSpecFromDisk(specDirectory, specName, planName, tasksName) {
+  const result = await agent(
+    `Read these three files from disk and report metadata. Do NOT modify them.\n` +
+    `  spec:  ${shellQuote(specDirectory + '/' + specName)}\n` +
+    `  plan:  ${shellQuote(specDirectory + '/' + planName)}\n` +
+    `  tasks: ${shellQuote(specDirectory + '/' + tasksName)}\n\n` +
+    `For each file, check if it exists with bytes > 0. If all three exist, ` +
+    `count the number of lines in the plan that match the regex ` +
+    `'^## Phase \\d+' (multiline, case-sensitive). Return JSON: ` +
+    `{"all_present": bool, "phase_count": int}. If any file is missing or ` +
+    `empty, set all_present=false and phase_count=0.`,
+    {
+      label: 'spec-disk-recovery',
+      phase: 'Stage 7 — Specification',
+      agentType: 'general-purpose',
+      schema: {
+        type: 'object',
+        required: ['all_present', 'phase_count'],
+        additionalProperties: false,
+        properties: {
+          all_present: { type: 'boolean' },
+          phase_count: { type: 'integer', minimum: 0 },
+        },
+      },
+    },
+  );
+  if (!result || !result.all_present) return null;
+  return {
+    specification_path: `${specDirectory}/${specName}`,
+    plan_path: `${specDirectory}/${planName}`,
+    tasks_path: `${specDirectory}/${tasksName}`,
+    phase_count: result.phase_count > 0 ? result.phase_count : 1,
+  };
 }
 
 // ----- Git shell-snippet helpers ---------------------------------------------
