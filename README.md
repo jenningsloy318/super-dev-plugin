@@ -108,9 +108,7 @@ The Workflow script at `scripts/workflow/super-dev.workflow.js` is the source of
 
 ```
 scripts/workflow/
-├── super-dev.workflow.js   # 13-stage orchestration body
-├── lib/
-│   └── git-helpers.js      # default-branch detection, ff-only pull, worktree, per-phase + merge commits
+├── super-dev.workflow.js   # 13-stage orchestration body + inlined git helpers
 ├── schemas/                # JSON Schema for every agent's structured return
 │   ├── gate-verdict.json
 │   ├── requirements-output.json
@@ -134,6 +132,8 @@ scripts/workflow/
 │   └── cleanup-output.json
 └── README.md
 ```
+
+The Workflow runtime requires `export const meta` to be the FIRST statement and forbids `import` declarations, so the git-helper Bash snippets and `shellQuote` are inlined as plain function declarations at the bottom of `super-dev.workflow.js` (hoisted within the module).
 
 Key properties:
 

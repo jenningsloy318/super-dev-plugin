@@ -35,14 +35,16 @@
 //
 // The script is meant to be invoked by Claude Code's Workflow runtime via
 // the super-dev:super-dev skill. Do NOT `node` it directly.
-
-import { detectDefaultBranchSnippet, pullLatestSnippet, worktreeAddSnippet,
-         captureHeadSnippet, commitPhaseSnippet, commitTrailingSnippet,
-         mergeSpecBranchSnippet }
-  from './lib/git-helpers.js';
+//
+// IMPORTANT: per the Workflow runtime contract, `export const meta` MUST
+// be the first statement in the file. Imports are NOT permitted before
+// it. All helpers (git snippets, shellQuote) are defined as `function`
+// declarations at the bottom — they hoist within the module so the body
+// can call them even though they appear after the call sites.
 
 // ---------------------------------------------------------------------------
-// meta — pure literal as required by the Workflow runtime.
+// meta — pure literal as required by the Workflow runtime. MUST be the
+// first statement in the file.
 // ---------------------------------------------------------------------------
 export const meta = {
   name: 'super-dev',
@@ -1980,8 +1982,124 @@ return {
 };
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Helpers — inlined here because the Workflow runtime forbids `import`
+// before `export const meta`. Function declarations hoist within the
+// runtime's implicit async wrapper, so call sites earlier in the file
+// resolve correctly even though the definitions appear below.
+//
+// Each *Snippet function returns a Bash-ready string; the workflow body
+// passes it to a tiny `general-purpose` subagent via agent() so the
+// command output is auditable in the run journal.
 // ---------------------------------------------------------------------------
+
+/** Detect the repo's default branch from origin/HEAD (never hard-codes `main`). */
+function detectDefaultBranchSnippet(repoPath) {
+  return `set -e
+cd ${shellQuote(repoPath)}
+ref="$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null || true)"
+if [ -z "$ref" ]; then
+  git fetch origin --quiet
+  ref="$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null || true)"
+fi
+if [ -z "$ref" ]; then
+  echo "ERROR: cannot detect default branch (origin/HEAD missing)" >&2
+  exit 2
+fi
+printf '%s\\n' "\${ref#refs/remotes/origin/}"
+`;
+}
+
+/** Fetch + fast-forward the default branch. Aborts on divergence/dirty/detached. */
+function pullLatestSnippet(repoPath, defaultBranch) {
+  return `set -e
+cd ${shellQuote(repoPath)}
+git fetch origin --quiet
+if [ -n "$(git status --porcelain)" ]; then
+  echo "ERROR: working tree has uncommitted changes — refusing to pull" >&2
+  echo "Resolve manually: stash, commit, or discard before retrying." >&2
+  exit 2
+fi
+if ! git symbolic-ref -q HEAD >/dev/null; then
+  echo "ERROR: HEAD is detached — checkout ${shellQuote(defaultBranch)} manually before retrying" >&2
+  exit 2
+fi
+git checkout ${shellQuote(defaultBranch)} --quiet
+git pull --ff-only origin ${shellQuote(defaultBranch)}
+`;
+}
+
+/** Create the spec worktree and emit the absolute path on stdout. */
+function worktreeAddSnippet(repoPath, specIdentifier) {
+  return `set -e
+cd ${shellQuote(repoPath)}
+git worktree add ${shellQuote('.worktree/' + specIdentifier)} -b ${shellQuote(specIdentifier)}
+cd ${shellQuote('.worktree/' + specIdentifier)}
+pwd
+`;
+}
+
+/** Capture HEAD inside a worktree. Used as per-phase base_sha. */
+function captureHeadSnippet(worktreePath) {
+  return `set -e
+cd ${shellQuote(worktreePath)}
+git rev-parse HEAD
+`;
+}
+
+/**
+ * Commit all changes in a worktree under a Conventional-Commits message,
+ * then emit the new HEAD SHA on stdout. Skips cleanly with the prior HEAD
+ * when there is nothing to commit (e.g. tdd-guide only updated specs that
+ * were already staged, or specialist made no source changes). This keeps
+ * base_sha advancing without empty commits.
+ */
+function commitPhaseSnippet(worktreePath, message) {
+  return `set -e
+cd ${shellQuote(worktreePath)}
+git add -A
+if git diff --cached --quiet; then
+  echo "skip-commit:no-staged-changes" >&2
+  git rev-parse HEAD
+else
+  git commit -m ${shellQuote(message)} --quiet
+  git rev-parse HEAD
+fi
+`;
+}
+
+/** Alias of commitPhaseSnippet; used at Stage 13 to capture trailing docs/handoff. */
+function commitTrailingSnippet(worktreePath, message) {
+  return commitPhaseSnippet(worktreePath, message);
+}
+
+/**
+ * Merge the spec branch into the default branch in the MAIN repo (NOT
+ * inside the worktree). Sequence: fetch -> checkout <default> -> pull
+ * --ff-only -> merge --no-ff <spec-branch>. Refuses on dirty tree,
+ * detached HEAD, or non-fast-forward pull. Auto-rebase / force-merge /
+ * unilateral stash are forbidden — same discipline as Stage 1.
+ */
+function mergeSpecBranchSnippet(repoPath, defaultBranch, specBranch, message) {
+  return `set -e
+cd ${shellQuote(repoPath)}
+if [ -n "$(git status --porcelain)" ]; then
+  echo "ERROR: main repo working tree is dirty — refusing to merge" >&2
+  echo "Resolve manually (stash, commit, or discard) before retrying." >&2
+  exit 2
+fi
+if ! git symbolic-ref -q HEAD >/dev/null; then
+  echo "ERROR: main repo HEAD is detached — checkout ${shellQuote(defaultBranch)} manually" >&2
+  exit 2
+fi
+git fetch origin --quiet
+git checkout ${shellQuote(defaultBranch)} --quiet
+git pull --ff-only origin ${shellQuote(defaultBranch)}
+git merge --no-ff ${shellQuote(specBranch)} -m ${shellQuote(message)}
+git rev-parse HEAD
+`;
+}
+
+/** Single-quote a string for safe shell interpolation; escapes embedded single quotes. */
 function shellQuote(s) {
   return "'" + String(s).replace(/'/g, "'\\''") + "'";
 }

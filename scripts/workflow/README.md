@@ -8,8 +8,7 @@ as a Claude Code **Dynamic Workflow** script. See
 
 ```
 scripts/workflow/
-├── super-dev.workflow.js       # entry point: meta + 13-stage flow
-├── lib/                        # internal helpers (Stage 1 setup, git, etc.)
+├── super-dev.workflow.js       # entry point: meta + 13-stage flow + inlined helpers
 └── schemas/                    # JSON Schema for structured agent outputs
 ```
 
@@ -17,6 +16,11 @@ The workflow is invoked from the `super-dev:super-dev` skill via the harness's
 `Workflow` tool. It is NOT meant to be run with `node` directly — only the
 Claude Code Workflow runtime provides the `agent()`, `pipeline()`, `parallel()`
 globals it uses.
+
+The Workflow runtime requires `export const meta` to be the FIRST statement
+and forbids `import` declarations, so the git-helper Bash snippets and
+`shellQuote` live as plain function declarations at the bottom of
+`super-dev.workflow.js` (hoisted within the module).
 
 ## Compatibility
 
