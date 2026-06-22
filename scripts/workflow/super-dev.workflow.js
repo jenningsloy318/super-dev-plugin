@@ -1468,7 +1468,29 @@ for (const ph of phases) {
       `Inputs to read yourself: ${req.doc_path}, ${bdd.doc_path}, ${spec.specification_path}, ` +
       `${spec.plan_path}, ${spec.tasks_path}.\n` +
       `phase_scope: ${ph.number}.\n\n` +
-      `Run the build_command (${JSON.stringify(impl.build_command)}). Verify ALL phase tests ` +
+      // Install dependencies BEFORE running any test. The specialist may have
+      // added new dependencies in this phase, and a fresh worktree on a CI-
+      // like environment may have no node_modules / .venv / vendor at all.
+      // Without this step, the build_command commonly fails with
+      // 'command not found: pnpm' or 'module not found' on the first run.
+      `Step 1 — Install dependencies BEFORE any test execution. Detect the package manager(s) ` +
+      `from the worktree manifest files and run the appropriate install command(s) idempotently:\n` +
+      `  - Cargo.toml          -> (no install step; cargo fetches on first test run)\n` +
+      `  - package.json + pnpm-lock.yaml      -> pnpm install --frozen-lockfile\n` +
+      `  - package.json + yarn.lock           -> yarn install --frozen-lockfile\n` +
+      `  - package.json + package-lock.json   -> npm ci\n` +
+      `  - package.json (no lockfile)          -> npm install\n` +
+      `  - go.mod              -> go mod download\n` +
+      `  - Pipfile             -> pipenv install --deploy\n` +
+      `  - poetry.lock         -> poetry install --no-interaction\n` +
+      `  - requirements.txt    -> pip install -r requirements.txt\n` +
+      `  - Gemfile             -> bundle install\n` +
+      `  - composer.json       -> composer install --no-interaction\n` +
+      `  - mix.exs             -> mix deps.get\n` +
+      `Polyglot projects: run each detected install in dependency-graph order ` +
+      `(backend deps before frontend tests, etc). Report install failures verbatim in the QA ` +
+      `report 'summary' field and set all_green=false — never paper over a broken install.\n\n` +
+      `Step 2 — Run the build_command (${JSON.stringify(impl.build_command)}). Verify ALL phase tests ` +
       `pass and coverage thresholds hold (overall 80%+, new 90%+). Map every test back to ` +
       `an AC-ID/SCENARIO-ID. Report uncovered scenarios honestly — a green build with gaps ` +
       `is worse than a red build with full coverage intent.`,
@@ -1484,9 +1506,23 @@ for (const ph of phases) {
     if (IS_WEB_UI) {
       e2e = await agent(
         `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
-        `phase_number: ${ph.number}. Run E2E tests against the implementation. ` +
-        `Cover all UI scenarios for this phase across the project's configured browsers. ` +
-        `Verify performance and accessibility budgets.`,
+        `phase_number: ${ph.number}.\n\n` +
+        // E2E suites typically need BOTH the app's runtime deps AND a browser-
+        // driver toolchain (Playwright, Cypress, etc.). Browser-driver installs
+        // are slow (~30-90s for Playwright chromium+webkit+firefox), so they
+        // must be deterministic — skip silently if the install was already done.
+        `Step 1 — Install dependencies BEFORE any E2E test. Detect package manager(s) the same ` +
+        `way qa-agent does (pnpm-lock.yaml -> pnpm install --frozen-lockfile; yarn.lock -> ` +
+        `yarn install --frozen-lockfile; package-lock.json -> npm ci; no lockfile -> npm install).\n` +
+        `Then install browser drivers if the project uses one:\n` +
+        `  - @playwright/test in package.json -> pnpm exec playwright install --with-deps\n` +
+        `    (or 'yarn exec' / 'npx' depending on the package manager)\n` +
+        `  - cypress in package.json          -> pnpm exec cypress install\n` +
+        `  - webdriverio in package.json      -> already bundled with the runner; no extra step\n` +
+        `Driver install commands are idempotent — they no-op when the binaries are cached.\n\n` +
+        `Step 2 — Run E2E tests against the implementation. Cover all UI scenarios for this ` +
+        `phase across the project's configured browsers. Verify performance and accessibility ` +
+        `budgets. Report install failures verbatim and set all_green=false.`,
         {
           label: `phase-${ph.number}:e2e:${phaseIter}`,
           phase: 'Stage 9 — Implementation',
@@ -1812,9 +1848,19 @@ while (reviewIter < MAX_REVIEW_ITERS) {
   await agent(
     `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
     `Inputs to read yourself: ${req.doc_path}, ${bdd.doc_path}, ${spec.specification_path}, ` +
-    `${spec.plan_path}, ${spec.tasks_path}.\n` +
-    `Run the build command and verify ALL tests pass with coverage thresholds met after the ` +
-    `Stage 10 iteration fixes. Map every test back to AC-ID/SCENARIO-ID.`,
+    `${spec.plan_path}, ${spec.tasks_path}.\n\n` +
+    // Same dependency-install discipline as the Stage 9.5 qa-agent prompt:
+    // the Stage 10 fix specialist may have changed the dependency graph
+    // (added libs to fix findings), so the install step must re-run before
+    // tests. Idempotent — no-ops when nothing changed.
+    `Step 1 — Install dependencies BEFORE any test. Detect package manager from manifest ` +
+    `(pnpm-lock.yaml -> pnpm install --frozen-lockfile; yarn.lock -> yarn install --frozen-lockfile; ` +
+    `package-lock.json -> npm ci; go.mod -> go mod download; Pipfile -> pipenv install --deploy; ` +
+    `poetry.lock -> poetry install --no-interaction; requirements.txt -> pip install -r; ` +
+    `Gemfile -> bundle install; composer.json -> composer install --no-interaction). Polyglot ` +
+    `projects run each install in dependency-graph order. Report install failures verbatim.\n\n` +
+    `Step 2 — Run the build command and verify ALL tests pass with coverage thresholds met after ` +
+    `the Stage 10 iteration fixes. Map every test back to AC-ID/SCENARIO-ID.`,
     {
       label: `qa-agent:fix:${reviewIter}`,
       phase: 'Stage 10 — Code Review',
