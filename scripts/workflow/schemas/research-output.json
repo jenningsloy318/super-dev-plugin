@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "super-dev/schemas/research-output.json",
+  "title": "ResearchOutput",
+  "description": "Structured return from research-agent (and deep-research iterations).",
+  "type": "object",
+  "required": ["doc_path", "options"],
+  "additionalProperties": false,
+  "properties": {
+    "doc_path": {
+      "type": "string",
+      "description": "Absolute path to the produced research-report.md (or deep-research-report-N.md)."
+    },
+    "options": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 5,
+      "description": "Top 3-5 design options the user should choose between.",
+      "items": {
+        "type": "object",
+        "required": ["name", "summary", "pros", "cons"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "summary": { "type": "string" },
+          "pros": { "type": "array", "items": { "type": "string" } },
+          "cons": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "open_issues": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Issues, flaws, or ambiguities that warrant another deep-research pass. Empty when settled."
+    },
+    "iteration": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "1 for the initial pass; 2, 3, ... for deep-research iterations."
+    }
+  }
+}

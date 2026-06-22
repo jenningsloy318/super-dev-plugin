@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "super-dev/schemas/gate-verdict.json",
+  "title": "GateVerdict",
+  "description": "Structured return from doc-validator agent when it runs a gate script.",
+  "type": "object",
+  "required": ["pass", "gate"],
+  "additionalProperties": false,
+  "properties": {
+    "pass": {
+      "type": "boolean",
+      "description": "True iff the gate script exited 0."
+    },
+    "gate": {
+      "type": "string",
+      "description": "Name of the gate that ran (e.g. 'gate-requirements')."
+    },
+    "errors": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Verbatim error lines from the gate script. Empty when pass==true."
+    },
+    "stdout_tail": {
+      "type": "string",
+      "description": "Last ~40 lines of gate-script stdout for diagnostic context. May be empty."
+    }
+  }
+}

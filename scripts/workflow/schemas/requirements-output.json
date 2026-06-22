@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "super-dev/schemas/requirements-output.json",
+  "title": "RequirementsOutput",
+  "description": "Structured return from requirements-clarifier agent.",
+  "type": "object",
+  "required": ["doc_path", "feature_name", "ac_count"],
+  "additionalProperties": false,
+  "properties": {
+    "doc_path": {
+      "type": "string",
+      "description": "Absolute path to the produced requirements.md (e.g. .../specification/22-add-auth/01-requirements.md)."
+    },
+    "feature_name": {
+      "type": "string",
+      "description": "Canonical feature name in kebab-case (e.g. 'add-auth')."
+    },
+    "ac_count": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of acceptance criteria captured in the document."
+    },
+    "open_questions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Questions the user must answer before the spec can proceed. Empty when ready."
+    },
+    "summary": {
+      "type": "string",
+      "description": "One-paragraph human-readable summary of what was captured."
+    }
+  }
+}

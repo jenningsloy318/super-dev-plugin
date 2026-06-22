@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "super-dev/schemas/bdd-output.json",
+  "title": "BddOutput",
+  "description": "Structured return from bdd-scenario-writer agent.",
+  "type": "object",
+  "required": ["doc_path", "scenario_count"],
+  "additionalProperties": false,
+  "properties": {
+    "doc_path": {
+      "type": "string",
+      "description": "Absolute path to the produced bdd-scenarios.md (e.g. .../02-bdd-scenarios.md)."
+    },
+    "scenario_count": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of Given/When/Then scenarios captured."
+    },
+    "edge_cases_covered": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Count of edge-case scenarios (out of scenario_count)."
+    },
+    "coverage_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Self-assessed coverage of requirements ACs (0.0 to 1.0)."
+    },
+    "summary": {
+      "type": "string",
+      "description": "One-paragraph human-readable summary."
+    }
+  }
+}
