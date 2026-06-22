@@ -525,7 +525,14 @@ const CLEANUP_OUTPUT = {
 //                                  declares numeric constants. Required for
 //                                  any feature with empirical constants;
 //                                  without them Stage 6.5 fails closed.
-//     max_spec_iters: integer,  // Stage 8 iteration cap (default 3)
+//     max_req_iters:       integer, // Stage 2A gate-requirements format-fix loop cap (default 3)
+//     max_bdd_iters:       integer, // Stage 2B gate-bdd format-fix loop cap (default 3)
+//     max_prototype_iters: integer, // Stage 6.5 gate-prototype format-fix loop cap (default 3)
+//                                   //   NOTE: PROTOTYPE_FAILED (empirical failure) still
+//                                   //   throws PIVOT_REQUIRED immediately — the loop only
+//                                   //   covers gate-script format/structure failures.
+//     max_spec_trace_iters: integer,// Stage 7 gate-spec-trace format-fix loop cap (default 3)
+//     max_spec_iters:      integer, // Stage 8 spec-review iteration cap (default 3)
 //     language:       'rust' | 'go' | 'frontend' | 'backend' | 'ios' |
 //                     'android' | 'macos' | 'windows' | 'mixed'  (default 'mixed')
 //                       Routes the Stage 9.2 domain specialist. 'mixed'
@@ -554,6 +561,10 @@ const UI_SCOPE    = args?.ui_scope ?? 'none';
 const BUG_EVIDENCE = args?.bug_evidence ?? '';
 const INPUT_SAMPLES = Array.isArray(args?.input_samples) ? args.input_samples : [];
 const MAX_SPEC_ITERS = Number.isInteger(args?.max_spec_iters) ? args.max_spec_iters : 3;
+const MAX_REQ_ITERS = Number.isInteger(args?.max_req_iters) ? args.max_req_iters : 3;
+const MAX_BDD_ITERS = Number.isInteger(args?.max_bdd_iters) ? args.max_bdd_iters : 3;
+const MAX_PROTOTYPE_ITERS = Number.isInteger(args?.max_prototype_iters) ? args.max_prototype_iters : 3;
+const MAX_SPEC_TRACE_ITERS = Number.isInteger(args?.max_spec_trace_iters) ? args.max_spec_trace_iters : 3;
 const LANGUAGE   = args?.language ?? 'mixed';
 const IS_WEB_UI  = Boolean(args?.is_web_ui ?? (UI_SCOPE !== 'none'));
 const MAX_PHASE_ITERS = Number.isInteger(args?.max_phase_iters) ? args.max_phase_iters : 3;
@@ -750,23 +761,26 @@ const docName = (suffix) => {
 // ---------------------------------------------------------------------------
 phase('Stage 2 — Requirements + BDD');
 
-// 2A — Requirements + gate-requirements
-log('Stage 2A: requirements-clarifier + doc-validator (gate-requirements) in parallel');
+// 2A — Requirements + gate-requirements (with format-fix loop)
 const requirementsName = docName('requirements.md');
-const [req, reqVerdict] = await parallel([
-  () => agent(
+const reqLoop = await gatedStage2WriterLoop({
+  stage: 'Stage 2A',
+  gateName: 'gate-requirements',
+  writerLabel: 'requirements-clarifier',
+  maxIters: MAX_REQ_ITERS,
+  spawnWriter: (iter, guidance) => agent(
     `User request: ${JSON.stringify(REQUEST)}\n\n` +
     `Write the requirements document to ${shellQuote(SPEC_DIRECTORY + '/' + requirementsName)}. ` +
     `Capture acceptance criteria, scope, non-goals, constraints, and open questions. ` +
-    `Worktree: ${WORKTREE_PATH}. Plugin root: ${PLUGIN_ROOT}.`,
+    `Worktree: ${WORKTREE_PATH}. Plugin root: ${PLUGIN_ROOT}.` + guidance,
     {
-      label: 'requirements-clarifier',
+      label: `requirements-clarifier:${iter}`,
       phase: 'Stage 2 — Requirements + BDD',
       agentType: 'super-dev:requirements-clarifier',
       schema: REQUIREMENTS_OUTPUT,
     },
   ),
-  () => agent(
+  spawnGate: () => agent(
     `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + requirementsName)} to appear, then run ` +
     `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-requirements.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + requirementsName)}. ` +
     `Return the gate verdict.`,
@@ -777,28 +791,29 @@ const [req, reqVerdict] = await parallel([
       schema: GATE_VERDICT,
     },
   ),
-]);
-if (!reqVerdict?.pass) {
-  throw new Error(`Stage 2A gate-requirements failed: ${(reqVerdict?.errors || []).join('; ')}`);
-}
-log(`Requirements: ${req.ac_count} ACs captured.`);
+});
+const req = reqLoop.writer;
+log(`Requirements: ${req.ac_count} ACs captured (${reqLoop.iterations} iteration${reqLoop.iterations === 1 ? '' : 's'}).`);
 
-// 2B — BDD scenarios + gate-bdd
-log('Stage 2B: bdd-scenario-writer + doc-validator (gate-bdd) in parallel');
+// 2B — BDD scenarios + gate-bdd (with format-fix loop)
 const bddName = docName('bdd-scenarios.md');
-const [bdd, bddVerdict] = await parallel([
-  () => agent(
+const bddLoop = await gatedStage2WriterLoop({
+  stage: 'Stage 2B',
+  gateName: 'gate-bdd',
+  writerLabel: 'bdd-scenario-writer',
+  maxIters: MAX_BDD_ITERS,
+  spawnWriter: (iter, guidance) => agent(
     `Read ${shellQuote(req.doc_path)} from the spec directory. Produce BDD Given/When/Then scenarios at ` +
     `${shellQuote(SPEC_DIRECTORY + '/' + bddName)} covering every acceptance criterion. ` +
-    `Feature name: ${req.feature_name}. Worktree: ${WORKTREE_PATH}.`,
+    `Feature name: ${req.feature_name}. Worktree: ${WORKTREE_PATH}.` + guidance,
     {
-      label: 'bdd-scenario-writer',
+      label: `bdd-scenario-writer:${iter}`,
       phase: 'Stage 2 — Requirements + BDD',
       agentType: 'super-dev:bdd-scenario-writer',
       schema: BDD_OUTPUT,
     },
   ),
-  () => agent(
+  spawnGate: () => agent(
     `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + bddName)} to appear, then run ` +
     `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-bdd.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + bddName)}. ` +
     `Return the gate verdict.`,
@@ -809,11 +824,9 @@ const [bdd, bddVerdict] = await parallel([
       schema: GATE_VERDICT,
     },
   ),
-]);
-if (!bddVerdict?.pass) {
-  throw new Error(`Stage 2B gate-bdd failed: ${(bddVerdict?.errors || []).join('; ')}`);
-}
-log(`BDD: ${bdd.scenario_count} scenarios (coverage ${Math.round((bdd.coverage_score ?? 0) * 100)}%).`);
+});
+const bdd = bddLoop.writer;
+log(`BDD: ${bdd.scenario_count} scenarios (coverage ${Math.round((bdd.coverage_score ?? 0) * 100)}%, ${bddLoop.iterations} iteration${bddLoop.iterations === 1 ? '' : 's'}).`);
 
 // ---------------------------------------------------------------------------
 // Stage 3 — Research
@@ -1024,9 +1037,13 @@ if (designerType) {
 // Stage 6.5 — Prototype (CONDITIONAL)
 //   Fires only when Stage 6 declared numeric design constants. Validates
 //   them against representative real input samples BEFORE Stage 7 writes
-//   the spec. On PROTOTYPE_FAILED, throws — the orchestrating skill must
-//   invoke pivot-protocol with the failing constants and re-run from
-//   Stage 6 with revised design before continuing.
+//   the spec. The format-fix loop (gatedPrototypeLoop) re-spawns prototype-
+//   runner up to MAX_PROTOTYPE_ITERS times on gate-prototype format failures
+//   (missing heading sections, etc). PROTOTYPE_FAILED — the empirical
+//   verdict that the constants themselves are wrong — short-circuits the
+//   loop on the first occurrence: re-running won't change physics, the
+//   caller must invoke pivot-protocol and re-run Stage 6 with corrected
+//   constants.
 // ---------------------------------------------------------------------------
 phase('Stage 6.5 — Prototype');
 
@@ -1046,8 +1063,13 @@ if (!needPrototype) {
   const protoName = docName('prototype-report.md');
   const designDoc = (design.docs.find(d => d.kind === 'architecture')?.path)
     ?? design.docs[0].path;
-  const [proto, protoVerdict] = await parallel([
-    () => agent(
+
+  const protoLoop = await gatedPrototypeLoop({
+    stage: 'Stage 6.5',
+    gateName: 'gate-prototype',
+    writerLabel: 'prototype-runner',
+    maxIters: MAX_PROTOTYPE_ITERS,
+    spawnWriter: (iter, guidance) => agent(
       `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
       `Design document: ${designDoc}\n` +
       `Input samples (JSON): ${JSON.stringify(INPUT_SAMPLES)}\n\n` +
@@ -1056,19 +1078,25 @@ if (!needPrototype) {
       `against the supplied samples. Measure the actual value(s) achieved. Compare to the ` +
       `spec value within the tolerance declared in the design (or 10% if unspecified). ` +
       `Write ${shellQuote(SPEC_DIRECTORY + '/' + protoName)} with a table of ` +
-      `name | spec | measured | tolerance | within? per constant. Set verdict='PROTOTYPE_OK' ` +
-      `iff every constant is within tolerance, otherwise 'PROTOTYPE_FAILED' and list the ` +
-      `failing constants by name.`,
+      `name | spec | measured | tolerance | within? per constant. ` +
+      // Gate-prototype regex requires literal phrasing — bake it in to reduce loop iterations.
+      `Required document structure: heading "## Constants Under Test" (or include the phrase ` +
+      `"Constants Under Test" in a subheading), heading "## Measurement Results", heading ` +
+      `"## Verdict" with overall PASS/FAIL, heading "## Recommendation" (proceed / caveats / ` +
+      `pivot), and a reference to the prototype source directory under "prototype/". ` +
+      `Set verdict='PROTOTYPE_OK' iff every constant is within tolerance, otherwise ` +
+      `'PROTOTYPE_FAILED' and list failing_constants by name; FAIL verdict must mention ` +
+      `pivot-protocol in the Recommendation section.` + guidance,
       {
-        label: 'prototype-runner',
+        label: `prototype-runner:${iter}`,
         phase: 'Stage 6.5 — Prototype',
         agentType: 'super-dev:prototype-runner',
         schema: PROTOTYPE_OUTPUT,
       },
     ),
-    () => agent(
+    spawnGate: () => agent(
       `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + protoName)} to appear, then run ` +
-      `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-prototype.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + protoName)}. ` +
+      `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-prototype.sh')} ${shellQuote(SPEC_DIRECTORY)}. ` +
       `Return the gate verdict.`,
       {
         label: 'doc-validator:gate-prototype',
@@ -1077,20 +1105,21 @@ if (!needPrototype) {
         schema: GATE_VERDICT,
       },
     ),
-  ]);
-  if (!protoVerdict?.pass) {
-    throw new Error(`Stage 6.5 gate-prototype failed: ${(protoVerdict?.errors || []).join('; ')}`);
-  }
-  if (proto.verdict === 'PROTOTYPE_FAILED') {
+  });
+
+  // PROTOTYPE_FAILED short-circuit (empirical, not format): throw with the
+  // stage-specific pivot message; the gate may have already passed, but the
+  // measurement itself contradicts the design.
+  if (protoLoop.pivot) {
     throw new Error(
-      `Stage 6.5: prototype empirically failed for constants ${JSON.stringify(proto.failing_constants)}. ` +
+      `Stage 6.5: prototype empirically failed for constants ${JSON.stringify(protoLoop.writer.failing_constants)}. ` +
       `The spec design is built on wrong numbers — invoke pivot-protocol with these constants ` +
       `and re-run the workflow from Stage 6 (Design) with corrected values. ` +
-      `Prototype report: ${proto.doc_path}`
+      `Prototype report: ${protoLoop.writer.doc_path}`
     );
   }
-  prototype = proto;
-  log(`Stage 6.5 complete: ${proto.constants_tested.length} constants validated within tolerance.`);
+  prototype = protoLoop.writer;
+  log(`Stage 6.5 complete: ${prototype.constants_tested.length} constants validated within tolerance (${protoLoop.iterations} iteration${protoLoop.iterations === 1 ? '' : 's'}).`);
 }
 
 // ---------------------------------------------------------------------------
@@ -1117,7 +1146,7 @@ const baseSpecInputs =
   (design ? `  - design: ${designDocList}\n` : '') +
   (prototype ? `  - prototype: ${prototype.doc_path}\n` : '');
 
-const spawnSpecWriter = (extraGuidance = '') => agent(
+const spawnSpecWriter = (extraGuidance = '', iter = 1) => agent(
   `${baseSpecInputs}\n` +
   `Produce three documents:\n` +
   `  1. ${shellQuote(SPEC_DIRECTORY + '/' + specName)}\n` +
@@ -1127,16 +1156,14 @@ const spawnSpecWriter = (extraGuidance = '') => agent(
   `Set phase_count to the number of phases in the plan; return SpecOutput.` +
   (extraGuidance ? `\n\n--- Targeted revisions from prior review ---\n${extraGuidance}` : ''),
   {
-    label: 'spec-writer',
+    label: iter === 1 ? 'spec-writer' : `spec-writer:revise-${iter}`,
     phase: 'Stage 7 — Specification',
     agentType: 'super-dev:spec-writer',
     schema: SPEC_OUTPUT,
   },
 );
 
-let spec = await spawnSpecWriter();
-
-const specTraceVerdict = await agent(
+const spawnSpecTraceGate = () => agent(
   `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + specName)}, ${shellQuote(SPEC_DIRECTORY + '/' + planName)}, ` +
   `and ${shellQuote(SPEC_DIRECTORY + '/' + tasksName)} to appear, then run ` +
   `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-spec-trace.sh')} ${shellQuote(SPEC_DIRECTORY)}. ` +
@@ -1148,10 +1175,17 @@ const specTraceVerdict = await agent(
     schema: GATE_VERDICT,
   },
 );
-if (!specTraceVerdict?.pass) {
-  throw new Error(`Stage 7 gate-spec-trace failed: ${(specTraceVerdict?.errors || []).join('; ')}`);
-}
-log(`Stage 7 complete: spec + plan (${spec.phase_count} phases) + tasks; spec-trace gate PASS.`);
+
+const specTraceLoop = await gatedSpecTraceLoop({
+  stage: 'Stage 7',
+  gateName: 'gate-spec-trace',
+  writerLabel: 'spec-writer',
+  maxIters: MAX_SPEC_TRACE_ITERS,
+  spawnWriter: (iter, guidance) => spawnSpecWriter(guidance, iter),
+  spawnGate: spawnSpecTraceGate,
+});
+let spec = specTraceLoop.writer;
+log(`Stage 7 complete: spec + plan (${spec.phase_count} phases) + tasks; spec-trace gate PASS (${specTraceLoop.iterations} iteration${specTraceLoop.iterations === 1 ? '' : 's'}).`);
 
 // ---------------------------------------------------------------------------
 // Stage 8 — Spec Review (with iteration loop, max MAX_SPEC_ITERS)
@@ -1242,7 +1276,7 @@ while (specIter < MAX_SPEC_ITERS) {
     .map(f => `- [${f.severity}] ${f.section}: ${f.issue}` +
               (f.recommendation ? `\n    Fix: ${f.recommendation}` : ''))
     .join('\n');
-  spec = await spawnSpecWriter(guidance);
+  spec = await spawnSpecWriter(guidance, 1 + specIter);
 
   // Re-validate trace gate after the rewrite.
   const reTrace = await agent(
@@ -2009,6 +2043,89 @@ return {
 // passes it to a tiny `general-purpose` subagent via agent() so the
 // command output is auditable in the run journal.
 // ---------------------------------------------------------------------------
+
+// ----- Gated writer fix-loops -------------------------------------------------
+//
+// Three helpers — one per gate-family — give Stages 2A/2B, 6.5, and 7 the
+// same format-fix recovery the Stage 8 spec-review loop already has. Pattern:
+// writer + doc-validator(gate) in parallel(); on gate FAIL, compose the gate's
+// errors as targeted guidance, re-spawn the writer, re-run the gate, cap at
+// max iterations. Each helper is named after the gate family it serves so
+// its call site reads as a direct verb.
+//
+// All three share the same underlying shape; they differ only in:
+//   - which writer agent the loop re-spawns
+//   - whether the writer's structured return can short-circuit the loop
+//     (Stage 6.5's PROTOTYPE_FAILED is empirical, can't be format-fixed)
+//   - what the gate inspects (single file vs. spec directory)
+//
+// A single `_gatedLoop` private routine implements the shared mechanics so
+// each named helper stays a thin, readable wrapper.
+
+async function _gatedLoop({ stage, gateName, writerLabel, maxIters, isPivotFailure, spawnWriter, spawnGate }) {
+  let iter = 0;
+  let writer = null;
+  let verdict = null;
+  while (iter < maxIters) {
+    iter += 1;
+    log(`${stage}: ${writerLabel} + doc-validator(${gateName}) — iteration ${iter}/${maxIters}`);
+    const guidance = (iter === 1 || !verdict?.errors?.length)
+      ? ''
+      : `\n--- ${gateName} feedback from iteration ${iter - 1} ---\n` +
+        verdict.errors.map(e => `  - ${e}`).join('\n') +
+        `\nAddress every item above. Do not paraphrase the gate output — fix the literal issues it cited.`;
+    [writer, verdict] = await parallel([
+      () => spawnWriter(iter, guidance),
+      () => spawnGate(),
+    ]);
+    if (isPivotFailure && writer && isPivotFailure(writer)) {
+      return { writer, verdict, iterations: iter, pivot: true };
+    }
+    if (verdict?.pass) {
+      return { writer, verdict, iterations: iter, pivot: false };
+    }
+    log(`${stage}: ${gateName} FAIL on iteration ${iter}` + (iter < maxIters ? ' — re-spawning writer with findings' : ''));
+  }
+  throw new Error(
+    `${stage}: ${gateName} still failing after ${maxIters} iteration(s). Escalating to user.\n` +
+    `Last gate errors:\n${(verdict?.errors || []).map(e => `  - ${e}`).join('\n') || '  (none reported)'}`
+  );
+}
+
+/**
+ * Stage 2 writer+gate loop. Used for BOTH Stage 2A (requirements-clarifier
+ * + gate-requirements) and Stage 2B (bdd-scenario-writer + gate-bdd) because
+ * those stages share the same shape: one writer produces one document, one
+ * gate checks that single file. The caller passes the writer/gate spawners
+ * and the helper handles the iteration.
+ */
+async function gatedStage2WriterLoop(opts) {
+  return _gatedLoop(opts);
+}
+
+/**
+ * Stage 6.5 prototype+gate loop. Differs from Stage 2 only in that
+ * `isPivotFailure` is wired to short-circuit on PROTOTYPE_FAILED (empirical
+ * failure of the constants themselves, not a document-format issue). When
+ * pivot=true is returned, the caller throws PIVOT_REQUIRED with stage-
+ * specific context — re-spawning prototype-runner cannot change physics.
+ */
+async function gatedPrototypeLoop(opts) {
+  return _gatedLoop({ ...opts, isPivotFailure: (w) => w?.verdict === 'PROTOTYPE_FAILED' });
+}
+
+/**
+ * Stage 7 spec-writer + gate-spec-trace loop. The writer produces three docs
+ * (specification / implementation-plan / task-list) in one invocation; the
+ * gate inspects the whole spec directory rather than a single file. Same
+ * loop shape as Stage 2 — the multi-doc + directory-scope concern is
+ * encoded in the spawnWriter/spawnGate closures the caller provides.
+ */
+async function gatedSpecTraceLoop(opts) {
+  return _gatedLoop(opts);
+}
+
+// ----- Git shell-snippet helpers ---------------------------------------------
 
 /** Detect the repo's default branch from origin/HEAD (never hard-codes `main`). */
 function detectDefaultBranchSnippet(repoPath) {
