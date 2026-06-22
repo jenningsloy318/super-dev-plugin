@@ -60,6 +60,35 @@ pwd
 `;
 }
 
+/** Capture HEAD inside a worktree. Used as per-phase base_sha. */
+export function captureHeadSnippet(worktreePath) {
+  return `set -e
+cd ${shellQuote(worktreePath)}
+git rev-parse HEAD
+`;
+}
+
+/**
+ * Commit all changes in a worktree under a Conventional-Commits message,
+ * then emit the new HEAD SHA on stdout. Skips cleanly with the prior HEAD
+ * when there is nothing to commit (e.g. tdd-guide only updated specs that
+ * were already staged, or specialist made no source changes — rare but
+ * possible). The fallback keeps base_sha advancing without empty commits.
+ */
+export function commitPhaseSnippet(worktreePath, message) {
+  return `set -e
+cd ${shellQuote(worktreePath)}
+git add -A
+if git diff --cached --quiet; then
+  echo "skip-commit:no-staged-changes" >&2
+  git rev-parse HEAD
+else
+  git commit -m ${shellQuote(message)} --quiet
+  git rev-parse HEAD
+fi
+`;
+}
+
 function shellQuote(s) {
   // Single-quote, escape embedded single quotes.
   return "'" + String(s).replace(/'/g, "'\\''") + "'";

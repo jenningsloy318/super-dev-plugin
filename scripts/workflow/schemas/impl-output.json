@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "super-dev/schemas/impl-output.json",
+  "title": "ImplOutput",
+  "description": "Structured return from a Stage 9.2 domain specialist (rust-developer, golang-developer, frontend-developer, backend-developer, ios-developer, android-developer, macos-app-developer, windows-app-developer, or dev-executor).",
+  "type": "object",
+  "required": ["phase_number", "specialist", "files_modified", "all_tests_green"],
+  "additionalProperties": false,
+  "properties": {
+    "phase_number": { "type": "integer", "minimum": 1 },
+    "specialist": {
+      "type": "string",
+      "enum": [
+        "rust-developer", "golang-developer", "frontend-developer", "backend-developer",
+        "ios-developer", "android-developer", "macos-app-developer", "windows-app-developer",
+        "dev-executor"
+      ]
+    },
+    "files_modified": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Absolute paths to source files created or modified in this phase (NOT tests — those are in TddOutput.test_files)."
+    },
+    "all_tests_green": {
+      "type": "boolean",
+      "description": "True iff every test the tdd-guide wrote now passes against the implementation. False means specialist gave up before GREEN; qa-agent will surface the failures."
+    },
+    "build_command": {
+      "type": "string",
+      "description": "Exact command that builds and tests the project (e.g. 'cargo test --workspace', 'pnpm test')."
+    },
+    "summary": { "type": "string" }
+  }
+}

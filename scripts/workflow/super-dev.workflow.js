@@ -6,7 +6,7 @@
 // intermediate results in code. The model focuses on each subagent
 // task; the script focuses on flow.
 //
-// Layout (Phase B C2-C4 — Stages 1-8 only; later stages added in C5-C9):
+// Layout (Phase B C2-C5 — Stages 1-9 only; later stages added in C6-C9):
 //   Stage 1   — Preflight + pull-latest + worktree + spec dir + tracking JSON
 //   Stage 2   — Requirements + BDD (writer + doc-validator pairs)
 //   Stage 3   — Research (initial + up-to-3 deep-research iterations)
@@ -16,6 +16,7 @@
 //   Stage 6.5 — Prototype (conditional: only when design declares numeric constants)
 //   Stage 7   — Specification (spec-writer + gate-spec-trace)
 //   Stage 8   — Spec review (spec-reviewer + gate-spec-review) with iteration loop (max 3)
+//   Stage 9   — Per-phase TDD pipeline with per-phase commits + gate-build
 //
 // Phase A constraints honored:
 //   - preflight-env.sh runs FIRST (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 +
@@ -31,7 +32,8 @@
 // The script is meant to be invoked by Claude Code's Workflow runtime via
 // the super-dev:super-dev skill. Do NOT `node` it directly.
 
-import { detectDefaultBranchSnippet, pullLatestSnippet, worktreeAddSnippet }
+import { detectDefaultBranchSnippet, pullLatestSnippet, worktreeAddSnippet,
+         captureHeadSnippet, commitPhaseSnippet }
   from './lib/git-helpers.js';
 
 // ---------------------------------------------------------------------------
@@ -51,6 +53,7 @@ export const meta = {
     { title: 'Stage 6.5 — Prototype' },
     { title: 'Stage 7 — Specification' },
     { title: 'Stage 8 — Spec Review' },
+    { title: 'Stage 9 — Implementation' },
   ],
 };
 
@@ -281,6 +284,105 @@ const SPEC_REVIEW_OUTPUT = {
   },
 };
 
+const TDD_OUTPUT = {
+  type: 'object',
+  required: ['phase_number', 'test_files', 'expected_state'],
+  additionalProperties: false,
+  properties: {
+    phase_number: { type: 'integer', minimum: 1 },
+    test_files: { type: 'array', minItems: 1, items: { type: 'string' } },
+    expected_state: { type: 'string', enum: ['RED', 'GREEN'] },
+    coverage_map: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['scenario_id', 'test'],
+        properties: { scenario_id: { type: 'string' }, test: { type: 'string' } },
+      },
+    },
+    summary: { type: 'string' },
+  },
+};
+
+const IMPL_OUTPUT = {
+  type: 'object',
+  required: ['phase_number', 'specialist', 'files_modified', 'all_tests_green'],
+  additionalProperties: false,
+  properties: {
+    phase_number: { type: 'integer', minimum: 1 },
+    specialist: {
+      type: 'string',
+      enum: [
+        'rust-developer', 'golang-developer', 'frontend-developer', 'backend-developer',
+        'ios-developer', 'android-developer', 'macos-app-developer', 'windows-app-developer',
+        'dev-executor',
+      ],
+    },
+    files_modified: { type: 'array', items: { type: 'string' } },
+    all_tests_green: { type: 'boolean' },
+    build_command: { type: 'string' },
+    summary: { type: 'string' },
+  },
+};
+
+const IMPL_SUMMARY_OUTPUT = {
+  type: 'object',
+  required: ['doc_path', 'phase_number', 'files_changed'],
+  additionalProperties: false,
+  properties: {
+    doc_path: { type: 'string' },
+    phase_number: { type: 'integer', minimum: 1 },
+    phase_name: { type: 'string' },
+    files_changed: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        created:  { type: 'array', items: { type: 'string' } },
+        modified: { type: 'array', items: { type: 'string' } },
+        deleted:  { type: 'array', items: { type: 'string' } },
+      },
+    },
+    tasks_complete: { type: 'array', items: { type: 'string' } },
+    tasks_partial:  { type: 'array', items: { type: 'string' } },
+    summary: { type: 'string' },
+  },
+};
+
+const QA_OUTPUT = {
+  type: 'object',
+  required: ['doc_path', 'phase_number', 'tests_total', 'tests_passed', 'all_green'],
+  additionalProperties: false,
+  properties: {
+    doc_path: { type: 'string' },
+    phase_number: { type: 'integer', minimum: 1 },
+    tests_total:  { type: 'integer', minimum: 0 },
+    tests_passed: { type: 'integer', minimum: 0 },
+    tests_failed: { type: 'integer', minimum: 0 },
+    all_green:    { type: 'boolean' },
+    coverage_overall: { type: 'number', minimum: 0, maximum: 1 },
+    coverage_new:     { type: 'number', minimum: 0, maximum: 1 },
+    uncovered_scenarios: { type: 'array', items: { type: 'string' } },
+    summary: { type: 'string' },
+  },
+};
+
+const E2E_OUTPUT = {
+  type: 'object',
+  required: ['doc_path', 'phase_number', 'browsers_run', 'all_green'],
+  additionalProperties: false,
+  properties: {
+    doc_path: { type: 'string' },
+    phase_number: { type: 'integer', minimum: 1 },
+    browsers_run: { type: 'array', minItems: 1, items: { type: 'string' } },
+    scenarios_run:    { type: 'integer', minimum: 0 },
+    scenarios_passed: { type: 'integer', minimum: 0 },
+    all_green: { type: 'boolean' },
+    performance_budget_met: { type: 'boolean' },
+    accessibility_violations: { type: 'array', items: { type: 'string' } },
+    summary: { type: 'string' },
+  },
+};
+
 // ---------------------------------------------------------------------------
 // args — set by the caller (super-dev:super-dev skill) and accessed via the
 // Workflow runtime's global `args`. Shape:
@@ -301,6 +403,12 @@ const SPEC_REVIEW_OUTPUT = {
 //                                  any feature with empirical constants;
 //                                  without them Stage 6.5 fails closed.
 //     max_spec_iters: integer,  // Stage 8 iteration cap (default 3)
+//     language:       'rust' | 'go' | 'frontend' | 'backend' | 'ios' |
+//                     'android' | 'macos' | 'windows' | 'mixed'  (default 'mixed')
+//                       Routes the Stage 9.2 domain specialist. 'mixed'
+//                       falls back to dev-executor.
+//     is_web_ui:      boolean,   // Stage 9.5 e2e gate. Default: false.
+//     max_phase_iters: integer,  // Stage 9 per-phase build-fix iteration cap (default 3)
 //   }
 // ---------------------------------------------------------------------------
 const REQUEST     = args?.request ?? '';
@@ -311,6 +419,9 @@ const UI_SCOPE    = args?.ui_scope ?? 'none';
 const BUG_EVIDENCE = args?.bug_evidence ?? '';
 const INPUT_SAMPLES = Array.isArray(args?.input_samples) ? args.input_samples : [];
 const MAX_SPEC_ITERS = Number.isInteger(args?.max_spec_iters) ? args.max_spec_iters : 3;
+const LANGUAGE   = args?.language ?? 'mixed';
+const IS_WEB_UI  = Boolean(args?.is_web_ui ?? (UI_SCOPE !== 'none'));
+const MAX_PHASE_ITERS = Number.isInteger(args?.max_phase_iters) ? args.max_phase_iters : 3;
 
 if (!REQUEST || !PLUGIN_ROOT || !REPO_PATH) {
   throw new Error('super-dev workflow: args must include {request, plugin_root, repo_path}');
@@ -1001,8 +1112,238 @@ while (specIter < MAX_SPEC_ITERS) {
 }
 
 // ---------------------------------------------------------------------------
-// Return value — read by the super-dev skill. Stages 9-13 land in C5-C7.
+// Stage 9 — Per-phase TDD implementation
+//   Sequential per phase (TDD discipline + per-phase commit ordering), but
+//   each phase is its own self-contained pipeline:
+//     9.1 capture base_sha
+//     9.2 tdd-guide  (RED)
+//     9.3 domain specialist (GREEN)  — routed by `language`
+//     9.4 impl-summary-writer (DOCUMENT)
+//     9.5 qa-agent (VERIFY)
+//     9.6 e2e-runner (CONDITIONAL — only when is_web_ui)
+//     9.7 doc-validator(gate-build) — final phase gate
+//     9.8 commit the phase to git with feat(<phase-name>): summary message
+//   On gate-build FAIL: re-run domain specialist with QA findings as guidance
+//   (max MAX_PHASE_ITERS per phase). After cap, throw.
+//
+//   Why sequential across phases? Per-phase commits must land in plan order
+//   so the running base_sha is monotonic and impl-summary diffs are clean.
+//   Spec phases declare depends_on in SpecOutput.phases; we honour that
+//   ordering and skip parallelism for safety (parallel-safe specialists are
+//   added in C8 via isolation: worktree).
 // ---------------------------------------------------------------------------
+phase('Stage 9 — Implementation');
+
+const phases = spec.phases?.length
+  ? [...spec.phases].sort((a, b) => a.number - b.number)
+  : Array.from({ length: spec.phase_count }, (_, i) => ({ number: i + 1, name: `Phase ${i + 1}` }));
+
+// Domain specialist routing. 'mixed' / unrecognised falls back to dev-executor.
+const SPECIALIST_BY_LANG = {
+  rust:     'rust-developer',
+  go:       'golang-developer',
+  frontend: 'frontend-developer',
+  backend:  'backend-developer',
+  ios:      'ios-developer',
+  android:  'android-developer',
+  macos:    'macos-app-developer',
+  windows:  'windows-app-developer',
+};
+const specialistAgent = SPECIALIST_BY_LANG[LANGUAGE] ?? 'dev-executor';
+log(`Stage 9: ${phases.length} phase(s) total; domain specialist = ${specialistAgent}; is_web_ui=${IS_WEB_UI}`);
+
+const phaseResults = [];
+
+for (const ph of phases) {
+  log(`Stage 9 phase ${ph.number}/${phases.length}: "${ph.name}"`);
+
+  // 9.1 — capture base_sha BEFORE any test/code change.
+  const baseSha = (await agent(
+    `Run exactly:\n${captureHeadSnippet(WORKTREE_PATH)}\nReturn JSON: {"sha": string}.`,
+    {
+      label: `phase-${ph.number}:capture-base-sha`,
+      phase: 'Stage 9 — Implementation',
+      agentType: 'general-purpose',
+      schema: { type: 'object', required: ['sha'], properties: { sha: { type: 'string' } } },
+    },
+  )).sha;
+
+  // 9.2 — tdd-guide: write failing tests scoped to this phase.
+  log(`  Phase ${ph.number}/9.2: tdd-guide (RED)`);
+  const tdd = await agent(
+    `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
+    `Inputs to read yourself:\n` +
+    `  - requirements: ${req.doc_path}\n` +
+    `  - bdd: ${bdd.doc_path}\n` +
+    `  - specification: ${spec.specification_path}\n` +
+    `  - plan: ${spec.plan_path}\n` +
+    `  - tasks: ${spec.tasks_path}\n` +
+    `phase_scope: ${ph.number} ("${ph.name}").\n\n` +
+    `Write failing tests scoped to THIS phase only. Tests SHOULD be RED (fail or fail to ` +
+    `compile). If they accidentally pass against existing code, they are testing nothing — ` +
+    `tighten the assertions and report expected_state='RED'.`,
+    {
+      label: `phase-${ph.number}:tdd-guide`,
+      phase: 'Stage 9 — Implementation',
+      agentType: 'tdd-guide',
+      schema: TDD_OUTPUT,
+    },
+  );
+
+  // 9.3-9.7 — implementation, summary, QA, e2e, gate-build, with a max-N
+  // fix loop on gate-build failure (re-spawn specialist with QA findings).
+  let impl = null, implSummary = null, qa = null, e2e = null, buildVerdict = null;
+  let phaseIter = 0;
+  while (phaseIter < MAX_PHASE_ITERS) {
+    phaseIter += 1;
+    log(`  Phase ${ph.number} iteration ${phaseIter}/${MAX_PHASE_ITERS}: specialist + impl-summary + qa` + (IS_WEB_UI ? ' + e2e' : ''));
+
+    // 9.3 — domain specialist (GREEN). Pass review/QA findings on iter 2+.
+    const reviewGuidance = (phaseIter > 1 && qa)
+      ? `\n--- Targeted fixes from prior QA on this phase ---\n` +
+        (qa.uncovered_scenarios?.length
+          ? `Uncovered scenarios:\n  - ${qa.uncovered_scenarios.join('\n  - ')}\n`
+          : '') +
+        `tests_failed: ${qa.tests_failed ?? 0}, coverage_overall: ${qa.coverage_overall ?? 0}, ` +
+        `coverage_new: ${qa.coverage_new ?? 0}. ` +
+        `Re-read the failing-test output, fix the implementation, and ensure all_tests_green=true.`
+      : '';
+
+    impl = await agent(
+      `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
+      `Inputs to read yourself:\n` +
+      `  - specification: ${spec.specification_path}\n` +
+      `  - plan: ${spec.plan_path}\n` +
+      `  - tasks: ${spec.tasks_path}\n` +
+      `  - assessment patterns: ${assessment.doc_path}\n` +
+      `  - failing tests: ${tdd.test_files.join(', ')}\n` +
+      `phase_scope: ${ph.number} ("${ph.name}").\n\n` +
+      `Implement the smallest code necessary to make ALL phase tests pass. Follow the ` +
+      `patterns from the assessment. Do NOT touch files outside this phase's scope. ` +
+      `Return ImplOutput with the exact build_command used.` + reviewGuidance,
+      {
+        label: `phase-${ph.number}:specialist:${phaseIter}`,
+        phase: 'Stage 9 — Implementation',
+        agentType: specialistAgent,
+        schema: IMPL_OUTPUT,
+      },
+    );
+
+    // 9.4 — impl-summary-writer (append per-phase section).
+    implSummary = await agent(
+      `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
+      `phase_number: ${ph.number}. phase_name: "${ph.name}".\n` +
+      `base_sha: ${baseSha}.\n` +
+      `Append a section for this phase to the implementation-summary document (create it on ` +
+      `phase 1, append on later phases). Diff against base_sha to enumerate files_changed.`,
+      {
+        label: `phase-${ph.number}:impl-summary:${phaseIter}`,
+        phase: 'Stage 9 — Implementation',
+        agentType: 'impl-summary-writer',
+        schema: IMPL_SUMMARY_OUTPUT,
+      },
+    );
+
+    // 9.5 — qa-agent (VERIFY).
+    qa = await agent(
+      `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
+      `Inputs to read yourself: ${req.doc_path}, ${bdd.doc_path}, ${spec.specification_path}, ` +
+      `${spec.plan_path}, ${spec.tasks_path}.\n` +
+      `phase_scope: ${ph.number}.\n\n` +
+      `Run the build_command (${JSON.stringify(impl.build_command)}). Verify ALL phase tests ` +
+      `pass and coverage thresholds hold (overall 80%+, new 90%+). Map every test back to ` +
+      `an AC-ID/SCENARIO-ID. Report uncovered scenarios honestly — a green build with gaps ` +
+      `is worse than a red build with full coverage intent.`,
+      {
+        label: `phase-${ph.number}:qa:${phaseIter}`,
+        phase: 'Stage 9 — Implementation',
+        agentType: 'qa-agent',
+        schema: QA_OUTPUT,
+      },
+    );
+
+    // 9.6 — e2e-runner (CONDITIONAL).
+    if (IS_WEB_UI) {
+      e2e = await agent(
+        `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
+        `phase_number: ${ph.number}. Run E2E tests against the implementation. ` +
+        `Cover all UI scenarios for this phase across the project's configured browsers. ` +
+        `Verify performance and accessibility budgets.`,
+        {
+          label: `phase-${ph.number}:e2e:${phaseIter}`,
+          phase: 'Stage 9 — Implementation',
+          agentType: 'e2e-runner',
+          schema: E2E_OUTPUT,
+        },
+      );
+    }
+
+    // 9.7 — gate-build. Final phase gate.
+    buildVerdict = await agent(
+      `Wait for the build to settle, then run ` +
+      `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-build.sh')} ${shellQuote(WORKTREE_PATH)}. ` +
+      `Return the gate verdict.`,
+      {
+        label: `phase-${ph.number}:gate-build:${phaseIter}`,
+        phase: 'Stage 9 — Implementation',
+        agentType: 'doc-validator',
+        schema: GATE_VERDICT,
+      },
+    );
+
+    const e2eOk = !IS_WEB_UI || (e2e?.all_green === true);
+    if (buildVerdict?.pass && qa?.all_green && impl?.all_tests_green && e2eOk) {
+      log(`  Phase ${ph.number} iteration ${phaseIter}: gate-build PASS`);
+      break;
+    }
+
+    if (phaseIter >= MAX_PHASE_ITERS) {
+      throw new Error(
+        `Stage 9 phase ${ph.number} ("${ph.name}") failed after ${MAX_PHASE_ITERS} iteration(s). ` +
+        `gate-build: ${buildVerdict?.pass ? 'PASS' : 'FAIL'}; ` +
+        `qa.all_green: ${qa?.all_green}; impl.all_tests_green: ${impl?.all_tests_green}; ` +
+        `e2e.all_green: ${e2e?.all_green ?? 'n/a'}. ` +
+        `Escalating to user. QA report: ${qa?.doc_path}. ` +
+        `gate-build errors: ${(buildVerdict?.errors || []).join('; ')}`
+      );
+    }
+    log(`  Phase ${ph.number} iteration ${phaseIter}: gate failed, retrying with QA findings`);
+  }
+
+  // 9.8 — commit the phase. impl-summary-writer ran the diff against
+  // base_sha; the commit message is feat(<phase-name>): <summary>.
+  const phaseShortName = ph.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const commitMessage = `feat(${phaseShortName || 'phase-' + ph.number}): ${implSummary.summary?.split('\n')[0] ?? 'implement phase ' + ph.number}`;
+  const commit = await agent(
+    `Run exactly:\n${commitPhaseSnippet(WORKTREE_PATH, commitMessage)}\n` +
+    `Return JSON: {"new_sha": string, "skipped": boolean}.`,
+    {
+      label: `phase-${ph.number}:commit`,
+      phase: 'Stage 9 — Implementation',
+      agentType: 'general-purpose',
+      schema: {
+        type: 'object',
+        required: ['new_sha'],
+        properties: { new_sha: { type: 'string' }, skipped: { type: 'boolean' } },
+      },
+    },
+  );
+  log(`  Phase ${ph.number} committed at ${commit.new_sha}${commit.skipped ? ' (no changes — empty commit skipped)' : ''}`);
+
+  phaseResults.push({
+    number: ph.number,
+    name: ph.name,
+    base_sha: baseSha,
+    head_sha: commit.new_sha,
+    test_files: tdd.test_files,
+    impl_files: impl.files_modified,
+    summary_doc: implSummary.doc_path,
+    qa_doc: qa.doc_path,
+    e2e_doc: e2e?.doc_path ?? null,
+    iterations: phaseIter,
+  });
+}
+log(`Stage 9 complete: ${phaseResults.length} phase(s) implemented & committed.`);
 return {
   worktree_path: WORKTREE_PATH,
   spec_directory: SPEC_DIRECTORY,
@@ -1037,7 +1378,12 @@ return {
     verdict: specReview.verdict,
     iterations: specIter,
   },
-  next_stage: 9,
+  implementation: {
+    specialist: specialistAgent,
+    phases: phaseResults,
+    is_web_ui: IS_WEB_UI,
+  },
+  next_stage: 10,
 };
 
 // ---------------------------------------------------------------------------

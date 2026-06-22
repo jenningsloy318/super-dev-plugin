@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "super-dev/schemas/qa-output.json",
+  "title": "QaOutput",
+  "description": "Structured return from qa-agent (Step 9.4). Traceability over pass/fail — every test result links back to a SCENARIO-ID or AC-ID.",
+  "type": "object",
+  "required": ["doc_path", "phase_number", "tests_total", "tests_passed", "all_green"],
+  "additionalProperties": false,
+  "properties": {
+    "doc_path": { "type": "string" },
+    "phase_number": { "type": "integer", "minimum": 1 },
+    "tests_total":   { "type": "integer", "minimum": 0 },
+    "tests_passed":  { "type": "integer", "minimum": 0 },
+    "tests_failed":  { "type": "integer", "minimum": 0 },
+    "all_green": {
+      "type": "boolean",
+      "description": "Convenience flag: tests_failed === 0 AND tests_total > 0."
+    },
+    "coverage_overall": { "type": "number", "minimum": 0, "maximum": 1 },
+    "coverage_new":     { "type": "number", "minimum": 0, "maximum": 1 },
+    "uncovered_scenarios": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "SCENARIO-IDs/AC-IDs without a passing test."
+    },
+    "summary": { "type": "string" }
+  }
+}

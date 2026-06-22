@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "super-dev/schemas/e2e-output.json",
+  "title": "E2eOutput",
+  "description": "Structured return from e2e-runner (Step 9.5, Web/UI only).",
+  "type": "object",
+  "required": ["doc_path", "phase_number", "browsers_run", "all_green"],
+  "additionalProperties": false,
+  "properties": {
+    "doc_path": { "type": "string" },
+    "phase_number": { "type": "integer", "minimum": 1 },
+    "browsers_run": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" },
+      "description": "Browser engines exercised (e.g. ['chromium', 'webkit', 'firefox'])."
+    },
+    "scenarios_run":    { "type": "integer", "minimum": 0 },
+    "scenarios_passed": { "type": "integer", "minimum": 0 },
+    "all_green": { "type": "boolean" },
+    "performance_budget_met": { "type": "boolean" },
+    "accessibility_violations": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "summary": { "type": "string" }
+  }
+}
