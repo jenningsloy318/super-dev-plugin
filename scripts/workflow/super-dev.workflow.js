@@ -762,7 +762,7 @@ const [req, reqVerdict] = await parallel([
     {
       label: 'requirements-clarifier',
       phase: 'Stage 2 — Requirements + BDD',
-      agentType: 'requirements-clarifier',
+      agentType: 'super-dev:requirements-clarifier',
       schema: REQUIREMENTS_OUTPUT,
     },
   ),
@@ -773,7 +773,7 @@ const [req, reqVerdict] = await parallel([
     {
       label: 'doc-validator:gate-requirements',
       phase: 'Stage 2 — Requirements + BDD',
-      agentType: 'doc-validator',
+      agentType: 'super-dev:doc-validator',
       schema: GATE_VERDICT,
     },
   ),
@@ -794,7 +794,7 @@ const [bdd, bddVerdict] = await parallel([
     {
       label: 'bdd-scenario-writer',
       phase: 'Stage 2 — Requirements + BDD',
-      agentType: 'bdd-scenario-writer',
+      agentType: 'super-dev:bdd-scenario-writer',
       schema: BDD_OUTPUT,
     },
   ),
@@ -805,7 +805,7 @@ const [bdd, bddVerdict] = await parallel([
     {
       label: 'doc-validator:gate-bdd',
       phase: 'Stage 2 — Requirements + BDD',
-      agentType: 'doc-validator',
+      agentType: 'super-dev:doc-validator',
       schema: GATE_VERDICT,
     },
   ),
@@ -847,7 +847,7 @@ while (researchIteration < MAX_RESEARCH) {
     {
       label: isDeep ? `deep-research-${researchIteration - 1}` : 'research-initial',
       phase: 'Stage 3 — Research',
-      agentType: 'research-agent',
+      agentType: 'super-dev:research-agent',
       schema: RESEARCH_OUTPUT,
     },
   );
@@ -889,7 +889,7 @@ if (!isBug) {
     {
       label: 'debug-analyzer:triage',
       phase: 'Stage 4 — Debug Analysis',
-      agentType: 'debug-analyzer',
+      agentType: 'super-dev:debug-analyzer',
       schema: DEBUG_OUTPUT,
     },
   );
@@ -914,7 +914,7 @@ if (!isBug) {
         {
           label: `debug-investigate:${idx + 1}`,
           phase: 'Stage 4 — Debug Analysis',
-          agentType: 'debug-analyzer',
+          agentType: 'super-dev:debug-analyzer',
           schema: DEBUG_OUTPUT,
         },
       )),
@@ -951,7 +951,7 @@ const assessment = await agent(
   {
     label: 'code-assessor',
     phase: 'Stage 5 — Code Assessment',
-    agentType: 'code-assessor',
+    agentType: 'super-dev:code-assessor',
     schema: ASSESSMENT_OUTPUT,
   },
 );
@@ -1013,7 +1013,7 @@ if (designerType) {
     {
       label: designerType,
       phase: 'Stage 6 — Design',
-      agentType: designerType,
+      agentType: `super-dev:${designerType}`,
       schema: DESIGN_OUTPUT,
     },
   );
@@ -1062,7 +1062,7 @@ if (!needPrototype) {
       {
         label: 'prototype-runner',
         phase: 'Stage 6.5 — Prototype',
-        agentType: 'prototype-runner',
+        agentType: 'super-dev:prototype-runner',
         schema: PROTOTYPE_OUTPUT,
       },
     ),
@@ -1073,7 +1073,7 @@ if (!needPrototype) {
       {
         label: 'doc-validator:gate-prototype',
         phase: 'Stage 6.5 — Prototype',
-        agentType: 'doc-validator',
+        agentType: 'super-dev:doc-validator',
         schema: GATE_VERDICT,
       },
     ),
@@ -1129,7 +1129,7 @@ const spawnSpecWriter = (extraGuidance = '') => agent(
   {
     label: 'spec-writer',
     phase: 'Stage 7 — Specification',
-    agentType: 'spec-writer',
+    agentType: 'super-dev:spec-writer',
     schema: SPEC_OUTPUT,
   },
 );
@@ -1144,7 +1144,7 @@ const specTraceVerdict = await agent(
   {
     label: 'doc-validator:gate-spec-trace',
     phase: 'Stage 7 — Specification',
-    agentType: 'doc-validator',
+    agentType: 'super-dev:doc-validator',
     schema: GATE_VERDICT,
   },
 );
@@ -1188,7 +1188,7 @@ while (specIter < MAX_SPEC_ITERS) {
       {
         label: `spec-reviewer:${specIter}`,
         phase: 'Stage 8 — Spec Review',
-        agentType: 'spec-reviewer',
+        agentType: 'super-dev:spec-reviewer',
         schema: SPEC_REVIEW_OUTPUT,
       },
     ),
@@ -1199,7 +1199,7 @@ while (specIter < MAX_SPEC_ITERS) {
       {
         label: `doc-validator:gate-spec-review:${specIter}`,
         phase: 'Stage 8 — Spec Review',
-        agentType: 'doc-validator',
+        agentType: 'super-dev:doc-validator',
         schema: GATE_VERDICT,
       },
     ),
@@ -1254,7 +1254,7 @@ while (specIter < MAX_SPEC_ITERS) {
     {
       label: `doc-validator:gate-spec-trace:revise-${specIter}`,
       phase: 'Stage 8 — Spec Review',
-      agentType: 'doc-validator',
+      agentType: 'super-dev:doc-validator',
       schema: GATE_VERDICT,
     },
   );
@@ -1293,18 +1293,19 @@ const phases = spec.phases?.length
   ? [...spec.phases].sort((a, b) => a.number - b.number)
   : Array.from({ length: spec.phase_count }, (_, i) => ({ number: i + 1, name: `Phase ${i + 1}` }));
 
-// Domain specialist routing. 'mixed' / unrecognised falls back to dev-executor.
+// Domain specialist routing. All names are super-dev-prefixed (plugin scope).
+// 'mixed' / unrecognised falls back to super-dev:dev-executor.
 const SPECIALIST_BY_LANG = {
-  rust:     'rust-developer',
-  go:       'golang-developer',
-  frontend: 'frontend-developer',
-  backend:  'backend-developer',
-  ios:      'ios-developer',
-  android:  'android-developer',
-  macos:    'macos-app-developer',
-  windows:  'windows-app-developer',
+  rust:     'super-dev:rust-developer',
+  go:       'super-dev:golang-developer',
+  frontend: 'super-dev:frontend-developer',
+  backend:  'super-dev:backend-developer',
+  ios:      'super-dev:ios-developer',
+  android:  'super-dev:android-developer',
+  macos:    'super-dev:macos-app-developer',
+  windows:  'super-dev:windows-app-developer',
 };
-const specialistAgent = SPECIALIST_BY_LANG[LANGUAGE] ?? 'dev-executor';
+const specialistAgent = SPECIALIST_BY_LANG[LANGUAGE] ?? 'super-dev:dev-executor';
 log(`Stage 9: ${phases.length} phase(s) total; domain specialist = ${specialistAgent}; is_web_ui=${IS_WEB_UI}`);
 
 const phaseResults = [];
@@ -1340,7 +1341,7 @@ for (const ph of phases) {
     {
       label: `phase-${ph.number}:tdd-guide`,
       phase: 'Stage 9 — Implementation',
-      agentType: 'tdd-guide',
+      agentType: 'super-dev:tdd-guide',
       schema: TDD_OUTPUT,
     },
   );
@@ -1394,7 +1395,7 @@ for (const ph of phases) {
       {
         label: `phase-${ph.number}:impl-summary:${phaseIter}`,
         phase: 'Stage 9 — Implementation',
-        agentType: 'impl-summary-writer',
+        agentType: 'super-dev:impl-summary-writer',
         schema: IMPL_SUMMARY_OUTPUT,
       },
     );
@@ -1412,7 +1413,7 @@ for (const ph of phases) {
       {
         label: `phase-${ph.number}:qa:${phaseIter}`,
         phase: 'Stage 9 — Implementation',
-        agentType: 'qa-agent',
+        agentType: 'super-dev:qa-agent',
         schema: QA_OUTPUT,
       },
     );
@@ -1427,7 +1428,7 @@ for (const ph of phases) {
         {
           label: `phase-${ph.number}:e2e:${phaseIter}`,
           phase: 'Stage 9 — Implementation',
-          agentType: 'e2e-runner',
+          agentType: 'super-dev:e2e-runner',
           schema: E2E_OUTPUT,
         },
       );
@@ -1441,7 +1442,7 @@ for (const ph of phases) {
       {
         label: `phase-${ph.number}:gate-build:${phaseIter}`,
         phase: 'Stage 9 — Implementation',
-        agentType: 'doc-validator',
+        agentType: 'super-dev:doc-validator',
         schema: GATE_VERDICT,
       },
     );
@@ -1565,7 +1566,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
       {
         label: `code-reviewer:${reviewIter}`,
         phase: 'Stage 10 — Code Review',
-        agentType: 'code-reviewer',
+        agentType: 'super-dev:code-reviewer',
         schema: CODE_REVIEW_OUTPUT,
       },
     ),
@@ -1579,7 +1580,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
       {
         label: `adversarial-reviewer:${reviewIter}`,
         phase: 'Stage 10 — Code Review',
-        agentType: 'adversarial-reviewer',
+        agentType: 'super-dev:adversarial-reviewer',
         schema: ADVERSARIAL_REVIEW_OUTPUT,
       },
     ),
@@ -1590,7 +1591,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
       {
         label: `doc-validator:gate-review:code:${reviewIter}`,
         phase: 'Stage 10 — Code Review',
-        agentType: 'doc-validator',
+        agentType: 'super-dev:doc-validator',
         schema: GATE_VERDICT,
       },
     ),
@@ -1601,7 +1602,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
       {
         label: `doc-validator:gate-review:adversarial:${reviewIter}`,
         phase: 'Stage 10 — Code Review',
-        agentType: 'doc-validator',
+        agentType: 'super-dev:doc-validator',
         schema: GATE_VERDICT,
       },
     ),
@@ -1612,7 +1613,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
       {
         label: `doc-validator:gate-implementation-complete:${reviewIter}`,
         phase: 'Stage 10 — Code Review',
-        agentType: 'doc-validator',
+        agentType: 'super-dev:doc-validator',
         schema: GATE_VERDICT,
       },
     ),
@@ -1725,7 +1726,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
       {
         label: `tdd-guide:fix:${reviewIter}`,
         phase: 'Stage 10 — Code Review',
-        agentType: 'tdd-guide',
+        agentType: 'super-dev:tdd-guide',
         schema: TDD_OUTPUT,
       },
     );
@@ -1755,7 +1756,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
     {
       label: `qa-agent:fix:${reviewIter}`,
       phase: 'Stage 10 — Code Review',
-      agentType: 'qa-agent',
+      agentType: 'super-dev:qa-agent',
       schema: QA_OUTPUT,
     },
   );
@@ -1792,7 +1793,7 @@ const docsResult = await agent(
   {
     label: 'docs-executor',
     phase: 'Stage 11 — Documentation',
-    agentType: 'docs-executor',
+    agentType: 'super-dev:docs-executor',
     schema: DOCS_OUTPUT,
   },
 );
@@ -1805,7 +1806,7 @@ const docsDriftVerdict = await agent(
   {
     label: 'doc-validator:gate-docs-drift',
     phase: 'Stage 11 — Documentation',
-    agentType: 'doc-validator',
+    agentType: 'super-dev:doc-validator',
     schema: GATE_VERDICT,
   },
 );
@@ -1829,7 +1830,7 @@ if (SKIP_HANDOFF) {
     {
       label: 'handoff-writer',
       phase: 'Stage 11 — Documentation',
-      agentType: 'handoff-writer',
+      agentType: 'super-dev:handoff-writer',
       schema: HANDOFF_OUTPUT,
     },
   );
@@ -1857,7 +1858,7 @@ const cleanup = await agent(
   {
     label: 'build-cleaner',
     phase: 'Stage 12 — Cleanup',
-    agentType: 'build-cleaner',
+    agentType: 'super-dev:build-cleaner',
     schema: CLEANUP_OUTPUT,
   },
 );
