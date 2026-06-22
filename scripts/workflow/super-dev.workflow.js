@@ -6,10 +6,13 @@
 // intermediate results in code. The model focuses on each subagent
 // task; the script focuses on flow.
 //
-// Layout (Phase B C2 — Stages 1-3 only; later stages added in C3-C9):
+// Layout (Phase B C2-C3 — Stages 1-6 only; later stages added in C4-C9):
 //   Stage 1   — Preflight + pull-latest + worktree + spec dir + tracking JSON
 //   Stage 2   — Requirements + BDD (writer + doc-validator pairs)
 //   Stage 3   — Research (initial + up-to-3 deep-research iterations)
+//   Stage 4   — Debug analysis (bugs only; supports parallel multi-hypothesis)
+//   Stage 5   — Code assessment (first code-reading stage)
+//   Stage 6   — Design routing (architecture / ui-ux / product, by feature_kind)
 //
 // Phase A constraints honored:
 //   - preflight-env.sh runs FIRST (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 +
@@ -39,6 +42,9 @@ export const meta = {
     { title: 'Stage 1 — Setup' },
     { title: 'Stage 2 — Requirements + BDD' },
     { title: 'Stage 3 — Research' },
+    { title: 'Stage 4 — Debug Analysis' },
+    { title: 'Stage 5 — Code Assessment' },
+    { title: 'Stage 6 — Design' },
   ],
 };
 
@@ -110,6 +116,83 @@ const RESEARCH_OUTPUT = {
   },
 };
 
+const DEBUG_OUTPUT = {
+  type: 'object',
+  required: ['doc_path', 'hypotheses'],
+  additionalProperties: false,
+  properties: {
+    doc_path: { type: 'string' },
+    hypotheses: {
+      type: 'array',
+      minItems: 1,
+      items: {
+        type: 'object',
+        required: ['statement', 'confidence', 'status'],
+        properties: {
+          statement: { type: 'string' },
+          confidence: { type: 'number', minimum: 0, maximum: 1 },
+          status: { type: 'string', enum: ['confirmed', 'refuted', 'untested'] },
+          evidence: { type: 'array', items: { type: 'string' } },
+        },
+      },
+    },
+    root_cause: { type: 'string' },
+    reproduction_steps: { type: 'array', items: { type: 'string' } },
+    summary: { type: 'string' },
+  },
+};
+
+const ASSESSMENT_OUTPUT = {
+  type: 'object',
+  required: ['doc_path', 'patterns', 'files_assessed'],
+  additionalProperties: false,
+  properties: {
+    doc_path: { type: 'string' },
+    patterns: { type: 'array', items: { type: 'string' } },
+    files_assessed: { type: 'integer', minimum: 0 },
+    recommendations: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['title', 'priority'],
+        properties: {
+          title: { type: 'string' },
+          priority: { type: 'string', enum: ['high', 'medium', 'low'] },
+          rationale: { type: 'string' },
+        },
+      },
+    },
+    summary: { type: 'string' },
+  },
+};
+
+const DESIGN_OUTPUT = {
+  type: 'object',
+  required: ['designer', 'docs'],
+  additionalProperties: false,
+  properties: {
+    designer: {
+      type: 'string',
+      enum: ['architecture-designer', 'architecture-improver', 'ui-ux-designer', 'product-designer'],
+    },
+    docs: {
+      type: 'array',
+      minItems: 1,
+      items: {
+        type: 'object',
+        required: ['kind', 'path'],
+        properties: {
+          kind: { type: 'string', enum: ['architecture', 'ui-ux-design', 'product-design-summary'] },
+          path: { type: 'string' },
+        },
+      },
+    },
+    modules: { type: 'array', items: { type: 'string' } },
+    has_numeric_constants: { type: 'boolean' },
+    summary: { type: 'string' },
+  },
+};
+
 // ---------------------------------------------------------------------------
 // args — set by the caller (super-dev:super-dev skill) and accessed via the
 // Workflow runtime's global `args`. Shape:
@@ -118,12 +201,20 @@ const RESEARCH_OUTPUT = {
 //     plugin_root:    string,   // absolute path to super-dev-plugin checkout
 //     repo_path:      string,   // absolute path to the target project repo
 //     feature_kind:   'feature' | 'bug' | 'refactor' | 'auto'  (default 'auto')
+//     ui_scope:       'none' | 'ui-only' | 'ui+arch'           (default 'none')
+//                       Drives Stage 6 designer routing:
+//                         feature/refactor + 'none'    -> architecture-designer / -improver
+//                         any              + 'ui-only' -> ui-ux-designer
+//                         any              + 'ui+arch' -> product-designer
+//     bug_evidence:   string,   // evidence/logs/repro for bugs (Stage 4)
 //   }
 // ---------------------------------------------------------------------------
 const REQUEST     = args?.request ?? '';
 const PLUGIN_ROOT = args?.plugin_root ?? '';
 const REPO_PATH   = args?.repo_path ?? '';
 const FEATURE_KIND = args?.feature_kind ?? 'auto';
+const UI_SCOPE    = args?.ui_scope ?? 'none';
+const BUG_EVIDENCE = args?.bug_evidence ?? '';
 
 if (!REQUEST || !PLUGIN_ROOT || !REPO_PATH) {
   throw new Error('super-dev workflow: args must include {request, plugin_root, repo_path}');
@@ -279,6 +370,19 @@ log(`Stage 1 complete. Worktree: ${WORKTREE_PATH}`);
 log(`Spec dir: ${SPEC_DIRECTORY}`);
 
 // ---------------------------------------------------------------------------
+// Document index counter — file prefixes follow "max existing + 1" rule.
+// We track the next prefix in JS so we don't have to grep the spec dir
+// between every stage. Initial value 1 because the spec dir is empty at
+// Stage 2 entry.
+// ---------------------------------------------------------------------------
+let nextDocIndex = 1;
+const docName = (suffix) => {
+  const idx = String(nextDocIndex).padStart(2, '0');
+  nextDocIndex += 1;
+  return `${idx}-${suffix}`;
+};
+
+// ---------------------------------------------------------------------------
 // Stage 2 — Requirements + BDD
 //   Two sequential writer+validator pairs, each pair runs in parallel.
 // ---------------------------------------------------------------------------
@@ -286,10 +390,11 @@ phase('Stage 2 — Requirements + BDD');
 
 // 2A — Requirements + gate-requirements
 log('Stage 2A: requirements-clarifier + doc-validator (gate-requirements) in parallel');
+const requirementsName = docName('requirements.md');
 const [req, reqVerdict] = await parallel([
   () => agent(
     `User request: ${JSON.stringify(REQUEST)}\n\n` +
-    `Write the requirements document to ${shellQuote(SPEC_DIRECTORY + '/01-requirements.md')}. ` +
+    `Write the requirements document to ${shellQuote(SPEC_DIRECTORY + '/' + requirementsName)}. ` +
     `Capture acceptance criteria, scope, non-goals, constraints, and open questions. ` +
     `Worktree: ${WORKTREE_PATH}. Plugin root: ${PLUGIN_ROOT}.`,
     {
@@ -300,8 +405,8 @@ const [req, reqVerdict] = await parallel([
     },
   ),
   () => agent(
-    `Wait for ${shellQuote(SPEC_DIRECTORY + '/01-requirements.md')} to appear, then run ` +
-    `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-requirements.sh')} ${shellQuote(SPEC_DIRECTORY + '/01-requirements.md')}. ` +
+    `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + requirementsName)} to appear, then run ` +
+    `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-requirements.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + requirementsName)}. ` +
     `Return the gate verdict.`,
     {
       label: 'doc-validator:gate-requirements',
@@ -318,10 +423,11 @@ log(`Requirements: ${req.ac_count} ACs captured.`);
 
 // 2B — BDD scenarios + gate-bdd
 log('Stage 2B: bdd-scenario-writer + doc-validator (gate-bdd) in parallel');
+const bddName = docName('bdd-scenarios.md');
 const [bdd, bddVerdict] = await parallel([
   () => agent(
     `Read ${shellQuote(req.doc_path)} from the spec directory. Produce BDD Given/When/Then scenarios at ` +
-    `${shellQuote(SPEC_DIRECTORY + '/02-bdd-scenarios.md')} covering every acceptance criterion. ` +
+    `${shellQuote(SPEC_DIRECTORY + '/' + bddName)} covering every acceptance criterion. ` +
     `Feature name: ${req.feature_name}. Worktree: ${WORKTREE_PATH}.`,
     {
       label: 'bdd-scenario-writer',
@@ -331,8 +437,8 @@ const [bdd, bddVerdict] = await parallel([
     },
   ),
   () => agent(
-    `Wait for ${shellQuote(SPEC_DIRECTORY + '/02-bdd-scenarios.md')} to appear, then run ` +
-    `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-bdd.sh')} ${shellQuote(SPEC_DIRECTORY + '/02-bdd-scenarios.md')}. ` +
+    `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + bddName)} to appear, then run ` +
+    `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-bdd.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + bddName)}. ` +
     `Return the gate verdict.`,
     {
       label: 'doc-validator:gate-bdd',
@@ -363,8 +469,8 @@ while (researchIteration < MAX_RESEARCH) {
   researchIteration += 1;
   const isDeep = researchIteration > 1;
   const outName = isDeep
-    ? `04-deep-research-report-${researchIteration - 1}.md`
-    : '03-research-report.md';
+    ? docName(`deep-research-report-${researchIteration - 1}.md`)
+    : docName('research-report.md');
   log(`Stage 3 iteration ${researchIteration} (${isDeep ? 'deep-research' : 'initial'})`);
 
   const report = await agent(
@@ -395,8 +501,165 @@ while (researchIteration < MAX_RESEARCH) {
 }
 
 // ---------------------------------------------------------------------------
-// Return value — read by the super-dev skill so it can present options to
-// the user before subsequent stages run. Stages 4-13 land in C3-C9.
+// Stage 4 — Debug Analysis (bugs only)
+//   Multi-hypothesis: when an initial triage returns 2+ hypotheses with
+//   similar confidence, fan out parallel debug-analyzers (one per hypothesis)
+//   so the first confirmed cause wins without serializing investigation.
+// ---------------------------------------------------------------------------
+phase('Stage 4 — Debug Analysis');
+
+let debugResult = null;
+const isBug = FEATURE_KIND === 'bug' || (FEATURE_KIND === 'auto' && /\b(bug|broken|crash|fail|regression|error|panic)\b/i.test(REQUEST));
+if (!isBug) {
+  log(`Stage 4 skipped (feature_kind=${FEATURE_KIND}, no bug signals in request).`);
+} else {
+  log('Stage 4: initial triage to enumerate hypotheses');
+  const debugName = docName('debug-analysis.md');
+  const triage = await agent(
+    `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
+    `Inputs to read yourself: ${req.doc_path}, ${bdd.doc_path}, ${researchReports[researchReports.length - 1].doc_path}.\n` +
+    `User report: ${JSON.stringify(REQUEST)}\n` +
+    `Evidence/logs/repro provided: ${JSON.stringify(BUG_EVIDENCE)}\n\n` +
+    `Produce ${shellQuote(SPEC_DIRECTORY + '/' + debugName)}. ` +
+    `Generate 3-5 ranked, FALSIFIABLE root-cause hypotheses, each with the evidence ` +
+    `you'd need to confirm/refute. Do NOT investigate code yet — that is a follow-up ` +
+    `pass. Mark every hypothesis status='untested' on this pass.`,
+    {
+      label: 'debug-analyzer:triage',
+      phase: 'Stage 4 — Debug Analysis',
+      agentType: 'debug-analyzer',
+      schema: DEBUG_OUTPUT,
+    },
+  );
+
+  // Multi-hypothesis parallel investigation when the top candidates are
+  // closely ranked. The trigger from team-lead.md is: 2+ hypotheses with
+  // similar evidence (no single one above ~60% confidence).
+  const top = [...triage.hypotheses].sort((a, b) => b.confidence - a.confidence);
+  const leader = top[0]?.confidence ?? 0;
+  const tied = top.filter(h => h.confidence >= Math.max(leader - 0.1, 0.4)).slice(0, 3);
+
+  if (tied.length >= 2 && leader < 0.6) {
+    log(`Stage 4: ${tied.length} tied hypotheses (leader ${leader.toFixed(2)} < 0.6) — fanning out parallel investigators`);
+    const investigations = await parallel(
+      tied.map((h, idx) => () => agent(
+        `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
+        `Investigate ONLY this hypothesis from ${triage.doc_path}:\n  ${h.statement}\n\n` +
+        `Build a minimal reproduction, instrument the code, and confirm OR refute. ` +
+        `Append your findings to ${shellQuote(SPEC_DIRECTORY + '/' + debugName)} ` +
+        `under a new section "Hypothesis ${idx + 1}: ${h.statement.slice(0, 80)}". ` +
+        `Return a fresh DebugOutput reflecting ALL hypotheses with this one updated.`,
+        {
+          label: `debug-investigate:${idx + 1}`,
+          phase: 'Stage 4 — Debug Analysis',
+          agentType: 'debug-analyzer',
+          schema: DEBUG_OUTPUT,
+        },
+      )),
+    );
+    // First confirmed hypothesis wins; otherwise keep the highest-confidence result.
+    const confirmed = investigations.filter(Boolean).find(d =>
+      d.hypotheses.some(h => h.status === 'confirmed'),
+    );
+    debugResult = confirmed ?? investigations.filter(Boolean).sort((a, b) => {
+      const max = (d) => Math.max(...d.hypotheses.map(h => h.confidence));
+      return max(b) - max(a);
+    })[0] ?? triage;
+  } else {
+    debugResult = triage;
+  }
+  const rootCause = debugResult.root_cause || '(unresolved — escalate or pivot)';
+  log(`Stage 4 complete: root cause = ${rootCause}`);
+}
+
+// ---------------------------------------------------------------------------
+// Stage 5 — Code Assessment (first code-reading stage)
+// ---------------------------------------------------------------------------
+phase('Stage 5 — Code Assessment');
+
+log('Stage 5: code-assessor — first codebase exploration');
+const assessmentName = docName('code-assessment.md');
+const assessment = await agent(
+  `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
+  `Inputs to read yourself: ${req.doc_path}, ${bdd.doc_path}, ${researchReports[researchReports.length - 1].doc_path}` +
+    (debugResult ? `, ${debugResult.doc_path}` : '') + `.\n\n` +
+  `This is the FIRST code-reading stage. Inspect the codebase rooted at ${WORKTREE_PATH} ` +
+  `and identify the patterns/idioms the new code MUST follow. Cite files and line numbers. ` +
+  `Produce ${shellQuote(SPEC_DIRECTORY + '/' + assessmentName)}.`,
+  {
+    label: 'code-assessor',
+    phase: 'Stage 5 — Code Assessment',
+    agentType: 'code-assessor',
+    schema: ASSESSMENT_OUTPUT,
+  },
+);
+log(`Stage 5 complete: ${assessment.files_assessed} files assessed, ${assessment.patterns.length} patterns to follow.`);
+
+// ---------------------------------------------------------------------------
+// Stage 6 — Design (routed by feature_kind + ui_scope)
+//   feature + 'none'    → architecture-designer
+//   refactor + 'none'   → architecture-improver
+//   any      + 'ui-only' → ui-ux-designer
+//   any      + 'ui+arch' → product-designer (composite)
+//   bug      + 'none'   → SKIP (design changes only on confirmed pivot)
+// ---------------------------------------------------------------------------
+phase('Stage 6 — Design');
+
+let design = null;
+let designerType = null;
+if (UI_SCOPE === 'ui+arch') {
+  designerType = 'product-designer';
+} else if (UI_SCOPE === 'ui-only') {
+  designerType = 'ui-ux-designer';
+} else if (FEATURE_KIND === 'bug') {
+  log('Stage 6 skipped (bug fixes do not redesign — pivot-protocol owns design changes).');
+} else if (FEATURE_KIND === 'refactor') {
+  designerType = 'architecture-improver';
+} else {
+  designerType = 'architecture-designer';
+}
+
+if (designerType) {
+  log(`Stage 6: routing to ${designerType}`);
+  const designerInputs =
+    `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
+    `Inputs to read yourself: ${req.doc_path}, ${bdd.doc_path}, ` +
+    `${researchReports[researchReports.length - 1].doc_path}, ${assessment.doc_path}` +
+    (debugResult ? `, ${debugResult.doc_path}` : '') + `.\n` +
+    `Selected research option(s): present 3-5 architecture/design options aligned with the ` +
+    `research report's preferred direction; pick one and document the rationale and trade-offs.`;
+
+  const expectedSuffix = {
+    'architecture-designer': 'architecture.md',
+    'architecture-improver': 'architecture.md',
+    'ui-ux-designer': 'ui-ux-design.md',
+    'product-designer': 'product-design-summary.md',
+  }[designerType];
+  const outputFile = docName(expectedSuffix);
+
+  design = await agent(
+    `${designerInputs}\n\n` +
+    `Produce ${shellQuote(SPEC_DIRECTORY + '/' + outputFile)}. ` +
+    (designerType === 'product-designer'
+      ? `As a product designer you also coordinate the architecture and ui-ux sub-documents — ` +
+        `co-write ${shellQuote(SPEC_DIRECTORY + '/' + docName('architecture.md'))} and ` +
+        `${shellQuote(SPEC_DIRECTORY + '/' + docName('ui-ux-design.md'))} alongside the summary. ` +
+        `Return DesignOutput with all three docs.`
+      : `Return DesignOutput with the document path and a list of declared modules. ` +
+        `Set has_numeric_constants=true if the design fixes any numeric values that ` +
+        `Stage 6.5 prototype-runner should validate empirically.`),
+    {
+      label: designerType,
+      phase: 'Stage 6 — Design',
+      agentType: designerType,
+      schema: DESIGN_OUTPUT,
+    },
+  );
+  log(`Stage 6 complete: ${design.docs.length} doc(s) written; numeric constants present: ${design.has_numeric_constants ?? false}`);
+}
+
+// ---------------------------------------------------------------------------
+// Return value — read by the super-dev skill. Stages 7-13 land in C4-C7.
 // ---------------------------------------------------------------------------
 return {
   worktree_path: WORKTREE_PATH,
@@ -410,7 +673,14 @@ return {
     latest_doc: researchReports[researchReports.length - 1].doc_path,
     options: researchReports[researchReports.length - 1].options,
   },
-  next_stage: 4,
+  debug: debugResult
+    ? { doc: debugResult.doc_path, root_cause: debugResult.root_cause, reproduction_steps: debugResult.reproduction_steps }
+    : null,
+  assessment: { doc: assessment.doc_path, patterns: assessment.patterns, files_assessed: assessment.files_assessed },
+  design: design
+    ? { designer: design.designer, docs: design.docs, modules: design.modules ?? [], has_numeric_constants: design.has_numeric_constants ?? false }
+    : null,
+  next_stage: 7,
 };
 
 // ---------------------------------------------------------------------------

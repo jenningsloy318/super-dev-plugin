@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "super-dev/schemas/debug-output.json",
+  "title": "DebugOutput",
+  "description": "Structured return from debug-analyzer agent.",
+  "type": "object",
+  "required": ["doc_path", "hypotheses"],
+  "additionalProperties": false,
+  "properties": {
+    "doc_path": {
+      "type": "string",
+      "description": "Absolute path to the produced debug-analysis.md."
+    },
+    "hypotheses": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Ranked root-cause hypotheses (must be falsifiable).",
+      "items": {
+        "type": "object",
+        "required": ["statement", "confidence", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "statement": { "type": "string" },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "status": { "type": "string", "enum": ["confirmed", "refuted", "untested"] },
+          "evidence": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "root_cause": {
+      "type": "string",
+      "description": "Confirmed root cause when one hypothesis reaches status='confirmed'; empty otherwise."
+    },
+    "reproduction_steps": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Deterministic reproduction recipe; may be empty when not yet found."
+    },
+    "summary": { "type": "string" }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "super-dev/schemas/design-output.json",
+  "title": "DesignOutput",
+  "description": "Structured return from a Stage 6 designer agent (architecture-designer, architecture-improver, ui-ux-designer, or product-designer).",
+  "type": "object",
+  "required": ["designer", "docs"],
+  "additionalProperties": false,
+  "properties": {
+    "designer": {
+      "type": "string",
+      "enum": ["architecture-designer", "architecture-improver", "ui-ux-designer", "product-designer"],
+      "description": "Which Stage 6 designer produced the output."
+    },
+    "docs": {
+      "type": "array",
+      "minItems": 1,
+      "description": "One or more design documents written to the spec directory.",
+      "items": {
+        "type": "object",
+        "required": ["kind", "path"],
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["architecture", "ui-ux-design", "product-design-summary"]
+          },
+          "path": { "type": "string" }
+        }
+      }
+    },
+    "modules": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Module/component names declared by the design (for downstream spec-writer reference)."
+    },
+    "has_numeric_constants": {
+      "type": "boolean",
+      "description": "True if the design declares numeric constants (thresholds/ratios/sizes) that Stage 6.5 prototype-runner should validate empirically."
+    },
+    "summary": { "type": "string" }
+  }
+}

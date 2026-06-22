@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "super-dev/schemas/assessment-output.json",
+  "title": "AssessmentOutput",
+  "description": "Structured return from code-assessor agent — first code-reading stage of the workflow.",
+  "type": "object",
+  "required": ["doc_path", "patterns", "files_assessed"],
+  "additionalProperties": false,
+  "properties": {
+    "doc_path": {
+      "type": "string",
+      "description": "Absolute path to the produced code-assessment.md."
+    },
+    "patterns": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Recurring patterns/idioms the new code MUST follow (e.g. 'Repository<T> for DB access', 'tracing::instrument on every service fn')."
+    },
+    "files_assessed": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Count of source files inspected during this assessment."
+    },
+    "recommendations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["title", "priority"],
+        "properties": {
+          "title": { "type": "string" },
+          "priority": { "type": "string", "enum": ["high", "medium", "low"] },
+          "rationale": { "type": "string" }
+        }
+      }
+    },
+    "summary": { "type": "string" }
+  }
+}
