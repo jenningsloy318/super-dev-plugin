@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "super-dev/schemas/docs-output.json",
+  "title": "DocsOutput",
+  "description": "Structured return from docs-executor agent (Stage 11).",
+  "type": "object",
+  "required": ["docs_updated"],
+  "additionalProperties": false,
+  "properties": {
+    "docs_updated": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Absolute paths to every document updated this stage — spec dir + project-level (README, architecture, design)."
+    },
+    "spec_dir_files_reviewed": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total documents in the spec directory the executor inspected (whether updated or not)."
+    },
+    "spec_dir_files_updated": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Subset of spec_dir_files_reviewed that were actually modified."
+    },
+    "deviations_documented": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Spec deviations discovered during implementation/review that this update captured."
+    },
+    "summary": { "type": "string" }
+  }
+}

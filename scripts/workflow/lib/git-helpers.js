@@ -69,23 +69,47 @@ git rev-parse HEAD
 }
 
 /**
- * Commit all changes in a worktree under a Conventional-Commits message,
- * then emit the new HEAD SHA on stdout. Skips cleanly with the prior HEAD
- * when there is nothing to commit (e.g. tdd-guide only updated specs that
- * were already staged, or specialist made no source changes — rare but
- * possible). The fallback keeps base_sha advancing without empty commits.
+ * Stage any remaining changes in the worktree and commit them under a
+ * Conventional-Commits message. Used at Stage 13 to capture docs/handoff
+ * that landed after the last per-phase commit. Emits the new HEAD SHA on
+ * stdout; emits "skip-commit:no-staged-changes" on stderr when there is
+ * nothing to commit (and re-emits the prior HEAD on stdout).
  */
-export function commitPhaseSnippet(worktreePath, message) {
+export function commitTrailingSnippet(worktreePath, message) {
+  return commitPhaseSnippet(worktreePath, message);
+}
+
+/**
+ * Merge the spec branch back into the default branch in the MAIN repo
+ * (NOT inside the worktree). Sequence:
+ *   1. cd repoPath
+ *   2. checkout <defaultBranch>
+ *   3. pull --ff-only origin <defaultBranch>  (re-sync; the user may have
+ *      pulled new commits while the workflow was running)
+ *   4. merge --no-ff <specBranch> -m "<message>"
+ *   5. emit the new HEAD on stdout
+ *
+ * Refuses to do anything destructive: aborts on dirty tree, detached
+ * HEAD, or non-fast-forward pull. Auto-rebase/force-merge/stash are
+ * forbidden — same discipline as the Stage 1 pull-latest rule.
+ */
+export function mergeSpecBranchSnippet(repoPath, defaultBranch, specBranch, message) {
   return `set -e
-cd ${shellQuote(worktreePath)}
-git add -A
-if git diff --cached --quiet; then
-  echo "skip-commit:no-staged-changes" >&2
-  git rev-parse HEAD
-else
-  git commit -m ${shellQuote(message)} --quiet
-  git rev-parse HEAD
+cd ${shellQuote(repoPath)}
+if [ -n "$(git status --porcelain)" ]; then
+  echo "ERROR: main repo working tree is dirty — refusing to merge" >&2
+  echo "Resolve manually (stash, commit, or discard) before retrying." >&2
+  exit 2
 fi
+if ! git symbolic-ref -q HEAD >/dev/null; then
+  echo "ERROR: main repo HEAD is detached — checkout ${shellQuote(defaultBranch)} manually" >&2
+  exit 2
+fi
+git fetch origin --quiet
+git checkout ${shellQuote(defaultBranch)} --quiet
+git pull --ff-only origin ${shellQuote(defaultBranch)}
+git merge --no-ff ${shellQuote(specBranch)} -m ${shellQuote(message)}
+git rev-parse HEAD
 `;
 }
 

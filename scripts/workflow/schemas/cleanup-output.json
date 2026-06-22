@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "super-dev/schemas/cleanup-output.json",
+  "title": "CleanupOutput",
+  "description": "Structured return from build-cleaner agent (Stage 12).",
+  "type": "object",
+  "required": ["languages_detected", "sensitive_data_findings", "blocked"],
+  "additionalProperties": false,
+  "properties": {
+    "languages_detected": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Project languages/frameworks detected from manifest files (e.g. ['Rust', 'Node.js'])."
+    },
+    "directories_removed": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Build/cache directories removed from the worktree."
+    },
+    "commands_run": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Clean commands executed (e.g. 'cargo clean', 'pnpm clean')."
+    },
+    "disk_reclaimed_bytes": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Approximate disk space reclaimed in bytes."
+    },
+    "sensitive_data_findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["file", "kind"],
+        "additionalProperties": false,
+        "properties": {
+          "file": { "type": "string" },
+          "kind": { "type": "string", "description": "e.g. 'aws_access_key', 'private_key', 'jwt', 'env_value', 'connection_string'." },
+          "line": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "description": "Sensitive-data scan results. Any non-empty entry is BLOCKING per build-cleaner contract."
+    },
+    "blocked": {
+      "type": "boolean",
+      "description": "True when sensitive_data_findings is non-empty. When true, no cleanup commands were executed."
+    },
+    "summary": { "type": "string" }
+  }
+}

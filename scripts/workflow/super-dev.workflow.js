@@ -6,7 +6,7 @@
 // intermediate results in code. The model focuses on each subagent
 // task; the script focuses on flow.
 //
-// Layout (Phase B C2-C6 — Stages 1-10 only; later stages added in C7-C9):
+// Layout (Phase B C2-C7 — Stages 1-13 complete; C8-C9 polish):
 //   Stage 1   — Preflight + pull-latest + worktree + spec dir + tracking JSON
 //   Stage 2   — Requirements + BDD (writer + doc-validator pairs)
 //   Stage 3   — Research (initial + up-to-3 deep-research iterations)
@@ -18,6 +18,9 @@
 //   Stage 8   — Spec review (spec-reviewer + gate-spec-review) with iteration loop (max 3)
 //   Stage 9   — Per-phase TDD pipeline with per-phase commits + gate-build
 //   Stage 10  — Code review + adversarial review (parallel) with iteration loop + pivot trigger
+//   Stage 11  — Docs (docs-executor -> gate-docs-drift) + optional handoff-writer
+//   Stage 12  — build-cleaner (artifacts + sensitive-data scan; blocking on findings)
+//   Stage 13  — Trailing commit + merge to default branch (gated on args.do_merge)
 //
 // Phase A constraints honored:
 //   - preflight-env.sh runs FIRST (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 +
@@ -34,7 +37,8 @@
 // the super-dev:super-dev skill. Do NOT `node` it directly.
 
 import { detectDefaultBranchSnippet, pullLatestSnippet, worktreeAddSnippet,
-         captureHeadSnippet, commitPhaseSnippet }
+         captureHeadSnippet, commitPhaseSnippet, commitTrailingSnippet,
+         mergeSpecBranchSnippet }
   from './lib/git-helpers.js';
 
 // ---------------------------------------------------------------------------
@@ -56,6 +60,9 @@ export const meta = {
     { title: 'Stage 8 — Spec Review' },
     { title: 'Stage 9 — Implementation' },
     { title: 'Stage 10 — Code Review' },
+    { title: 'Stage 11 — Documentation' },
+    { title: 'Stage 12 — Cleanup' },
+    { title: 'Stage 13 — Merge' },
   ],
 };
 
@@ -445,6 +452,58 @@ const ADVERSARIAL_REVIEW_OUTPUT = {
   },
 };
 
+const DOCS_OUTPUT = {
+  type: 'object',
+  required: ['docs_updated'],
+  additionalProperties: false,
+  properties: {
+    docs_updated: { type: 'array', items: { type: 'string' } },
+    spec_dir_files_reviewed: { type: 'integer', minimum: 0 },
+    spec_dir_files_updated:  { type: 'integer', minimum: 0 },
+    deviations_documented: { type: 'array', items: { type: 'string' } },
+    summary: { type: 'string' },
+  },
+};
+
+const HANDOFF_OUTPUT = {
+  type: 'object',
+  required: ['doc_path', 'lines'],
+  additionalProperties: false,
+  properties: {
+    doc_path: { type: 'string' },
+    lines: { type: 'integer', minimum: 1 },
+    unfinished_items: { type: 'array', items: { type: 'string' } },
+    next_steps:       { type: 'array', items: { type: 'string' } },
+    summary: { type: 'string' },
+  },
+};
+
+const CLEANUP_OUTPUT = {
+  type: 'object',
+  required: ['languages_detected', 'sensitive_data_findings', 'blocked'],
+  additionalProperties: false,
+  properties: {
+    languages_detected: { type: 'array', items: { type: 'string' } },
+    directories_removed: { type: 'array', items: { type: 'string' } },
+    commands_run: { type: 'array', items: { type: 'string' } },
+    disk_reclaimed_bytes: { type: 'integer', minimum: 0 },
+    sensitive_data_findings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['file', 'kind'],
+        properties: {
+          file: { type: 'string' },
+          kind: { type: 'string' },
+          line: { type: 'integer', minimum: 1 },
+        },
+      },
+    },
+    blocked: { type: 'boolean' },
+    summary: { type: 'string' },
+  },
+};
+
 // ---------------------------------------------------------------------------
 // args — set by the caller (super-dev:super-dev skill) and accessed via the
 // Workflow runtime's global `args`. Shape:
@@ -473,6 +532,16 @@ const ADVERSARIAL_REVIEW_OUTPUT = {
 //     max_phase_iters: integer,  // Stage 9 per-phase build-fix iteration cap (default 3)
 //     max_review_iters: integer, // Stage 10 review iteration cap (default 3). Pivot
 //                                //   trigger checked starting at iteration 2.
+//     skip_handoff:    boolean,  // Stage 11: skip handoff-writer (e.g. when the
+//                                //   whole workflow completes in a single session
+//                                //   and no continuation is needed). Default: false.
+//     do_merge:        boolean,  // Stage 13: when true, merge the spec branch back
+//                                //   into the default branch in the main repo with
+//                                //   --no-ff. When false (DEFAULT), the workflow
+//                                //   returns after Stage 12 with the merge command
+//                                //   for the user/caller to run manually. Stage 13
+//                                //   merge is gated behind explicit confirmation
+//                                //   because it mutates the user's main repo.
 //   }
 // ---------------------------------------------------------------------------
 const REQUEST     = args?.request ?? '';
@@ -487,6 +556,8 @@ const LANGUAGE   = args?.language ?? 'mixed';
 const IS_WEB_UI  = Boolean(args?.is_web_ui ?? (UI_SCOPE !== 'none'));
 const MAX_PHASE_ITERS = Number.isInteger(args?.max_phase_iters) ? args.max_phase_iters : 3;
 const MAX_REVIEW_ITERS = Number.isInteger(args?.max_review_iters) ? args.max_review_iters : 3;
+const SKIP_HANDOFF = Boolean(args?.skip_handoff ?? false);
+const DO_MERGE     = Boolean(args?.do_merge ?? false);
 
 if (!REQUEST || !PLUGIN_ROOT || !REPO_PATH) {
   throw new Error('super-dev workflow: args must include {request, plugin_root, repo_path}');
@@ -1674,6 +1745,173 @@ while (reviewIter < MAX_REVIEW_ITERS) {
 }
 log(`Stage 10 complete after ${reviewIter} iteration(s).`);
 
+// ---------------------------------------------------------------------------
+// Stage 11 — Documentation
+//   Sequential: docs-executor -> doc-validator(gate-docs-drift) -> handoff-writer.
+//   handoff-writer is skipped when args.skip_handoff is true (single-session
+//   completions don't need a resume document).
+// ---------------------------------------------------------------------------
+phase('Stage 11 — Documentation');
+
+log('Stage 11: docs-executor (update spec dir + project-level docs)');
+const docsResult = await agent(
+  `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
+  `Inputs to read yourself:\n` +
+  `  - requirements: ${req.doc_path}\n` +
+  `  - bdd: ${bdd.doc_path}\n` +
+  `  - specification: ${spec.specification_path}\n` +
+  `  - plan: ${spec.plan_path}\n` +
+  `  - tasks: ${spec.tasks_path}\n` +
+  (codeReview ? `  - code-review: ${codeReview.doc_path}\n` : '') +
+  (advReview ? `  - adversarial-review: ${advReview.doc_path}\n` : '') +
+  `Per-phase impl summaries: ${phaseResults.map(p => p.summary_doc).join(', ')}\n\n` +
+  `Review EVERY document in the spec directory and update each to reflect the ACTUAL ` +
+  `implementation that landed. Capture spec deviations discovered during ` +
+  `implementation/review. Also update project-level docs (README, architecture, design) ` +
+  `if they reference behavior the implementation changed. Docs ship with code — never as ` +
+  `a separate disconnected phase.`,
+  {
+    label: 'docs-executor',
+    phase: 'Stage 11 — Documentation',
+    agentType: 'docs-executor',
+    schema: DOCS_OUTPUT,
+  },
+);
+log(`docs-executor: ${docsResult.spec_dir_files_updated ?? 0} spec docs + ${docsResult.docs_updated.length - (docsResult.spec_dir_files_updated ?? 0)} project docs updated.`);
+
+log('Stage 11: doc-validator (gate-docs-drift)');
+const docsDriftVerdict = await agent(
+  `Run ${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-docs-drift.sh')} ${shellQuote(SPEC_DIRECTORY)}. ` +
+  `This gate verifies docs do not lag behind the implementation diff. Return the gate verdict.`,
+  {
+    label: 'doc-validator:gate-docs-drift',
+    phase: 'Stage 11 — Documentation',
+    agentType: 'doc-validator',
+    schema: GATE_VERDICT,
+  },
+);
+if (!docsDriftVerdict?.pass) {
+  throw new Error(`Stage 11 gate-docs-drift failed: ${(docsDriftVerdict?.errors || []).join('; ')}`);
+}
+
+let handoff = null;
+if (SKIP_HANDOFF) {
+  log('Stage 11 handoff-writer skipped (args.skip_handoff=true).');
+} else {
+  log('Stage 11: handoff-writer');
+  const handoffName = docName('handoff.md');
+  handoff = await agent(
+    `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
+    `Spec identifier: ${specMeta.spec_identifier}. Feature name: ${req.feature_name}.\n` +
+    `Write a pointer-based handoff to ${shellQuote(SPEC_DIRECTORY + '/' + handoffName)} for the ` +
+    `next AI agent session. Budget: under 300 lines. The next session will read Sections 2 ` +
+    `(Progress), 4 (Unfinished Items), and 7 (Next Steps) first — those three sections must ` +
+    `be 100% self-contained and actionable.`,
+    {
+      label: 'handoff-writer',
+      phase: 'Stage 11 — Documentation',
+      agentType: 'handoff-writer',
+      schema: HANDOFF_OUTPUT,
+    },
+  );
+  log(`handoff-writer: ${handoff.lines} lines, ${(handoff.unfinished_items ?? []).length} unfinished item(s).`);
+}
+
+// ---------------------------------------------------------------------------
+// Stage 12 — Cleanup
+//   build-cleaner detects project type, scans for sensitive data (BLOCKING
+//   on any finding), then removes build artifacts and dependency caches.
+//   The workflow returns to the caller after this stage UNLESS args.do_merge
+//   is true — Stage 13 merge is gated behind explicit user confirmation
+//   because it mutates the user's main repo.
+// ---------------------------------------------------------------------------
+phase('Stage 12 — Cleanup');
+
+log('Stage 12: build-cleaner (sensitive-data scan + artifact cleanup)');
+const cleanup = await agent(
+  `Worktree: ${WORKTREE_PATH}. Plugin root: ${PLUGIN_ROOT}.\n` +
+  `Scan the worktree for project languages/frameworks (Cargo.toml, package.json, ` +
+  `go.mod, Pipfile, etc.). FIRST: pattern-match across the working tree for accidentally ` +
+  `committed secrets (.env values, AWS keys, GOOGLE_API_KEY, private keys, JWTs, ` +
+  `connection strings). If ANY are found, set blocked=true, list every finding, and do NOT ` +
+  `execute cleanup. Otherwise run the appropriate clean commands and remove artifact dirs.`,
+  {
+    label: 'build-cleaner',
+    phase: 'Stage 12 — Cleanup',
+    agentType: 'build-cleaner',
+    schema: CLEANUP_OUTPUT,
+  },
+);
+if (cleanup.blocked) {
+  throw new Error(
+    `Stage 12: build-cleaner BLOCKED on sensitive-data findings (${cleanup.sensitive_data_findings.length} item(s)). ` +
+    `Review and remove these from history before merging — they will leak to the default branch otherwise.\n` +
+    cleanup.sensitive_data_findings.map(f => `  - ${f.kind} in ${f.file}${f.line ? ':' + f.line : ''}`).join('\n')
+  );
+}
+log(`Stage 12 complete: cleaned ${cleanup.directories_removed.length} dir(s); reclaimed ${cleanup.disk_reclaimed_bytes} bytes.`);
+
+// ---------------------------------------------------------------------------
+// Stage 13 — Trailing commit + merge (gated behind args.do_merge)
+//   13.1 commit any remaining changes in the worktree (docs/handoff often
+//        land after the last per-phase commit; this captures them under a
+//        single chore() commit).
+//   13.2 (only if args.do_merge) checkout default branch in the MAIN repo,
+//        ff-only pull, merge --no-ff <spec branch>. Returns the merge SHA.
+//        Otherwise returns the merge command for the user/caller to run.
+// ---------------------------------------------------------------------------
+phase('Stage 13 — Merge');
+
+log('Stage 13.1: trailing commit (docs/handoff/cleanup)');
+const trailingCommit = await agent(
+  `Run exactly:\n${commitTrailingSnippet(WORKTREE_PATH, `chore(${specMeta.spec_name}): finalise docs, handoff, cleanup`)}\n` +
+  `Return JSON: {"new_sha": string, "skipped": boolean}.`,
+  {
+    label: 'stage-13:trailing-commit',
+    phase: 'Stage 13 — Merge',
+    agentType: 'general-purpose',
+    schema: {
+      type: 'object',
+      required: ['new_sha'],
+      properties: { new_sha: { type: 'string' }, skipped: { type: 'boolean' } },
+    },
+  },
+);
+log(`Stage 13.1: HEAD now ${trailingCommit.new_sha}${trailingCommit.skipped ? ' (no trailing changes)' : ''}`);
+
+let merge = null;
+const mergeMessage = `Merge spec ${specMeta.spec_identifier}: ${req.feature_name}`;
+if (!DO_MERGE) {
+  log(`Stage 13.2 skipped (args.do_merge=false). To merge manually, run:`);
+  log(`  cd ${REPO_PATH} && git checkout ${DEFAULT_BRANCH} && git pull --ff-only && \\`);
+  log(`    git merge --no-ff ${specMeta.spec_identifier} -m ${JSON.stringify(mergeMessage)}`);
+} else {
+  log('Stage 13.2: merging spec branch into default branch in the main repo');
+  const mergeResult = await agent(
+    `Run exactly:\n${mergeSpecBranchSnippet(REPO_PATH, DEFAULT_BRANCH, specMeta.spec_identifier, mergeMessage)}\n` +
+    `Return JSON: {"ok": bool, "merge_sha": string, "stderr": string}.`,
+    {
+      label: 'stage-13:merge',
+      phase: 'Stage 13 — Merge',
+      agentType: 'general-purpose',
+      schema: {
+        type: 'object',
+        required: ['ok'],
+        properties: { ok: { type: 'boolean' }, merge_sha: { type: 'string' }, stderr: { type: 'string' } },
+      },
+    },
+  );
+  if (!mergeResult.ok) {
+    throw new Error(
+      `Stage 13: merge into ${DEFAULT_BRANCH} failed. ` +
+      `Resolve manually and re-run with args.do_merge=true if needed.\n` +
+      `git stderr:\n${mergeResult.stderr || '(empty)'}`
+    );
+  }
+  merge = { default_branch: DEFAULT_BRANCH, merge_sha: mergeResult.merge_sha };
+  log(`Stage 13 complete: merged at ${mergeResult.merge_sha} on ${DEFAULT_BRANCH}.`);
+}
+
 return {
   worktree_path: WORKTREE_PATH,
   spec_directory: SPEC_DIRECTORY,
@@ -1720,7 +1958,25 @@ return {
     adversarial_verdict: advReview?.verdict ?? null,
     iterations: reviewIter,
   },
-  next_stage: 11,
+  docs: {
+    docs_updated: docsResult.docs_updated,
+    deviations_documented: docsResult.deviations_documented ?? [],
+  },
+  handoff: handoff
+    ? { doc: handoff.doc_path, lines: handoff.lines, unfinished_items: handoff.unfinished_items ?? [] }
+    : null,
+  cleanup: {
+    languages: cleanup.languages_detected,
+    directories_removed: cleanup.directories_removed ?? [],
+    disk_reclaimed_bytes: cleanup.disk_reclaimed_bytes ?? 0,
+  },
+  trailing_commit: {
+    new_sha: trailingCommit.new_sha,
+    skipped: Boolean(trailingCommit.skipped),
+  },
+  merge,
+  merged: Boolean(merge),
+  next_stage: merge ? null : 13,
 };
 
 // ---------------------------------------------------------------------------

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "super-dev/schemas/handoff-output.json",
+  "title": "HandoffOutput",
+  "description": "Structured return from handoff-writer agent (Stage 11, optional).",
+  "type": "object",
+  "required": ["doc_path", "lines"],
+  "additionalProperties": false,
+  "properties": {
+    "doc_path": {
+      "type": "string",
+      "description": "Absolute path to the handoff.md."
+    },
+    "lines": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Line count of the handoff document. Should be <= 300 (handoff-writer's budget)."
+    },
+    "unfinished_items": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Items the next agent session must address. Empty when nothing remains."
+    },
+    "next_steps": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Concrete first actions for the next agent."
+    },
+    "summary": { "type": "string" }
+  }
+}
