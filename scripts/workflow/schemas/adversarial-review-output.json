@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "super-dev/schemas/adversarial-review-output.json",
+  "title": "AdversarialReviewOutput",
+  "description": "Structured return from adversarial-reviewer (Stage 10). Three personas (Skeptic, Architect, Minimalist) attack the implementation.",
+  "type": "object",
+  "required": ["doc_path", "verdict", "findings"],
+  "additionalProperties": false,
+  "properties": {
+    "doc_path": { "type": "string" },
+    "verdict": {
+      "type": "string",
+      "enum": ["PASS", "CONTEST", "REJECT"],
+      "description": "PASS: no high-severity findings remain. CONTEST: quality issues that do not risk production (iterate, do not block). REJECT: would cause production failure / data loss / security breach (block; consider pivot)."
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["lens", "severity", "issue"],
+        "additionalProperties": false,
+        "properties": {
+          "lens": {
+            "type": "string",
+            "enum": ["skeptic", "architect", "minimalist"],
+            "description": "Which adversarial persona surfaced the finding."
+          },
+          "file": { "type": "string" },
+          "line": { "type": "integer", "minimum": 1 },
+          "severity": {
+            "type": "string",
+            "enum": ["high", "medium", "low"]
+          },
+          "issue": { "type": "string" },
+          "recommendation": { "type": "string" },
+          "uncertain": { "type": "boolean" },
+          "research_ref": {
+            "type": "string",
+            "description": "Optional COM-NNN / IMP-NNN reference from Stage 3 research grounding the challenge."
+          }
+        }
+      }
+    },
+    "spec_faithful_but_wrong": {
+      "type": "boolean",
+      "description": "Pivot trigger signal: true when the implementation faithfully follows the spec but the spec itself produces the wrong outcome. When set on iteration 2+, Stage 10 raises a PIVOT_REQUIRED error instead of looping again."
+    },
+    "summary": { "type": "string" }
+  }
+}

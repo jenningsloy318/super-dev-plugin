@@ -6,7 +6,7 @@
 // intermediate results in code. The model focuses on each subagent
 // task; the script focuses on flow.
 //
-// Layout (Phase B C2-C5 — Stages 1-9 only; later stages added in C6-C9):
+// Layout (Phase B C2-C6 — Stages 1-10 only; later stages added in C7-C9):
 //   Stage 1   — Preflight + pull-latest + worktree + spec dir + tracking JSON
 //   Stage 2   — Requirements + BDD (writer + doc-validator pairs)
 //   Stage 3   — Research (initial + up-to-3 deep-research iterations)
@@ -17,6 +17,7 @@
 //   Stage 7   — Specification (spec-writer + gate-spec-trace)
 //   Stage 8   — Spec review (spec-reviewer + gate-spec-review) with iteration loop (max 3)
 //   Stage 9   — Per-phase TDD pipeline with per-phase commits + gate-build
+//   Stage 10  — Code review + adversarial review (parallel) with iteration loop + pivot trigger
 //
 // Phase A constraints honored:
 //   - preflight-env.sh runs FIRST (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 +
@@ -54,6 +55,7 @@ export const meta = {
     { title: 'Stage 7 — Specification' },
     { title: 'Stage 8 — Spec Review' },
     { title: 'Stage 9 — Implementation' },
+    { title: 'Stage 10 — Code Review' },
   ],
 };
 
@@ -383,6 +385,66 @@ const E2E_OUTPUT = {
   },
 };
 
+const CODE_REVIEW_OUTPUT = {
+  type: 'object',
+  required: ['doc_path', 'verdict', 'findings'],
+  additionalProperties: false,
+  properties: {
+    doc_path: { type: 'string' },
+    verdict: {
+      type: 'string',
+      enum: ['Approved', 'Approved with Comments', 'Changes Requested', 'Blocked'],
+    },
+    findings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['file', 'severity', 'issue'],
+        properties: {
+          file: { type: 'string' },
+          line: { type: 'integer', minimum: 1 },
+          severity: { type: 'string', enum: ['critical', 'high', 'medium', 'low', 'info'] },
+          category: { type: 'string' },
+          issue: { type: 'string' },
+          recommendation: { type: 'string' },
+          uncertain: { type: 'boolean' },
+        },
+      },
+    },
+    dimensions_covered: { type: 'array', items: { type: 'string' } },
+    summary: { type: 'string' },
+  },
+};
+
+const ADVERSARIAL_REVIEW_OUTPUT = {
+  type: 'object',
+  required: ['doc_path', 'verdict', 'findings'],
+  additionalProperties: false,
+  properties: {
+    doc_path: { type: 'string' },
+    verdict: { type: 'string', enum: ['PASS', 'CONTEST', 'REJECT'] },
+    findings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['lens', 'severity', 'issue'],
+        properties: {
+          lens: { type: 'string', enum: ['skeptic', 'architect', 'minimalist'] },
+          file: { type: 'string' },
+          line: { type: 'integer', minimum: 1 },
+          severity: { type: 'string', enum: ['high', 'medium', 'low'] },
+          issue: { type: 'string' },
+          recommendation: { type: 'string' },
+          uncertain: { type: 'boolean' },
+          research_ref: { type: 'string' },
+        },
+      },
+    },
+    spec_faithful_but_wrong: { type: 'boolean' },
+    summary: { type: 'string' },
+  },
+};
+
 // ---------------------------------------------------------------------------
 // args — set by the caller (super-dev:super-dev skill) and accessed via the
 // Workflow runtime's global `args`. Shape:
@@ -409,6 +471,8 @@ const E2E_OUTPUT = {
 //                       falls back to dev-executor.
 //     is_web_ui:      boolean,   // Stage 9.5 e2e gate. Default: false.
 //     max_phase_iters: integer,  // Stage 9 per-phase build-fix iteration cap (default 3)
+//     max_review_iters: integer, // Stage 10 review iteration cap (default 3). Pivot
+//                                //   trigger checked starting at iteration 2.
 //   }
 // ---------------------------------------------------------------------------
 const REQUEST     = args?.request ?? '';
@@ -422,6 +486,7 @@ const MAX_SPEC_ITERS = Number.isInteger(args?.max_spec_iters) ? args.max_spec_it
 const LANGUAGE   = args?.language ?? 'mixed';
 const IS_WEB_UI  = Boolean(args?.is_web_ui ?? (UI_SCOPE !== 'none'));
 const MAX_PHASE_ITERS = Number.isInteger(args?.max_phase_iters) ? args.max_phase_iters : 3;
+const MAX_REVIEW_ITERS = Number.isInteger(args?.max_review_iters) ? args.max_review_iters : 3;
 
 if (!REQUEST || !PLUGIN_ROOT || !REPO_PATH) {
   throw new Error('super-dev workflow: args must include {request, plugin_root, repo_path}');
@@ -1344,6 +1409,271 @@ for (const ph of phases) {
   });
 }
 log(`Stage 9 complete: ${phaseResults.length} phase(s) implemented & committed.`);
+
+// ---------------------------------------------------------------------------
+// Stage 10 — Code review + adversarial review (parallel) with iteration loop
+//   Five agents in parallel per iteration:
+//     1. code-reviewer                              (Approved/AwC/Changes/Blocked)
+//     2. adversarial-reviewer                        (PASS/CONTEST/REJECT)
+//     3. doc-validator (gate-review on code-review.md)
+//     4. doc-validator (gate-review on adversarial-review.md)
+//     5. doc-validator (gate-implementation-complete on tracking JSON)
+//
+//   Exit (Stage 10 PASS) iff:
+//     - code-reviewer.verdict === 'Approved' AND
+//     - adversarial-reviewer.verdict === 'PASS' AND
+//     - ALL three gate verdicts pass
+//   Otherwise iterate: re-spawn tdd-guide (when reviewer findings indicate
+//   missing/incorrect tests) + domain specialist (for code fixes) + qa-agent,
+//   then re-run all 5 reviewers.
+//
+//   Pivot trigger (checked starting iteration 2):
+//     Same class of failure persists AND adversarial-reviewer set
+//     spec_faithful_but_wrong=true. Throws a PIVOT_REQUIRED error so the
+//     caller invokes pivot-protocol and re-runs the workflow from Stage 6
+//     with a revised design.
+// ---------------------------------------------------------------------------
+phase('Stage 10 — Code Review');
+
+const overallBaseSha = phaseResults[0]?.base_sha ?? null;
+const overallHeadSha = phaseResults[phaseResults.length - 1]?.head_sha ?? null;
+const filesChanged = Array.from(new Set(phaseResults.flatMap(p => [...p.impl_files, ...p.test_files])));
+
+let codeReview = null;
+let advReview = null;
+let reviewIter = 0;
+let priorFindingSignature = null;
+
+while (reviewIter < MAX_REVIEW_ITERS) {
+  reviewIter += 1;
+  const codeReviewName = reviewIter === 1 ? docName('code-review.md') : docName(`code-review-${reviewIter}.md`);
+  const advReviewName  = reviewIter === 1 ? docName('adversarial-review.md') : docName(`adversarial-review-${reviewIter}.md`);
+  log(`Stage 10 iteration ${reviewIter}/${MAX_REVIEW_ITERS}: 5 reviewers in parallel`);
+
+  const reviewerBase =
+    `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
+    `Inputs to read yourself:\n` +
+    `  - requirements: ${req.doc_path}\n` +
+    `  - bdd: ${bdd.doc_path}\n` +
+    `  - research: ${researchReports[researchReports.length - 1].doc_path}\n` +
+    `  - specification: ${spec.specification_path}\n` +
+    `  - plan: ${spec.plan_path}\n` +
+    `  - tasks: ${spec.tasks_path}\n` +
+    `  - assessment: ${assessment.doc_path}\n` +
+    (design ? `  - design: ${design.docs.map(d => d.path).join(', ')}\n` : '') +
+    `Diff base_sha: ${overallBaseSha ?? '(none — no Stage 9 phases)'}\n` +
+    `Diff head_sha: ${overallHeadSha ?? '(none)'}\n` +
+    `files_changed (across all phases): ${filesChanged.length} file(s)`;
+
+  const [cr, ar, gateRevCode, gateRevAdv, gateImplComplete] = await parallel([
+    () => agent(
+      `${reviewerBase}\n\n` +
+      `Produce ${shellQuote(SPEC_DIRECTORY + '/' + codeReviewName)}. Cover ALL dimensions ` +
+      `(correctness, security, performance, maintainability, style). Report EVERY finding ` +
+      `including UNCERTAIN ones (confidence < 0.5); never suppress. Only 'Approved' (zero ` +
+      `findings of any severity) ends Stage 10 — anything else iterates.`,
+      {
+        label: `code-reviewer:${reviewIter}`,
+        phase: 'Stage 10 — Code Review',
+        agentType: 'code-reviewer',
+        schema: CODE_REVIEW_OUTPUT,
+      },
+    ),
+    () => agent(
+      `${reviewerBase}\n\n` +
+      `Produce ${shellQuote(SPEC_DIRECTORY + '/' + advReviewName)}. Run all three lenses ` +
+      `(Skeptic / Architect / Minimalist). PASS only when zero high-severity findings remain. ` +
+      `REJECT only for production-failure / data-loss / security-breach risks. ` +
+      `If the implementation faithfully follows the spec but the spec itself produces the ` +
+      `wrong outcome, set spec_faithful_but_wrong=true so Stage 10 can route to pivot-protocol.`,
+      {
+        label: `adversarial-reviewer:${reviewIter}`,
+        phase: 'Stage 10 — Code Review',
+        agentType: 'adversarial-reviewer',
+        schema: ADVERSARIAL_REVIEW_OUTPUT,
+      },
+    ),
+    () => agent(
+      `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + codeReviewName)} to appear, then run ` +
+      `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-review.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + codeReviewName)}. ` +
+      `Return the gate verdict.`,
+      {
+        label: `doc-validator:gate-review:code:${reviewIter}`,
+        phase: 'Stage 10 — Code Review',
+        agentType: 'doc-validator',
+        schema: GATE_VERDICT,
+      },
+    ),
+    () => agent(
+      `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + advReviewName)} to appear, then run ` +
+      `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-review.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + advReviewName)}. ` +
+      `Return the gate verdict.`,
+      {
+        label: `doc-validator:gate-review:adversarial:${reviewIter}`,
+        phase: 'Stage 10 — Code Review',
+        agentType: 'doc-validator',
+        schema: GATE_VERDICT,
+      },
+    ),
+    () => agent(
+      `Run ${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-implementation-complete.sh')} ` +
+      `${shellQuote(SPEC_DIRECTORY)}. This gate verifies all implementation-plan phases ` +
+      `show status='complete' in the tracking JSON. Return the gate verdict.`,
+      {
+        label: `doc-validator:gate-implementation-complete:${reviewIter}`,
+        phase: 'Stage 10 — Code Review',
+        agentType: 'doc-validator',
+        schema: GATE_VERDICT,
+      },
+    ),
+  ]);
+
+  codeReview = cr;
+  advReview = ar;
+
+  // Surface any gate failure as a hard error — these are structural, not
+  // findings the loop can fix by re-running the specialist.
+  for (const v of [gateRevCode, gateRevAdv, gateImplComplete]) {
+    if (!v?.pass) {
+      throw new Error(
+        `Stage 10 iteration ${reviewIter}: gate '${v?.gate ?? 'unknown'}' FAILED — ` +
+        `${(v?.errors || []).join('; ')}`
+      );
+    }
+  }
+
+  const codePass = cr?.verdict === 'Approved';
+  const advPass  = ar?.verdict === 'PASS';
+  if (codePass && advPass) {
+    log(`Stage 10 PASS on iteration ${reviewIter}: code-review Approved, adversarial PASS, all gates pass.`);
+    break;
+  }
+
+  // Hard pivot signal from adversarial reviewer at iter >= 2.
+  if (reviewIter >= 2 && ar?.spec_faithful_but_wrong === true) {
+    throw new Error(
+      `Stage 10 iteration ${reviewIter}: PIVOT_REQUIRED — adversarial-reviewer reports the ` +
+      `implementation is faithful to the spec but the spec itself produces the wrong outcome. ` +
+      `Invoke pivot-protocol with these findings and re-run the workflow from Stage 6 with a ` +
+      `revised design.\n` +
+      `code-review: ${cr?.doc_path}\nadversarial-review: ${ar?.doc_path}`
+    );
+  }
+
+  // Hard REJECT halts the loop — fixing the implementation cannot make a
+  // production-failure / data-loss / security-breach class issue go away.
+  if (ar?.verdict === 'REJECT') {
+    throw new Error(
+      `Stage 10 iteration ${reviewIter}: adversarial-reviewer REJECT — ` +
+      `production-failure / data-loss / security-breach class issue. Stop and escalate. ` +
+      `Report: ${ar.doc_path}`
+    );
+  }
+
+  // Implementation-pivot detection by signature stagnation: if the SAME
+  // set of files+severities is reported on iteration 2 as on iteration 1,
+  // the implementation iteration is not converging and a pivot is likely.
+  // We surface this with a clear escalation message rather than auto-pivot.
+  const findingSig = [
+    ...(cr?.findings ?? []).map(f => `${f.severity}:${f.file}:${f.issue.slice(0, 40)}`),
+    ...(ar?.findings ?? []).map(f => `${f.severity}:${f.lens}:${(f.issue || '').slice(0, 40)}`),
+  ].sort().join('|');
+  const stalled = reviewIter >= 2 && findingSig && findingSig === priorFindingSignature;
+  if (stalled) {
+    throw new Error(
+      `Stage 10 iteration ${reviewIter}: findings unchanged since prior iteration — ` +
+      `implementation iteration is not converging. Likely a spec/design issue. ` +
+      `Stop and consider pivot-protocol. code-review: ${cr?.doc_path}, adversarial: ${ar?.doc_path}`
+    );
+  }
+  priorFindingSignature = findingSig;
+
+  if (reviewIter >= MAX_REVIEW_ITERS) {
+    throw new Error(
+      `Stage 10: exhausted ${MAX_REVIEW_ITERS} review iterations with code-review='${cr?.verdict}' ` +
+      `/ adversarial='${ar?.verdict}'. Escalating to user. ` +
+      `Reports: ${cr?.doc_path}, ${ar?.doc_path}`
+    );
+  }
+
+  // ----- Iteration: re-spawn tdd-guide (when tests are at fault) +
+  //       domain specialist (code fixes) + qa-agent + new code-review. -----
+  const testFindings = (cr?.findings ?? []).filter(f =>
+    /test|coverage|missing.{0,10}(test|assert)/i.test(f.issue) ||
+    f.category === 'test' || f.category === 'coverage'
+  );
+  const codeFindings = (cr?.findings ?? []).filter(f => !testFindings.includes(f));
+  const advFindings = ar?.findings ?? [];
+
+  const fixGuidance =
+    `--- Findings from Stage 10 iteration ${reviewIter} ---\n` +
+    `Code review (verdict: ${cr?.verdict ?? 'n/a'}):\n` +
+    (codeFindings.length
+      ? codeFindings.map(f => `  [${f.severity}] ${f.file}${f.line ? ':' + f.line : ''} — ${f.issue}` +
+          (f.recommendation ? `\n    Fix: ${f.recommendation}` : '')).join('\n')
+      : '  (no code findings)') +
+    `\n\nAdversarial review (verdict: ${ar?.verdict ?? 'n/a'}):\n` +
+    (advFindings.length
+      ? advFindings.map(f => `  [${f.lens}/${f.severity}] ${f.issue}` +
+          (f.recommendation ? `\n    Fix: ${f.recommendation}` : '')).join('\n')
+      : '  (no adversarial findings)');
+
+  if (testFindings.length > 0) {
+    log(`Stage 10 iteration ${reviewIter}: ${testFindings.length} test/coverage findings — re-running tdd-guide`);
+    await agent(
+      `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
+      `Inputs to read yourself:\n` +
+      `  - requirements: ${req.doc_path}\n` +
+      `  - bdd: ${bdd.doc_path}\n` +
+      `  - specification: ${spec.specification_path}\n` +
+      `  - plan: ${spec.plan_path}\n\n` +
+      `Address ONLY the test/coverage findings below. Add missing tests, tighten assertions, ` +
+      `do NOT touch production code. After your changes the test suite should be RED for any ` +
+      `gap the reviewers flagged.\n\n${fixGuidance}\n` +
+      `Findings flagged as test/coverage:\n` +
+      testFindings.map(f => `  [${f.severity}] ${f.file}${f.line ? ':' + f.line : ''} — ${f.issue}`).join('\n'),
+      {
+        label: `tdd-guide:fix:${reviewIter}`,
+        phase: 'Stage 10 — Code Review',
+        agentType: 'tdd-guide',
+        schema: TDD_OUTPUT,
+      },
+    );
+  }
+
+  log(`Stage 10 iteration ${reviewIter}: re-running ${specialistAgent} with review findings`);
+  await agent(
+    `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
+    `Inputs to read yourself: ${spec.specification_path}, ${spec.plan_path}, ${spec.tasks_path}.\n` +
+    `Apply the targeted fixes below — quote reviewers verbatim, do not paraphrase. After your ` +
+    `changes ALL phase tests must remain green.\n\n${fixGuidance}`,
+    {
+      label: `${specialistAgent}:fix:${reviewIter}`,
+      phase: 'Stage 10 — Code Review',
+      agentType: specialistAgent,
+      schema: IMPL_OUTPUT,
+    },
+  );
+
+  log(`Stage 10 iteration ${reviewIter}: re-running qa-agent to verify fixes`);
+  await agent(
+    `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
+    `Inputs to read yourself: ${req.doc_path}, ${bdd.doc_path}, ${spec.specification_path}, ` +
+    `${spec.plan_path}, ${spec.tasks_path}.\n` +
+    `Run the build command and verify ALL tests pass with coverage thresholds met after the ` +
+    `Stage 10 iteration fixes. Map every test back to AC-ID/SCENARIO-ID.`,
+    {
+      label: `qa-agent:fix:${reviewIter}`,
+      phase: 'Stage 10 — Code Review',
+      agentType: 'qa-agent',
+      schema: QA_OUTPUT,
+    },
+  );
+
+  log(`Stage 10 iteration ${reviewIter}: fixes applied, looping back for re-review`);
+}
+log(`Stage 10 complete after ${reviewIter} iteration(s).`);
+
 return {
   worktree_path: WORKTREE_PATH,
   spec_directory: SPEC_DIRECTORY,
@@ -1383,7 +1713,14 @@ return {
     phases: phaseResults,
     is_web_ui: IS_WEB_UI,
   },
-  next_stage: 10,
+  review: {
+    code_review_doc: codeReview?.doc_path ?? null,
+    code_review_verdict: codeReview?.verdict ?? null,
+    adversarial_doc: advReview?.doc_path ?? null,
+    adversarial_verdict: advReview?.verdict ?? null,
+    iterations: reviewIter,
+  },
+  next_stage: 11,
 };
 
 // ---------------------------------------------------------------------------
