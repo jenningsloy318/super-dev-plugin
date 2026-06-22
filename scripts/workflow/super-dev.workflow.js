@@ -2033,7 +2033,14 @@ cd ${shellQuote(repoPath)}
 # Fetch without --quiet so network errors surface verbatim in the captured
 # stderr. Same reason --quiet is dropped from checkout/pull below.
 git fetch origin
-if [ -n "$(git status --porcelain)" ]; then
+# Stage 1's dirty-tree check ignores untracked files: the user's repo
+# routinely has scratch files, logs, IDE caches, and build outputs that
+# are .gitignore-d but show as untracked. Those do not block an ff-only
+# pull (git happily fast-forwards over them) and refusing on their
+# account is a usability footgun. Stage 13's merge check (in
+# mergeSpecBranchSnippet) keeps the stricter rule because the merge
+# resolution itself can interact badly with stray untracked files.
+if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
   echo "ERROR: working tree has uncommitted changes — refusing to pull" >&2
   echo "Resolve manually: stash, commit, or discard before retrying." >&2
   exit 2
