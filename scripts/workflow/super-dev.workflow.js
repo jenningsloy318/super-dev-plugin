@@ -6,13 +6,16 @@
 // intermediate results in code. The model focuses on each subagent
 // task; the script focuses on flow.
 //
-// Layout (Phase B C2-C3 — Stages 1-6 only; later stages added in C4-C9):
+// Layout (Phase B C2-C4 — Stages 1-8 only; later stages added in C5-C9):
 //   Stage 1   — Preflight + pull-latest + worktree + spec dir + tracking JSON
 //   Stage 2   — Requirements + BDD (writer + doc-validator pairs)
 //   Stage 3   — Research (initial + up-to-3 deep-research iterations)
 //   Stage 4   — Debug analysis (bugs only; supports parallel multi-hypothesis)
 //   Stage 5   — Code assessment (first code-reading stage)
 //   Stage 6   — Design routing (architecture / ui-ux / product, by feature_kind)
+//   Stage 6.5 — Prototype (conditional: only when design declares numeric constants)
+//   Stage 7   — Specification (spec-writer + gate-spec-trace)
+//   Stage 8   — Spec review (spec-reviewer + gate-spec-review) with iteration loop (max 3)
 //
 // Phase A constraints honored:
 //   - preflight-env.sh runs FIRST (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 +
@@ -45,6 +48,9 @@ export const meta = {
     { title: 'Stage 4 — Debug Analysis' },
     { title: 'Stage 5 — Code Assessment' },
     { title: 'Stage 6 — Design' },
+    { title: 'Stage 6.5 — Prototype' },
+    { title: 'Stage 7 — Specification' },
+    { title: 'Stage 8 — Spec Review' },
   ],
 };
 
@@ -193,6 +199,88 @@ const DESIGN_OUTPUT = {
   },
 };
 
+const PROTOTYPE_OUTPUT = {
+  type: 'object',
+  required: ['doc_path', 'constants_tested', 'verdict'],
+  additionalProperties: false,
+  properties: {
+    doc_path: { type: 'string' },
+    constants_tested: {
+      type: 'array',
+      minItems: 1,
+      items: {
+        type: 'object',
+        required: ['name', 'spec_value', 'measured_value', 'within_tolerance'],
+        properties: {
+          name: { type: 'string' },
+          spec_value: { type: 'number' },
+          measured_value: { type: 'number' },
+          within_tolerance: { type: 'boolean' },
+          tolerance: { type: 'number' },
+          samples: { type: 'integer', minimum: 1 },
+        },
+      },
+    },
+    verdict: { type: 'string', enum: ['PROTOTYPE_OK', 'PROTOTYPE_FAILED'] },
+    failing_constants: { type: 'array', items: { type: 'string' } },
+    summary: { type: 'string' },
+  },
+};
+
+const SPEC_OUTPUT = {
+  type: 'object',
+  required: ['specification_path', 'plan_path', 'tasks_path', 'phase_count'],
+  additionalProperties: false,
+  properties: {
+    specification_path: { type: 'string' },
+    plan_path: { type: 'string' },
+    tasks_path: { type: 'string' },
+    phase_count: { type: 'integer', minimum: 1 },
+    phases: {
+      type: 'array',
+      minItems: 1,
+      items: {
+        type: 'object',
+        required: ['number', 'name'],
+        properties: {
+          number: { type: 'integer', minimum: 1 },
+          name: { type: 'string' },
+          depends_on: { type: 'array', items: { type: 'integer' } },
+        },
+      },
+    },
+    summary: { type: 'string' },
+  },
+};
+
+const SPEC_REVIEW_OUTPUT = {
+  type: 'object',
+  required: ['doc_path', 'verdict'],
+  additionalProperties: false,
+  properties: {
+    doc_path: { type: 'string' },
+    verdict: { type: 'string', enum: ['APPROVED', 'REVISIONS NEEDED', 'REJECTED'] },
+    findings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['section', 'severity', 'issue'],
+        properties: {
+          section: { type: 'string' },
+          severity: { type: 'string', enum: ['blocker', 'major', 'minor'] },
+          issue: { type: 'string' },
+          recommendation: { type: 'string' },
+        },
+      },
+    },
+    dimensions_scored: {
+      type: 'object',
+      additionalProperties: { type: 'number', minimum: 0, maximum: 1 },
+    },
+    summary: { type: 'string' },
+  },
+};
+
 // ---------------------------------------------------------------------------
 // args — set by the caller (super-dev:super-dev skill) and accessed via the
 // Workflow runtime's global `args`. Shape:
@@ -207,6 +295,12 @@ const DESIGN_OUTPUT = {
 //                         any              + 'ui-only' -> ui-ux-designer
 //                         any              + 'ui+arch' -> product-designer
 //     bug_evidence:   string,   // evidence/logs/repro for bugs (Stage 4)
+//     input_samples:  string[]  // optional Stage 6.5 sample paths / inline data
+//                                  used by prototype-runner when the design
+//                                  declares numeric constants. Required for
+//                                  any feature with empirical constants;
+//                                  without them Stage 6.5 fails closed.
+//     max_spec_iters: integer,  // Stage 8 iteration cap (default 3)
 //   }
 // ---------------------------------------------------------------------------
 const REQUEST     = args?.request ?? '';
@@ -215,6 +309,8 @@ const REPO_PATH   = args?.repo_path ?? '';
 const FEATURE_KIND = args?.feature_kind ?? 'auto';
 const UI_SCOPE    = args?.ui_scope ?? 'none';
 const BUG_EVIDENCE = args?.bug_evidence ?? '';
+const INPUT_SAMPLES = Array.isArray(args?.input_samples) ? args.input_samples : [];
+const MAX_SPEC_ITERS = Number.isInteger(args?.max_spec_iters) ? args.max_spec_iters : 3;
 
 if (!REQUEST || !PLUGIN_ROOT || !REPO_PATH) {
   throw new Error('super-dev workflow: args must include {request, plugin_root, repo_path}');
@@ -659,7 +755,253 @@ if (designerType) {
 }
 
 // ---------------------------------------------------------------------------
-// Return value — read by the super-dev skill. Stages 7-13 land in C4-C7.
+// Stage 6.5 — Prototype (CONDITIONAL)
+//   Fires only when Stage 6 declared numeric design constants. Validates
+//   them against representative real input samples BEFORE Stage 7 writes
+//   the spec. On PROTOTYPE_FAILED, throws — the orchestrating skill must
+//   invoke pivot-protocol with the failing constants and re-run from
+//   Stage 6 with revised design before continuing.
+// ---------------------------------------------------------------------------
+phase('Stage 6.5 — Prototype');
+
+let prototype = null;
+const needPrototype = design?.has_numeric_constants === true;
+if (!needPrototype) {
+  log(`Stage 6.5 skipped (no numeric design constants declared).`);
+} else if (INPUT_SAMPLES.length === 0) {
+  // Fail-closed: empirical validation cannot proceed without real inputs.
+  throw new Error(
+    `Stage 6.5: design declares numeric constants but args.input_samples is empty. ` +
+    `Provide 5-10 representative real input paths/strings before re-running the workflow ` +
+    `(see "Discipline A" in reference/lessons-learned/spec-29-visual-verification.md).`
+  );
+} else {
+  log(`Stage 6.5: prototype-runner validating constants against ${INPUT_SAMPLES.length} sample(s)`);
+  const protoName = docName('prototype-report.md');
+  const designDoc = (design.docs.find(d => d.kind === 'architecture')?.path)
+    ?? design.docs[0].path;
+  const [proto, protoVerdict] = await parallel([
+    () => agent(
+      `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
+      `Design document: ${designDoc}\n` +
+      `Input samples (JSON): ${JSON.stringify(INPUT_SAMPLES)}\n\n` +
+      `Extract every numeric design constant from the design document (thresholds, ratios, ` +
+      `percentages, alphas, sizes). Build a minimal prototype that exercises each constant ` +
+      `against the supplied samples. Measure the actual value(s) achieved. Compare to the ` +
+      `spec value within the tolerance declared in the design (or 10% if unspecified). ` +
+      `Write ${shellQuote(SPEC_DIRECTORY + '/' + protoName)} with a table of ` +
+      `name | spec | measured | tolerance | within? per constant. Set verdict='PROTOTYPE_OK' ` +
+      `iff every constant is within tolerance, otherwise 'PROTOTYPE_FAILED' and list the ` +
+      `failing constants by name.`,
+      {
+        label: 'prototype-runner',
+        phase: 'Stage 6.5 — Prototype',
+        agentType: 'prototype-runner',
+        schema: PROTOTYPE_OUTPUT,
+      },
+    ),
+    () => agent(
+      `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + protoName)} to appear, then run ` +
+      `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-prototype.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + protoName)}. ` +
+      `Return the gate verdict.`,
+      {
+        label: 'doc-validator:gate-prototype',
+        phase: 'Stage 6.5 — Prototype',
+        agentType: 'doc-validator',
+        schema: GATE_VERDICT,
+      },
+    ),
+  ]);
+  if (!protoVerdict?.pass) {
+    throw new Error(`Stage 6.5 gate-prototype failed: ${(protoVerdict?.errors || []).join('; ')}`);
+  }
+  if (proto.verdict === 'PROTOTYPE_FAILED') {
+    throw new Error(
+      `Stage 6.5: prototype empirically failed for constants ${JSON.stringify(proto.failing_constants)}. ` +
+      `The spec design is built on wrong numbers — invoke pivot-protocol with these constants ` +
+      `and re-run the workflow from Stage 6 (Design) with corrected values. ` +
+      `Prototype report: ${proto.doc_path}`
+    );
+  }
+  prototype = proto;
+  log(`Stage 6.5 complete: ${proto.constants_tested.length} constants validated within tolerance.`);
+}
+
+// ---------------------------------------------------------------------------
+// Stage 7 — Specification
+//   spec-writer produces specification.md + implementation-plan.md +
+//   task-list.md in a single invocation. doc-validator runs gate-spec-trace
+//   to confirm every AC and BDD scenario is traced into the plan.
+// ---------------------------------------------------------------------------
+phase('Stage 7 — Specification');
+
+const specName = docName('specification.md');
+const planName = docName('implementation-plan.md');
+const tasksName = docName('task-list.md');
+
+const designDocList = design?.docs.map(d => d.path).join(', ') ?? '(no design — bug fix path)';
+const baseSpecInputs =
+  `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
+  `Inputs to read yourself:\n` +
+  `  - requirements: ${req.doc_path}\n` +
+  `  - bdd: ${bdd.doc_path}\n` +
+  `  - research: ${researchReports[researchReports.length - 1].doc_path}\n` +
+  `  - assessment: ${assessment.doc_path}\n` +
+  (debugResult ? `  - debug: ${debugResult.doc_path}\n` : '') +
+  (design ? `  - design: ${designDocList}\n` : '') +
+  (prototype ? `  - prototype: ${prototype.doc_path}\n` : '');
+
+const spawnSpecWriter = (extraGuidance = '') => agent(
+  `${baseSpecInputs}\n` +
+  `Produce three documents:\n` +
+  `  1. ${shellQuote(SPEC_DIRECTORY + '/' + specName)}\n` +
+  `  2. ${shellQuote(SPEC_DIRECTORY + '/' + planName)} — implementation plan with phases\n` +
+  `  3. ${shellQuote(SPEC_DIRECTORY + '/' + tasksName)} — task list (DAG with phase numbers)\n` +
+  `Every AC from requirements and every BDD scenario MUST be traced into at least one phase. ` +
+  `Set phase_count to the number of phases in the plan; return SpecOutput.` +
+  (extraGuidance ? `\n\n--- Targeted revisions from prior review ---\n${extraGuidance}` : ''),
+  {
+    label: 'spec-writer',
+    phase: 'Stage 7 — Specification',
+    agentType: 'spec-writer',
+    schema: SPEC_OUTPUT,
+  },
+);
+
+let spec = await spawnSpecWriter();
+
+const specTraceVerdict = await agent(
+  `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + specName)}, ${shellQuote(SPEC_DIRECTORY + '/' + planName)}, ` +
+  `and ${shellQuote(SPEC_DIRECTORY + '/' + tasksName)} to appear, then run ` +
+  `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-spec-trace.sh')} ${shellQuote(SPEC_DIRECTORY)}. ` +
+  `Return the gate verdict.`,
+  {
+    label: 'doc-validator:gate-spec-trace',
+    phase: 'Stage 7 — Specification',
+    agentType: 'doc-validator',
+    schema: GATE_VERDICT,
+  },
+);
+if (!specTraceVerdict?.pass) {
+  throw new Error(`Stage 7 gate-spec-trace failed: ${(specTraceVerdict?.errors || []).join('; ')}`);
+}
+log(`Stage 7 complete: spec + plan (${spec.phase_count} phases) + tasks; spec-trace gate PASS.`);
+
+// ---------------------------------------------------------------------------
+// Stage 8 — Spec Review (with iteration loop, max MAX_SPEC_ITERS)
+//   spec-reviewer produces a verdict (APPROVED / REVISIONS NEEDED / REJECTED).
+//   The loop body:
+//     1. Spawn spec-reviewer + doc-validator(gate-spec-review) in parallel
+//     2. If verdict==='APPROVED' and gate PASS → done
+//     3. If verdict==='REVISIONS NEEDED' and iter < max → re-spawn spec-writer
+//        with the reviewer's findings as targeted guidance, re-run gate-spec-trace,
+//        then loop back to step 1
+//     4. If verdict==='REJECTED' → throw (caller invokes pivot-protocol)
+//     5. If iter === max → throw (escalate to user)
+// ---------------------------------------------------------------------------
+phase('Stage 8 — Spec Review');
+
+let specReview = null;
+let specIter = 0;
+while (specIter < MAX_SPEC_ITERS) {
+  specIter += 1;
+  const reviewName = specIter === 1
+    ? docName('spec-review.md')
+    : docName(`spec-review-${specIter}.md`);
+  log(`Stage 8 iteration ${specIter}/${MAX_SPEC_ITERS}: spec-reviewer + gate-spec-review`);
+
+  const [review, reviewVerdict] = await parallel([
+    () => agent(
+      `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
+      `Review the spec authored at ${spec.specification_path}, ${spec.plan_path}, ${spec.tasks_path}. ` +
+      `Apply Fagan-style inspection across all 8 quality dimensions. Verify every reference ` +
+      `(files, APIs, dependencies) against the actual codebase rooted at ${WORKTREE_PATH}. ` +
+      `Produce ${shellQuote(SPEC_DIRECTORY + '/' + reviewName)} with verdict ` +
+      `'APPROVED' | 'REVISIONS NEEDED' | 'REJECTED' and itemised findings. ` +
+      `Do NOT rewrite the spec.`,
+      {
+        label: `spec-reviewer:${specIter}`,
+        phase: 'Stage 8 — Spec Review',
+        agentType: 'spec-reviewer',
+        schema: SPEC_REVIEW_OUTPUT,
+      },
+    ),
+    () => agent(
+      `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + reviewName)} to appear, then run ` +
+      `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-spec-review.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + reviewName)}. ` +
+      `Return the gate verdict.`,
+      {
+        label: `doc-validator:gate-spec-review:${specIter}`,
+        phase: 'Stage 8 — Spec Review',
+        agentType: 'doc-validator',
+        schema: GATE_VERDICT,
+      },
+    ),
+  ]);
+
+  if (!reviewVerdict?.pass) {
+    throw new Error(
+      `Stage 8 gate-spec-review failed on iteration ${specIter}: ` +
+      `${(reviewVerdict?.errors || []).join('; ')}`
+    );
+  }
+
+  specReview = review;
+
+  if (review.verdict === 'APPROVED') {
+    log(`Stage 8 complete on iteration ${specIter}: APPROVED.`);
+    break;
+  }
+  if (review.verdict === 'REJECTED') {
+    throw new Error(
+      `Stage 8: spec REJECTED on iteration ${specIter}. The design is fundamentally flawed — ` +
+      `invoke pivot-protocol and re-run the workflow from Stage 6 with a corrected design. ` +
+      `Review report: ${review.doc_path}\n` +
+      `Findings:\n${(review.findings || []).map(f => `  [${f.severity}] ${f.section}: ${f.issue}`).join('\n')}`
+    );
+  }
+
+  // REVISIONS NEEDED — bail out only if we've used our iteration budget.
+  if (specIter >= MAX_SPEC_ITERS) {
+    throw new Error(
+      `Stage 8: spec still 'REVISIONS NEEDED' after ${MAX_SPEC_ITERS} iterations — escalating to user. ` +
+      `Final review: ${review.doc_path}`
+    );
+  }
+
+  // Compose targeted guidance from findings and re-spawn spec-writer.
+  log(`Stage 8 iteration ${specIter}: REVISIONS NEEDED — ${review.findings?.length ?? 0} finding(s); ` +
+      `re-running spec-writer with targeted guidance.`);
+  const guidance = (review.findings || [])
+    .map(f => `- [${f.severity}] ${f.section}: ${f.issue}` +
+              (f.recommendation ? `\n    Fix: ${f.recommendation}` : ''))
+    .join('\n');
+  spec = await spawnSpecWriter(guidance);
+
+  // Re-validate trace gate after the rewrite.
+  const reTrace = await agent(
+    `Wait for the updated ${shellQuote(SPEC_DIRECTORY + '/' + specName)}, ` +
+    `${shellQuote(SPEC_DIRECTORY + '/' + planName)}, and ${shellQuote(SPEC_DIRECTORY + '/' + tasksName)} ` +
+    `to be stable, then run ` +
+    `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-spec-trace.sh')} ${shellQuote(SPEC_DIRECTORY)}. ` +
+    `Return the gate verdict.`,
+    {
+      label: `doc-validator:gate-spec-trace:revise-${specIter}`,
+      phase: 'Stage 8 — Spec Review',
+      agentType: 'doc-validator',
+      schema: GATE_VERDICT,
+    },
+  );
+  if (!reTrace?.pass) {
+    throw new Error(
+      `Stage 8 iteration ${specIter}: gate-spec-trace failed after spec rewrite: ` +
+      `${(reTrace.errors || []).join('; ')}`
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Return value — read by the super-dev skill. Stages 9-13 land in C5-C7.
 // ---------------------------------------------------------------------------
 return {
   worktree_path: WORKTREE_PATH,
@@ -680,7 +1022,22 @@ return {
   design: design
     ? { designer: design.designer, docs: design.docs, modules: design.modules ?? [], has_numeric_constants: design.has_numeric_constants ?? false }
     : null,
-  next_stage: 7,
+  prototype: prototype
+    ? { doc: prototype.doc_path, constants_tested: prototype.constants_tested.length, verdict: prototype.verdict }
+    : null,
+  spec: {
+    specification: spec.specification_path,
+    plan: spec.plan_path,
+    tasks: spec.tasks_path,
+    phase_count: spec.phase_count,
+    phases: spec.phases ?? [],
+  },
+  spec_review: {
+    doc: specReview.doc_path,
+    verdict: specReview.verdict,
+    iterations: specIter,
+  },
+  next_stage: 9,
 };
 
 // ---------------------------------------------------------------------------

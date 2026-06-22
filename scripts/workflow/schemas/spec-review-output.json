@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "super-dev/schemas/spec-review-output.json",
+  "title": "SpecReviewOutput",
+  "description": "Structured return from spec-reviewer agent — verdict + findings, never a spec rewrite.",
+  "type": "object",
+  "required": ["doc_path", "verdict"],
+  "additionalProperties": false,
+  "properties": {
+    "doc_path": {
+      "type": "string",
+      "description": "Absolute path to the produced spec-review.md."
+    },
+    "verdict": {
+      "type": "string",
+      "enum": ["APPROVED", "REVISIONS NEEDED", "REJECTED"],
+      "description": "APPROVED: spec ready for implementation. REVISIONS NEEDED: targeted fixes by spec-writer (continue iteration loop). REJECTED: design is fundamentally flawed; pivot-protocol or stop."
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["section", "severity", "issue"],
+        "additionalProperties": false,
+        "properties": {
+          "section": { "type": "string" },
+          "severity": { "type": "string", "enum": ["blocker", "major", "minor"] },
+          "issue": { "type": "string" },
+          "recommendation": { "type": "string" }
+        }
+      }
+    },
+    "dimensions_scored": {
+      "type": "object",
+      "description": "Score 0-1 per quality dimension. The spec-reviewer enforces all 8 dimensions; partial scoring fails the gate.",
+      "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+    },
+    "summary": { "type": "string" }
+  }
+}

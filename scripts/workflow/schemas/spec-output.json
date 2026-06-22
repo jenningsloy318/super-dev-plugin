@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "super-dev/schemas/spec-output.json",
+  "title": "SpecOutput",
+  "description": "Structured return from spec-writer agent. Produces specification, implementation plan, and task list in a single invocation.",
+  "type": "object",
+  "required": ["specification_path", "plan_path", "tasks_path", "phase_count"],
+  "additionalProperties": false,
+  "properties": {
+    "specification_path": {
+      "type": "string",
+      "description": "Absolute path to the specification.md."
+    },
+    "plan_path": {
+      "type": "string",
+      "description": "Absolute path to the implementation-plan.md."
+    },
+    "tasks_path": {
+      "type": "string",
+      "description": "Absolute path to the task-list.md."
+    },
+    "phase_count": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of implementation phases declared in the plan (drives Stage 9 loop iteration count)."
+    },
+    "phases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["number", "name"],
+        "additionalProperties": false,
+        "properties": {
+          "number": { "type": "integer", "minimum": 1 },
+          "name": { "type": "string" },
+          "depends_on": { "type": "array", "items": { "type": "integer" } }
+        }
+      }
+    },
+    "summary": { "type": "string" }
+  }
+}
