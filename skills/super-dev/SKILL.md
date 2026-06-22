@@ -2,7 +2,7 @@
 name: super-dev
 description: Multi-step development orchestrator for implementing features, fixing bugs, refactoring, optimizing performance, and resolving deprecations
 author: Jennings Liu
-version: 2.4.42
+version: 2.4.51
 license: MIT
 ---
 
@@ -14,7 +14,27 @@ license: MIT
   Use whichever value resolved to an actual path (not a literal variable name).
 </platform-paths>
 
-<purpose>Team Lead agent team workflow. The Team Lead orchestrates specialized agent teammates — it NEVER implements directly, only spawns, coordinates, and verifies. Agents execute research, architecture, coding, QA, code review, and documentation stages in parallel where possible.</purpose>
+<purpose>13-stage development pipeline for features, bug fixes, and refactors. On Claude Code v2.1.178+ the entire pipeline runs as a Dynamic Workflow (deterministic JS orchestration); on platforms without a Workflow runtime the same 13-stage contract is executed by a Team Lead agent that spawns specialists itself.</purpose>
+
+<execution-modes>
+  <mode name="Workflow" preferred="true" platforms="Claude Code v2.1.178+">
+    Trigger Claude Code's Workflow tool with `${PLUGIN_ROOT}/scripts/workflow/super-dev.workflow.js`. The script holds the 13-stage plan in code: agents are spawned via `agent()`, parallel writer+validator pairs via `parallel()`, the Stage 8/9/10 iteration loops are real `while` loops capped at 3, and per-stage results are structured-output validated against JSON Schemas in `${PLUGIN_ROOT}/scripts/workflow/schemas/`. The runtime persists progress so an interrupted run resumes per-stage. See `${PLUGIN_ROOT}/scripts/workflow/README.md` for the layout and the in-file JSDoc for arg shape.
+
+    Required env: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. Stage 1 of the workflow runs `${PLUGIN_ROOT}/scripts/preflight-env.sh` to enforce this before any agent spawn.
+
+    Args (read by the workflow's `args` global):
+    `request` (string, required), `plugin_root` (string, required), `repo_path` (string, required),
+    `feature_kind` ('feature'|'bug'|'refactor'|'auto'), `ui_scope` ('none'|'ui-only'|'ui+arch'),
+    `bug_evidence` (string), `input_samples` (string[], required when design has numeric constants),
+    `language` ('rust'|'go'|'frontend'|'backend'|'ios'|'android'|'macos'|'windows'|'mixed'),
+    `is_web_ui` (boolean), `max_spec_iters` (int, default 3), `max_phase_iters` (int, default 3),
+    `max_review_iters` (int, default 3), `skip_handoff` (boolean), `do_merge` (boolean, default false).
+  </mode>
+
+  <mode name="Narrated" platforms="Codex CLI, Antigravity, older Claude Code">
+    The Team Lead agent (`agents/team-lead.md`) reads this SKILL.md, the `<workflow>` block below, and the per-process protocols under `${PLUGIN_ROOT}/reference/workflow/*.md`, then spawns teammates itself stage by stage. This is the fallback when the Workflow tool is unavailable; the stage contract, gates, and iteration caps are identical to the Workflow mode.
+  </mode>
+</execution-modes>
 
 <triggers>Triggers on: "implement", "build", "fix bug", "refactor", "add feature", "develop this", "help me build", "add functionality", "optimize performance", "resolve deprecation", "systematic development". Do NOT trigger on: simple questions, file searches, one-off commands, code explanations, quick edits, non-development tasks.</triggers>
 
@@ -34,6 +54,14 @@ license: MIT
 </pre-flight-checklist>
 
 <workflow>
+  <!--
+    This 13-stage contract is the source of truth for BOTH execution modes.
+    Workflow mode: every stage maps to a phase() block in scripts/workflow/super-dev.workflow.js.
+    Narrated mode: Team Lead walks the stages here turn-by-turn.
+    Renumbering or adding stages requires updating BOTH the workflow script
+    (meta.phases + phase()/agent() calls) AND the protocol files under
+    reference/workflow/.
+  -->
   <stage n="1" name="Specification Setup">Create worktree, spec dir, workflow JSON, agent team. MUST complete before any codebase exploration or agent spawning.</stage>
   <stage n="2" name="Requirements + BDD">Sequential pairs: spawn requirements-clarifier + doc-validator (gate-requirements) in parallel → WAIT for doc-validator PASS signal (do NOT read the doc or run the gate yourself) → spawn bdd-scenario-writer + doc-validator (gate-bdd) in parallel → WAIT for doc-validator PASS signal. Interview pattern with ambiguity detection (Scope/Behavior/Data/Integration/Performance categories), codebase-grounded context retrieval, edge case generation (null/empty/boundary/concurrent/timeout/overflow), and quality self-scoring. Gates: gate-requirements.sh, gate-bdd.sh (both run by doc-validator, NEVER by team-lead).</stage>
   <stage n="3" name="Research">Spawn research-agent. Firecrawl MCP first, then supplementary scripts. Parallel community discovery (Reddit, HN, GitHub Discussions, Dev.to, X) and AI documentation traversal (Anthropic, OpenAI, Google, framework docs) with momentum scoring. Innovation discovery for technologies less than 12 months old. If report identifies issues/flaws/ambiguities, re-spawn research-agent in deep-research mode targeting specific issues (max 3 iterations). For complex/contentious topics, use competing hypotheses pattern (2-3 agents with different angles). Present 3-5 options with momentum-scored comparison matrix to user.</stage>

@@ -100,25 +100,64 @@ The plugin uses the Antigravity plugin format natively.
 
 ## Overview
 
-This plugin provides a systematic development workflow orchestrated by a Coordinator Agent that:
+This plugin provides a systematic development workflow with 13 stages. On Claude Code v2.1.178+ the entire pipeline runs as a [Dynamic Workflow](https://code.claude.com/docs/en/workflows) — a deterministic JavaScript orchestration script that holds the loops, gates, and intermediate state in code, freeing each agent to focus on its own stage. On platforms without a Workflow runtime (Codex CLI, Antigravity, older Claude Code) the same 13-stage contract is executed by a Team Lead agent that narrates the orchestration turn by turn.
 
-- Assigns tasks to specialized sub-agents
-- Monitors execution - no unauthorized stops
-- Enforces quality gates at each stage
-- Manages build queue (Rust/Go serialization)
-- Ensures parallel execution during implementation (dev + qa + docs)
+## Workflow Engine
+
+The Workflow script at `scripts/workflow/super-dev.workflow.js` is the source of truth for the 13-stage pipeline. Layout:
+
+```
+scripts/workflow/
+├── super-dev.workflow.js   # 13-stage orchestration body
+├── lib/
+│   └── git-helpers.js      # default-branch detection, ff-only pull, worktree, per-phase + merge commits
+├── schemas/                # JSON Schema for every agent's structured return
+│   ├── gate-verdict.json
+│   ├── requirements-output.json
+│   ├── bdd-output.json
+│   ├── research-output.json
+│   ├── debug-output.json
+│   ├── assessment-output.json
+│   ├── design-output.json
+│   ├── prototype-output.json
+│   ├── spec-output.json
+│   ├── spec-review-output.json
+│   ├── tdd-output.json
+│   ├── impl-output.json
+│   ├── impl-summary-output.json
+│   ├── qa-output.json
+│   ├── e2e-output.json
+│   ├── code-review-output.json
+│   ├── adversarial-review-output.json
+│   ├── docs-output.json
+│   ├── handoff-output.json
+│   └── cleanup-output.json
+└── README.md
+```
+
+Key properties:
+
+- **Deterministic loops** — Stage 8 (spec review), Stage 9 (per-phase TDD), and Stage 10 (code review) iteration limits are real JS `while` loops capped at `max_spec_iters` / `max_phase_iters` / `max_review_iters` (default 3). The model cannot drift past the cap.
+- **Structured-output verdicts** — every gate result is a `GateVerdict` object validated against `schemas/gate-verdict.json`. Stage transitions read `verdict.pass` from data, not from chat signals.
+- **Per-phase commits** — Stage 9 captures `base_sha` before each phase, then commits the phase under `feat(<phase-name>): <summary>` once `gate-build` passes. The next phase's `base_sha` is the new HEAD.
+- **Pivot detection** — Stage 10's adversarial reviewer can set `spec_faithful_but_wrong=true`; combined with finding-signature stagnation at iteration ≥ 2, the workflow throws `PIVOT_REQUIRED` so the caller can re-run from Stage 6 with a revised design instead of looping forever.
+- **Sensitive-data gate** — Stage 12 scans the worktree for accidentally committed secrets before any merge; findings are BLOCKING.
+- **Gated merge** — Stage 13 merges into the default branch only when `args.do_merge === true`. The default is false; the workflow logs the manual merge command otherwise.
+- **Resumable** — the Workflow runtime persists each agent result; an interrupted run replays the cached prefix and resumes from the first incomplete stage.
+
+The Team-Lead-narrated mode in `agents/team-lead.md` implements the same stage contract turn by turn. The narrated mode is the only path on Codex/Antigravity and on Claude Code installations older than v2.1.178; both modes share the same gate scripts under `scripts/gates/` and the same agent definitions under `agents/`.
 
 ## Usage
 
 ### Main Entry Point
 
-Directly invoke the `super-dev` skill:
+Invoke the `super-dev` skill and describe your task:
 
 ```
 Invoke the super-dev skill and describe your task
 ```
 
-The Coordinator Agent will orchestrate all 13 stages automatically.
+On Claude Code v2.1.178+ the skill triggers `Workflow(${PLUGIN_ROOT}/scripts/workflow/super-dev.workflow.js)` with the user's request as `args.request`. On other platforms it spawns the Team Lead agent.
 
 ### Examples
 
