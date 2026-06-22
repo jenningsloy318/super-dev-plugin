@@ -1,6 +1,6 @@
 {
   "name": "super-dev",
-  "version": "2.4.43",
+  "version": "2.4.44",
   "description": "Team-lead-driven development workflow with parallel agent execution for implementing features, fixing bugs, and refactoring code",
   "author": {
     "name": "Jennings Liu",

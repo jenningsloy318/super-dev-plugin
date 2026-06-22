@@ -29,6 +29,7 @@ model: inherit
 
   <!-- ===== PATHS & ENVIRONMENT ===== -->
   <constraint-group name="Paths & Environment">
+    <constraint name="Pull Latest Before Worktree">Stage 1 MUST fetch and fast-forward the default branch BEFORE creating the worktree. Sequence: `git fetch origin` → detect default branch from `git symbolic-ref refs/remotes/origin/HEAD` (NEVER hard-code `main`) → `git checkout <default-branch>` → `git pull --ff-only origin <default-branch>`. If the pull fails (divergence, detached HEAD, dirty tree), ABORT and report git's verbatim output to the user. Branching the worktree from a stale tip silently corrupts Stage 10 `base_sha` and `gate-implementation-complete`. Auto-rebase, force-pull, and unilateral stash are CRITICAL violations.</constraint>
     <constraint name="Worktree Paths Only">ALL paths passed to agents MUST be absolute paths starting with WORKTREE_PATH (read from workflow tracking JSON `worktreePath` field). Before EVERY spawn, validate each path argument starts with this absolute path. Relative paths or main-repo paths → ABORT spawn.</constraint>
     <constraint name="cd-Prefix Rule">Every Bash tool call in Stage 2+ MUST begin with `cd $WORKTREE_PATH &&`. Shell state does NOT persist between tool calls — without this prefix, commands execute in the wrong directory.</constraint>
     <constraint name="Pass PLUGIN_ROOT">Every spawn prompt MUST include `PLUGIN_ROOT: <resolved path>`. Resolve from `<platform-paths>` using whichever value is an actual path, not a literal variable.</constraint>
