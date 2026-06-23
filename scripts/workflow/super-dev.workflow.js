@@ -1340,8 +1340,17 @@ while (specIter < MAX_SPEC_ITERS) {
 //     9.6 e2e-runner (CONDITIONAL — only when is_web_ui)
 //     9.7 doc-validator(gate-build) — final phase gate
 //     9.8 commit the phase to git with feat(<phase-name>): summary message
-//   On gate-build FAIL: re-run domain specialist with QA findings as guidance
-//   (max MAX_PHASE_ITERS per phase). After cap, throw.
+//   On any failure inside the loop (qa.tests_failed > 0, qa.uncovered_scenarios
+//   non-empty, e2e.all_green=false, impl.all_tests_green=false, or
+//   gate-build FAIL), the next iteration CLASSIFIES the cause:
+//     - Test gap (uncovered_scenarios non-empty, or e2e fails on a scenario
+//       with no test at all) -> re-spawn tdd-guide:fix FIRST to add the
+//       missing failing tests, then specialist to make them green.
+//     - Code fault (tests exist and fail on assertion, or e2e fails on
+//       wired-up scenarios) -> skip tdd-guide, re-spawn specialist with
+//       the QA / e2e finding quoted verbatim.
+//   Max MAX_PHASE_ITERS iterations per phase; after cap, throw with the
+//   final qa / e2e / gate-build state.
 //
 //   Why sequential across phases? Per-phase commits must land in plan order
 //   so the running base_sha is monotonic and impl-summary diffs are clean.
@@ -1447,24 +1456,84 @@ for (const ph of phases) {
   );
 
   // 9.3-9.7 — implementation, summary, QA, e2e, gate-build, with a max-N
-  // fix loop on gate-build failure (re-spawn specialist with QA findings).
+  // fix loop on gate-build failure. On iteration 2+ the loop CLASSIFIES the
+  // prior failure: test/coverage gaps (uncovered_scenarios non-empty, e2e
+  // failing on scenarios that have no test at all) re-run tdd-guide FIRST
+  // to add the missing tests, then the specialist; pure code/UI bugs (tests
+  // exist and fail on assertion) skip tdd-guide and re-spawn the specialist
+  // with the failure verbatim. Mirrors the Stage 10 review-loop classifier.
   let impl = null, implSummary = null, qa = null, e2e = null, buildVerdict = null;
   let phaseIter = 0;
   while (phaseIter < MAX_PHASE_ITERS) {
     phaseIter += 1;
     log(`  Phase ${ph.number} iteration ${phaseIter}/${MAX_PHASE_ITERS}: specialist + impl-summary + qa` + (IS_WEB_UI ? ' + e2e' : ''));
 
-    // 9.3 — domain specialist (GREEN). Pass review/QA findings on iter 2+.
-    const reviewGuidance = (phaseIter > 1 && qa)
-      ? `\n--- Targeted fixes from prior QA on this phase ---\n` +
-        (qa.uncovered_scenarios?.length
-          ? `Uncovered scenarios:\n  - ${qa.uncovered_scenarios.join('\n  - ')}\n`
-          : '') +
-        `tests_failed: ${qa.tests_failed ?? 0}, coverage_overall: ${qa.coverage_overall ?? 0}, ` +
-        `coverage_new: ${qa.coverage_new ?? 0}. ` +
-        `Re-read the failing-test output, fix the implementation, and ensure all_tests_green=true.`
-      : '';
+    // Iteration 2+: classify what failed last round so we re-spawn the right
+    // agent before the specialist.
+    let testGapGuidance = '';
+    let codeFixGuidance = '';
+    if (phaseIter > 1) {
+      const uncovered = qa?.uncovered_scenarios ?? [];
+      const qaTestsFailed = qa?.tests_failed ?? 0;
+      const e2eFailedNoCoverage = IS_WEB_UI && e2e && !e2e.all_green && uncovered.length > 0;
 
+      const hasTestGap = uncovered.length > 0 || e2eFailedNoCoverage;
+      const hasCodeFault = qaTestsFailed > 0 ||
+        (impl && impl.all_tests_green === false) ||
+        (IS_WEB_UI && e2e && !e2e.all_green && uncovered.length === 0);
+
+      if (hasTestGap) {
+        log(`  Phase ${ph.number} iter ${phaseIter}: detected test gap (${uncovered.length} uncovered scenario${uncovered.length === 1 ? '' : 's'}` +
+            (e2eFailedNoCoverage ? ', e2e fails on uncovered flow' : '') +
+            `) — re-running tdd-guide BEFORE specialist`);
+        await agent(
+          `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
+          `Inputs to read yourself:\n` +
+          `  - requirements: ${req.doc_path}\n` +
+          `  - bdd: ${bdd.doc_path}\n` +
+          `  - specification: ${spec.specification_path}\n` +
+          `  - plan: ${spec.plan_path}\n` +
+          `phase_scope: ${ph.number}.\n\n` +
+          `The prior iteration's QA report flagged ${uncovered.length} uncovered scenario(s). ` +
+          `Add failing tests that cover ONLY these scenarios — do NOT touch production code, ` +
+          `do NOT modify existing tests. Tests should be RED on commit (fail or fail to compile) ` +
+          `against the current implementation; the specialist will be re-spawned right after to ` +
+          `make them GREEN.\n\n` +
+          `Uncovered scenarios:\n` +
+          uncovered.map(s => `  - ${s}`).join('\n') +
+          (e2eFailedNoCoverage
+            ? `\n\nAlso add e2e tests for the uncovered flows above — the e2e suite reports ` +
+              `all_green=false but the failures are on scenarios that have no test at all.`
+            : ''),
+          {
+            label: `phase-${ph.number}:tdd-guide:fix:${phaseIter}`,
+            phase: 'Stage 9 — Implementation',
+            agentType: 'super-dev:tdd-guide',
+            schema: TDD_OUTPUT,
+          },
+        );
+        testGapGuidance =
+          `\n--- Test gap from prior QA (iter ${phaseIter - 1}) ---\n` +
+          `tdd-guide just added failing tests for: ${uncovered.join(', ')}. ` +
+          `Make THESE tests pass in addition to the existing ones; do not delete or weaken them.`;
+      }
+
+      if (hasCodeFault) {
+        codeFixGuidance =
+          `\n--- Code fault from prior QA (iter ${phaseIter - 1}) ---\n` +
+          `tests_failed: ${qaTestsFailed}, coverage_overall: ${qa?.coverage_overall ?? 0}, ` +
+          `coverage_new: ${qa?.coverage_new ?? 0}, impl.all_tests_green: ${impl?.all_tests_green ?? 'n/a'}` +
+          (IS_WEB_UI ? `, e2e.all_green: ${e2e?.all_green ?? 'n/a'}` : '') +
+          `.\nRe-read the failing-test output (qa report: ${qa?.doc_path}` +
+          (IS_WEB_UI && e2e ? `; e2e report: ${e2e.doc_path}` : '') +
+          `), fix the implementation, and ensure all_tests_green=true. ` +
+          `Quote the reviewer's exact assertion message — do not paraphrase.`;
+      }
+    }
+
+    const reviewGuidance = testGapGuidance + codeFixGuidance;
+
+    // 9.3 — domain specialist (GREEN).
     impl = await agent(
       `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
       `Inputs to read yourself:\n` +
