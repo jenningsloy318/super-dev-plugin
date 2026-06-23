@@ -520,11 +520,14 @@ const CLEANUP_OUTPUT = {
 //                         any              + 'ui-only' -> ui-ux-designer
 //                         any              + 'ui+arch' -> product-designer
 //     bug_evidence:   string,   // evidence/logs/repro for bugs (Stage 4)
-//     input_samples:  string[]  // optional Stage 6.5 sample paths / inline data
+//     input_samples:  string[]  // OPTIONAL Stage 6.5 sample paths / inline data
 //                                  used by prototype-runner when the design
-//                                  declares numeric constants. Required for
-//                                  any feature with empirical constants;
-//                                  without them Stage 6.5 fails closed.
+//                                  declares numeric constants. When empty,
+//                                  Stage 6.5.1 sample-finder auto-discovers
+//                                  representative samples from the codebase
+//                                  and prior-stage docs (research, assessment,
+//                                  design). Only when sample-finder ALSO
+//                                  comes up empty does the stage abort.
 //     max_req_iters:       integer, // Stage 2A gate-requirements format-fix loop cap (default 3)
 //     max_bdd_iters:       integer, // Stage 2B gate-bdd format-fix loop cap (default 3)
 //     max_prototype_iters: integer, // Stage 6.5 gate-prototype format-fix loop cap (default 3)
@@ -1208,15 +1211,29 @@ if (designerType) {
 
 // ---------------------------------------------------------------------------
 // Stage 6.5 — Prototype (CONDITIONAL)
-//   Fires only when Stage 6 declared numeric design constants. Validates
-//   them against representative real input samples BEFORE Stage 7 writes
-//   the spec. The format-fix loop (gatedPrototypeLoop) re-spawns prototype-
-//   runner up to MAX_PROTOTYPE_ITERS times on gate-prototype format failures
-//   (missing heading sections, etc). PROTOTYPE_FAILED — the empirical
-//   verdict that the constants themselves are wrong — short-circuits the
-//   loop on the first occurrence: re-running won't change physics, the
-//   caller must invoke pivot-protocol and re-run Stage 6 with corrected
-//   constants.
+//   Fires only when Stage 6 declared numeric design constants. Two sub-steps:
+//
+//     6.5.1 — sample-finder: resolves the input_samples list. If
+//             args.input_samples is non-empty the user already chose;
+//             respect their input verbatim. Otherwise spawn a
+//             general-purpose agent that reads Stage 3 research, Stage 5
+//             assessment, and Stage 6 design, walks the codebase under
+//             $WORKTREE_PATH for fixtures / test data / sample inputs
+//             matching the constants' domain, and returns 5-10
+//             representative samples. The discovered list is logged so
+//             the user sees what the workflow chose.
+//
+//     6.5.2 — prototype-runner: validates the design's numeric constants
+//             against the resolved samples (via gatedPrototypeLoop, the
+//             format-fix loop). PROTOTYPE_FAILED — the empirical verdict
+//             that the constants themselves are wrong — short-circuits
+//             the loop; the caller invokes pivot-protocol and re-runs
+//             Stage 6 with corrected constants.
+//
+//   Last-resort fallback: if sample-finder also returns empty (genuinely
+//   no representative inputs exist in the codebase), throw with the
+//   original "provide args.input_samples" message so the user can supply
+//   them and resume.
 // ---------------------------------------------------------------------------
 phase('Stage 6.5 — Prototype');
 
@@ -1224,15 +1241,89 @@ let prototype = null;
 const needPrototype = design?.has_numeric_constants === true;
 if (!needPrototype) {
   log(`Stage 6.5 skipped (no numeric design constants declared).`);
-} else if (INPUT_SAMPLES.length === 0) {
-  // Fail-closed: empirical validation cannot proceed without real inputs.
-  throw new Error(
-    `Stage 6.5: design declares numeric constants but args.input_samples is empty. ` +
-    `Provide 5-10 representative real input paths/strings before re-running the workflow ` +
-    `(see "Discipline A" in reference/lessons-learned/spec-29-visual-verification.md).`
-  );
 } else {
-  log(`Stage 6.5: prototype-runner validating constants against ${INPUT_SAMPLES.length} sample(s)`);
+  // Step 6.5.1 — sample-finder. User-supplied samples win; auto-discover
+  // only when args.input_samples is empty.
+  let samples = INPUT_SAMPLES;
+  let sampleSource = 'args.input_samples (user-supplied)';
+  let sampleRationale = '';
+
+  if (samples.length === 0) {
+    log(`Stage 6.5.1: sample-finder (args.input_samples empty; auto-discovering from codebase + prior-stage docs)`);
+    const finder = await agent(
+      `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
+      `The design at Stage 6 declared numeric constants that Stage 6.5.2 ` +
+      `prototype-runner must validate against representative real input samples. ` +
+      `args.input_samples is empty — your job is to discover 5-10 representative ` +
+      `samples without asking the user.\n\n` +
+      `Inputs to read yourself:\n` +
+      `  - requirements: ${req.doc_path}\n` +
+      `  - bdd: ${bdd.doc_path}\n` +
+      `  - research: ${researchReports[researchReports.length - 1].doc_path}\n` +
+      `  - assessment: ${assessment.doc_path}\n` +
+      `  - design: ${design.docs.map(d => d.path).join(', ')}\n` +
+      (debugResult ? `  - debug: ${debugResult.doc_path}\n` : '') +
+      `\nDiscovery process:\n` +
+      `  1. From the design + research, identify what KIND of input the constants ` +
+      `     measure against (e.g. ID strings of a specific format, image dimensions, ` +
+      `     OData payloads, RSS feed URLs, transaction IDs, file paths).\n` +
+      `  2. Walk the worktree under ${shellQuote(WORKTREE_PATH)} for matching data: ` +
+      `     test fixtures, sample data files, .json/.yaml/.xml fixtures, recorded ` +
+      `     API responses, seed scripts, redacted production captures.\n` +
+      `  3. Pick 5-10 samples spanning the realistic range: small/medium/large, ` +
+      `     happy path + edge cases (empty, max-length, special chars, error cases).\n` +
+      `  4. If the constants need RUNTIME values (e.g. URLs that must be reachable) ` +
+      `     and only test fixtures exist, USE THE FIXTURES — they're closer to ` +
+      `     production than synthetic placeholders.\n` +
+      `  5. If genuinely nothing relevant exists in the codebase, return an empty ` +
+      `     samples array AND set rationale='no_codebase_samples_found:<one-line ` +
+      `     explanation of what was searched and why nothing matched>'. The workflow ` +
+      `     will surface this to the user.\n\n` +
+      `Return JSON: {"samples": [string], "source": string, "rationale": string}.\n` +
+      `  - samples: 5-10 strings (file paths absolute under worktree, OR inline ` +
+      `             literal values like ID strings). Empty array iff nothing found.\n` +
+      `  - source:  one-line description ("test fixtures under backend-service/testdata/", ` +
+      `             "redacted API captures in specification/<spec>/fixtures/", etc).\n` +
+      `  - rationale: why these samples are representative (range coverage, edge cases ` +
+      `               included, etc), OR the 'no_codebase_samples_found:...' marker.`,
+      {
+        label: 'sample-finder',
+        phase: 'Stage 6.5 — Prototype',
+        agentType: 'general-purpose',
+        schema: {
+          type: 'object',
+          required: ['samples', 'source', 'rationale'],
+          additionalProperties: false,
+          properties: {
+            samples:   { type: 'array', items: { type: 'string' } },
+            source:    { type: 'string' },
+            rationale: { type: 'string' },
+          },
+        },
+      },
+    );
+    samples = finder.samples ?? [];
+    sampleSource = finder.source ?? '(unknown)';
+    sampleRationale = finder.rationale ?? '';
+    if (samples.length === 0) {
+      throw new Error(
+        `Stage 6.5.1: sample-finder found no representative samples in the codebase.\n` +
+        `Source searched: ${sampleSource}\n` +
+        `Rationale: ${sampleRationale}\n\n` +
+        `Provide 5-10 representative samples via args.input_samples and re-run the ` +
+        `workflow with resumeFromRunId (see "Discipline A" in ` +
+        `reference/lessons-learned/spec-29-visual-verification.md).`
+      );
+    }
+    log(`Stage 6.5.1 complete: ${samples.length} sample(s) auto-discovered from ${sampleSource}.`);
+    if (sampleRationale) log(`  rationale: ${sampleRationale}`);
+  } else {
+    log(`Stage 6.5.1 skipped (args.input_samples already populated with ${samples.length} sample(s)).`);
+  }
+
+  // Step 6.5.2 — prototype-runner. Validates constants against the resolved
+  // samples (whether user-supplied or auto-discovered).
+  log(`Stage 6.5.2: prototype-runner validating constants against ${samples.length} sample(s)`);
   const protoName = docName('prototype-report.md');
   const designDoc = (design.docs.find(d => d.kind === 'architecture')?.path)
     ?? design.docs[0].path;
@@ -1245,7 +1336,8 @@ if (!needPrototype) {
     spawnWriter: (iter, guidance) => agent(
       `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
       `Design document: ${designDoc}\n` +
-      `Input samples (JSON): ${JSON.stringify(INPUT_SAMPLES)}\n\n` +
+      `Input samples (JSON): ${JSON.stringify(samples)}\n` +
+      `Sample source: ${sampleSource}` + (sampleRationale ? ` — ${sampleRationale}` : '') + `\n\n` +
       `Extract every numeric design constant from the design document (thresholds, ratios, ` +
       `percentages, alphas, sizes). Build a minimal prototype that exercises each constant ` +
       `against the supplied samples. Measure the actual value(s) achieved. Compare to the ` +
