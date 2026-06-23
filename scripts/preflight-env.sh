@@ -24,6 +24,35 @@ set -u
 
 err() { printf "preflight: %s\n" "$*" >&2; }
 
+# Read the plugin's own version from the manifest one level up. Useful for
+# spotting cache staleness: if the workflow logs "plugin 2.4.60" but origin
+# is at 2.4.62, the user knows to refresh the plugin cache. Never blocks —
+# a missing or unparseable plugin.json yields "unknown" and a warning.
+read_plugin_version() {
+  local plugin_json="$(dirname "$0")/../plugin.json"
+  if [[ ! -r "$plugin_json" ]]; then
+    err "warn: plugin.json not found at $plugin_json — plugin version unknown"
+    echo "unknown"
+    return
+  fi
+  if command -v jq >/dev/null 2>&1; then
+    local v="$(jq -r '.version // "unknown"' "$plugin_json" 2>/dev/null)"
+    [[ -z "$v" ]] && v="unknown"
+    echo "$v"
+    return
+  fi
+  # jq-less fallback: grep the first "version": "..." line in plugin.json.
+  local v="$(grep -oE '"version"[[:space:]]*:[[:space:]]*"[^"]+"' "$plugin_json" \
+              | head -n1 | sed -E 's/.*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')"
+  [[ -z "$v" ]] && v="unknown"
+  echo "$v"
+}
+
+# Resolve plugin version once, up front — printed on every success exit so
+# the user sees the same value whether or not the Claude-CLI version probe
+# succeeded.
+plugin_version="$(read_plugin_version)"
+
 # --- 1. Env var gate -------------------------------------------------------
 if [[ "${CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS:-}" != "1" ]]; then
   err "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS is not set to 1."
@@ -47,6 +76,7 @@ required_patch=178
 
 if ! command -v claude >/dev/null 2>&1; then
   err "warn: 'claude' CLI not on PATH — skipping version check"
+  printf "preflight: ok (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1, claude version=unknown, plugin %s)\n" "$plugin_version"
   exit 0
 fi
 
@@ -55,6 +85,7 @@ raw="$(claude --version 2>/dev/null | head -n1)"
 ver="$(printf "%s" "$raw" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)"
 if [[ -z "$ver" ]]; then
   err "warn: could not parse 'claude --version' output: $raw — skipping version check"
+  printf "preflight: ok (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1, claude version=unparseable, plugin %s)\n" "$plugin_version"
   exit 0
 fi
 
@@ -72,5 +103,5 @@ if (( major < required_major )) \
   exit 2
 fi
 
-printf "preflight: ok (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1, claude %s)\n" "$ver"
+printf "preflight: ok (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1, claude %s, plugin %s)\n" "$ver" "$plugin_version"
 exit 0

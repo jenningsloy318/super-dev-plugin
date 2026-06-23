@@ -584,18 +584,27 @@ phase('Stage 1 — Setup');
 // Step 1.1 — Preflight env gate (must run BEFORE any other shell call).
 log('Stage 1.1 preflight: verifying CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 and Claude Code >= v2.1.178');
 const preflight = await agent(
-  `Run this command and report ONLY the exit code and the LAST line of stdout/stderr:\n\n` +
+  `Run this command and report:\n` +
+  `  - the exit code\n` +
+  `  - the LAST line of stdout/stderr (the 'preflight: ok ...' line on success, or the\n` +
+  `    final error line on failure)\n` +
+  `  - the plugin_version (extracted from the success line: the value after 'plugin ').\n` +
+  `    On failure, set plugin_version to 'unknown'.\n\n` +
   `  bash ${shellQuote(PLUGIN_ROOT + '/scripts/preflight-env.sh')}\n\n` +
-  `Return JSON: {"exit_code": int, "tail": string}. Do not retry on failure.`,
+  `Return JSON: {"exit_code": int, "tail": string, "plugin_version": string}. Do not retry on failure.`,
   {
     label: 'preflight',
     phase: 'Stage 1 — Setup',
     agentType: 'general-purpose',
     schema: {
       type: 'object',
-      required: ['exit_code', 'tail'],
+      required: ['exit_code', 'tail', 'plugin_version'],
       additionalProperties: false,
-      properties: { exit_code: { type: 'integer' }, tail: { type: 'string' } },
+      properties: {
+        exit_code:      { type: 'integer' },
+        tail:           { type: 'string' },
+        plugin_version: { type: 'string' },
+      },
     },
   },
 );
@@ -605,6 +614,10 @@ if (preflight.exit_code !== 0) {
     `Resolve the environment issue, then re-run.`
   );
 }
+// Surface the plugin version up front so cache staleness is obvious: a run
+// that logs an older version than origin/main means the user needs to
+// refresh the plugin cache (~/.claude/plugins/cache/super-dev/super-dev/).
+log(`super-dev plugin v${preflight.plugin_version} — preflight OK (${preflight.tail.trim()})`);
 
 // Step 1.2 — Pull latest. Detect default branch first; never hard-code 'main'.
 log('Stage 1.2 pull-latest: fetching origin and fast-forwarding default branch');
