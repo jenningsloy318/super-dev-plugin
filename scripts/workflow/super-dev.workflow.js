@@ -1370,6 +1370,44 @@ const SPECIALIST_BY_LANG = {
 const specialistAgent = SPECIALIST_BY_LANG[LANGUAGE] ?? 'super-dev:dev-executor';
 log(`Stage 9: ${phases.length} phase(s) total; domain specialist = ${specialistAgent}; is_web_ui=${IS_WEB_UI}`);
 
+// ---------------------------------------------------------------------------
+// Env-copy recipe shared by every qa-agent and e2e-runner prompt that runs
+// against the worktree. The Stage 1 worktree was created from a branch and
+// therefore does NOT inherit .gitignore'd files — every .env* in the main
+// repo must be replicated at the matching relative path under the worktree
+// before any test that reads process.env / import.meta.env / os.Getenv /
+// etc. The recipe is bash, idempotent, and traverses the full directory
+// tree (not just root + one level): monorepos commonly hide env files under
+// apps/<name>/, services/<name>/, packages/<name>/, crates/<name>/, etc.
+//
+// Filters:
+//   - skip .git, node_modules, target, dist, build, .next, .nuxt, vendor,
+//     .venv, venv, __pycache__ — these never carry source-of-truth env data
+//   - skip *.example and *.template — committed placeholders, already in
+//     the worktree
+//
+// Output: printed list of `copied <rel> bytes=<N>` lines so the QA / E2E
+// report's `summary` field can quote them verbatim.
+// ---------------------------------------------------------------------------
+const ENV_COPY_RECIPE =
+  `set -u\n` +
+  `src=${shellQuote(REPO_PATH)}\n` +
+  `dst=${shellQuote(WORKTREE_PATH)}\n` +
+  `# Build a find expression that prunes vendored / build dirs and matches\n` +
+  `# any .env* file that is NOT a committed example/template.\n` +
+  `find "$src" \\\n` +
+  `  \\( -name .git -o -name node_modules -o -name target -o -name dist \\\n` +
+  `     -o -name build -o -name .next -o -name .nuxt -o -name vendor \\\n` +
+  `     -o -name .venv -o -name venv -o -name __pycache__ \\) -prune -o \\\n` +
+  `  -type f \\( -name '.env' -o -name '.env.*' \\) ! -name '*.example' \\\n` +
+  `    ! -name '*.template' -print \\\n` +
+  `| while IFS= read -r abs; do\n` +
+  `  rel=\${abs#$src/}\n` +
+  `  mkdir -p "$(dirname "$dst/$rel")"\n` +
+  `  cp -p "$abs" "$dst/$rel"\n` +
+  `  echo "copied $rel bytes=$(wc -c <"$dst/$rel" | tr -d ' ')"\n` +
+  `done\n`;
+
 const phaseResults = [];
 
 for (const ph of phases) {
@@ -1473,7 +1511,20 @@ for (const ph of phases) {
       // like environment may have no node_modules / .venv / vendor at all.
       // Without this step, the build_command commonly fails with
       // 'command not found: pnpm' or 'module not found' on the first run.
-      `Step 1 — Install dependencies BEFORE any test execution. Detect the package manager(s) ` +
+      `Step 1 — Copy environment files from the main repo to the worktree. The Stage 1 worktree ` +
+      `was created from a branch and does NOT inherit .gitignore'd files, so .env / .env.local / ` +
+      `.env.test / etc. are missing — including any nested in monorepo subdirectories ` +
+      `(apps/<name>/.env.local, services/<name>/.env, packages/<name>/.env, etc.). Tests that ` +
+      `need DB URLs, API keys, or feature flags will fail with 'connection refused' or ` +
+      `'undefined env var' before the assertion phase. Run this recursive copy verbatim:\n` +
+      `\`\`\`bash\n${ENV_COPY_RECIPE}\`\`\`\n` +
+      `This walks the entire main-repo tree, prunes vendored/build dirs (.git, node_modules, ` +
+      `target, dist, build, .next, .nuxt, vendor, .venv, venv, __pycache__), copies every ` +
+      `.env or .env.* file (excluding *.example / *.template) to the matching relative path ` +
+      `under the worktree, creating intermediate directories with mkdir -p. Echo the list of ` +
+      `copied files into the QA report 'summary' field. Missing .env files when the app needs ` +
+      `them is an INSTALL failure — set all_green=false rather than masking with mocks.\n\n` +
+      `Step 2 — Install dependencies BEFORE any test execution. Detect the package manager(s) ` +
       `from the worktree manifest files and run the appropriate install command(s) idempotently:\n` +
       `  - Cargo.toml          -> (no install step; cargo fetches on first test run)\n` +
       `  - package.json + pnpm-lock.yaml      -> pnpm install --frozen-lockfile\n` +
@@ -1490,7 +1541,7 @@ for (const ph of phases) {
       `Polyglot projects: run each detected install in dependency-graph order ` +
       `(backend deps before frontend tests, etc). Report install failures verbatim in the QA ` +
       `report 'summary' field and set all_green=false — never paper over a broken install.\n\n` +
-      `Step 2 — Run the build_command (${JSON.stringify(impl.build_command)}). Verify ALL phase tests ` +
+      `Step 3 — Run the build_command (${JSON.stringify(impl.build_command)}). Verify ALL phase tests ` +
       `pass and coverage thresholds hold (overall 80%+, new 90%+). Map every test back to ` +
       `an AC-ID/SCENARIO-ID. Report uncovered scenarios honestly — a green build with gaps ` +
       `is worse than a red build with full coverage intent.`,
@@ -1507,22 +1558,74 @@ for (const ph of phases) {
       e2e = await agent(
         `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
         `phase_number: ${ph.number}.\n\n` +
+        // E2E suites are the most fragile w.r.t. env config: the dev server
+        // needs every NEXT_PUBLIC_* / VITE_* / DATABASE_URL / etc. that the
+        // app reads at boot, otherwise the server crashes before any browser
+        // attaches and Playwright/Cypress reports the unhelpful "ECONNREFUSED
+        // localhost:3000". Copy env files first, then deps, then drivers.
+        `Step 1 — Copy environment files from the main repo. The worktree was created from a ` +
+        `branch and does NOT have .gitignore'd env files at ANY depth — root, monorepo apps, ` +
+        `packages, services, crates, etc. An e2e dev server cannot start without them. Run ` +
+        `this recursive copy verbatim:\n` +
+        `\`\`\`bash\n${ENV_COPY_RECIPE}\`\`\`\n` +
+        `This walks the full main-repo tree, prunes vendored/build directories, copies every ` +
+        `.env / .env.* file (excluding *.example / *.template) to the matching relative path ` +
+        `under the worktree, and echoes the list of copied files. After the copy, BEFORE ` +
+        `starting the dev server, sanity-check that every env var the app reads at boot ` +
+        `(search code for process.env.* and import.meta.env.*) actually has a value — log ` +
+        `missing vars in the report's 'summary' field and set all_green=false. A failed ` +
+        `env-copy is reported as an install failure, not a test failure.\n\n` +
         // E2E suites typically need BOTH the app's runtime deps AND a browser-
         // driver toolchain (Playwright, Cypress, etc.). Browser-driver installs
         // are slow (~30-90s for Playwright chromium+webkit+firefox), so they
         // must be deterministic — skip silently if the install was already done.
-        `Step 1 — Install dependencies BEFORE any E2E test. Detect package manager(s) the same ` +
+        // If the app does not declare an e2e tool at all, install Playwright
+        // on the fly via npx (no app-package.json mutation) so the workflow
+        // can still produce real browser-level coverage for the UI feature.
+        `Step 2 — Install dependencies BEFORE any E2E test. Detect package manager(s) the same ` +
         `way qa-agent does (pnpm-lock.yaml -> pnpm install --frozen-lockfile; yarn.lock -> ` +
-        `yarn install --frozen-lockfile; package-lock.json -> npm ci; no lockfile -> npm install).\n` +
-        `Then install browser drivers if the project uses one:\n` +
-        `  - @playwright/test in package.json -> pnpm exec playwright install --with-deps\n` +
-        `    (or 'yarn exec' / 'npx' depending on the package manager)\n` +
-        `  - cypress in package.json          -> pnpm exec cypress install\n` +
-        `  - webdriverio in package.json      -> already bundled with the runner; no extra step\n` +
-        `Driver install commands are idempotent — they no-op when the binaries are cached.\n\n` +
-        `Step 2 — Run E2E tests against the implementation. Cover all UI scenarios for this ` +
+        `yarn install --frozen-lockfile; package-lock.json -> npm ci; no lockfile -> npm install).\n\n` +
+        `Then ensure an e2e tool is available. First, inspect the worktree's package.json (root ` +
+        `AND every workspace member) for ALL of these candidates in 'dependencies' / ` +
+        `'devDependencies' / 'optionalDependencies':\n` +
+        `  - @playwright/test, playwright\n` +
+        `  - cypress\n` +
+        `  - webdriverio, @wdio/cli\n` +
+        `  - puppeteer\n` +
+        `  - testcafe\n` +
+        `  - selenium-webdriver\n` +
+        `For Python projects also check requirements.txt / Pipfile / pyproject.toml for: ` +
+        `playwright (Python bindings), selenium, splinter, pytest-playwright.\n\n` +
+        `Case A — App already declares an e2e tool: install its driver:\n` +
+        `  - @playwright/test or playwright (Node)  -> <pm> exec playwright install --with-deps\n` +
+        `  - playwright (Python)                    -> python -m playwright install --with-deps\n` +
+        `  - cypress                                -> <pm> exec cypress install\n` +
+        `  - webdriverio                            -> driver bundled with the runner; no extra step\n` +
+        `  - puppeteer                              -> downloads Chromium on first install; no extra step\n` +
+        `  - testcafe                               -> driver bundled; no extra step\n` +
+        `  - selenium-webdriver / Python selenium   -> ensure chromedriver / geckodriver on PATH ` +
+        `(install via 'brew install chromedriver' on macOS, 'apt-get install chromium-driver' on Linux, ` +
+        `or download from the official mirror) AND verify with 'chromedriver --version'\n\n` +
+        `Case B — App does NOT declare an e2e tool but has a UI to test: install Playwright on ` +
+        `the fly WITHOUT mutating the app's package.json. Use one of (in priority order):\n` +
+        `  1. 'npx --yes @playwright/test@latest install --with-deps' to fetch the driver, then ` +
+        `'npx --yes @playwright/test@latest test <test-files>' to run\n` +
+        `  2. If npx is unavailable, install into a sibling tmp dir: ` +
+        `'mkdir -p ${shellQuote(WORKTREE_PATH)}/.e2e-tools && cd ${shellQuote(WORKTREE_PATH)}/.e2e-tools && ` +
+        `npm init -y >/dev/null && npm install --save-dev @playwright/test && ` +
+        `npx playwright install --with-deps'\n` +
+        `Either way the install is logged and the on-the-fly toolchain is documented in the ` +
+        `E2E report's 'summary' field so the user knows the tool was provisioned by the ` +
+        `workflow rather than declared by the project.\n\n` +
+        `All install commands are idempotent — they no-op when the binaries are already cached.\n\n` +
+        `Step 3 — Start the app/dev server if the E2E config doesn't auto-start one (Playwright's ` +
+        `webServer block handles this; raw test runners may not). Wait for the readiness probe ` +
+        `(HTTP 200 on the configured base URL) before launching browsers. If the server crashes ` +
+        `at boot, capture its stderr and surface it in the report.\n\n` +
+        `Step 4 — Run E2E tests against the implementation. Cover all UI scenarios for this ` +
         `phase across the project's configured browsers. Verify performance and accessibility ` +
-        `budgets. Report install failures verbatim and set all_green=false.`,
+        `budgets. Report install / env-copy / server-start failures verbatim and set ` +
+        `all_green=false.`,
         {
           label: `phase-${ph.number}:e2e:${phaseIter}`,
           phase: 'Stage 9 — Implementation',
@@ -1849,17 +1952,27 @@ while (reviewIter < MAX_REVIEW_ITERS) {
     `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
     `Inputs to read yourself: ${req.doc_path}, ${bdd.doc_path}, ${spec.specification_path}, ` +
     `${spec.plan_path}, ${spec.tasks_path}.\n\n` +
-    // Same dependency-install discipline as the Stage 9.5 qa-agent prompt:
-    // the Stage 10 fix specialist may have changed the dependency graph
-    // (added libs to fix findings), so the install step must re-run before
-    // tests. Idempotent — no-ops when nothing changed.
-    `Step 1 — Install dependencies BEFORE any test. Detect package manager from manifest ` +
+    // Same env-copy + dependency-install discipline as the Stage 9.5 qa prompt:
+    // the Stage 10 fix specialist may have changed the dependency graph or
+    // touched env-reading code, so both steps must re-run before tests.
+    // All commands are idempotent — no-op when nothing changed.
+    `Step 1 — Copy environment files from the main repo to the worktree. The worktree does ` +
+    `NOT inherit .gitignore'd .env / .env.local / .env.test / etc. at ANY depth (monorepo ` +
+    `apps/, services/, packages/, crates/, etc). Tests that need DB URLs / API keys / feature ` +
+    `flags will fail with 'connection refused' or 'undefined env var' before the assertion ` +
+    `phase. Run this recursive copy verbatim:\n` +
+    `\`\`\`bash\n${ENV_COPY_RECIPE}\`\`\`\n` +
+    `This walks the full main-repo tree, prunes vendored/build directories, and copies every ` +
+    `.env / .env.* file (excluding *.example / *.template). Report copied files and any ` +
+    `missing-env-var sanity-check failures verbatim in the QA report.\n\n` +
+    `Step 2 — Install dependencies BEFORE any test. Detect package manager from manifest ` +
     `(pnpm-lock.yaml -> pnpm install --frozen-lockfile; yarn.lock -> yarn install --frozen-lockfile; ` +
     `package-lock.json -> npm ci; go.mod -> go mod download; Pipfile -> pipenv install --deploy; ` +
     `poetry.lock -> poetry install --no-interaction; requirements.txt -> pip install -r; ` +
     `Gemfile -> bundle install; composer.json -> composer install --no-interaction). Polyglot ` +
-    `projects run each install in dependency-graph order. Report install failures verbatim.\n\n` +
-    `Step 2 — Run the build command and verify ALL tests pass with coverage thresholds met after ` +
+    `projects run each install in dependency-graph order. Report install / env-copy failures ` +
+    `verbatim.\n\n` +
+    `Step 3 — Run the build command and verify ALL tests pass with coverage thresholds met after ` +
     `the Stage 10 iteration fixes. Map every test back to AC-ID/SCENARIO-ID.`,
     {
       label: `qa-agent:fix:${reviewIter}`,
