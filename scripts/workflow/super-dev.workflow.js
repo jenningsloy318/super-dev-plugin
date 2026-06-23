@@ -716,6 +716,107 @@ if (!worktreeResult.ok) {
 const WORKTREE_PATH = worktreeResult.worktree_path;
 const SPEC_DIRECTORY = `${WORKTREE_PATH}/specification/${specMeta.spec_identifier}`;
 
+// ---------------------------------------------------------------------------
+// Bootstrap recipes — defined here so Step 1.6 (worktree bootstrap) and the
+// Stage 9 qa/e2e prompts share the same idempotent bash. Two recipes:
+//
+//   ENV_COPY_RECIPE      — recursive copy of every .env / .env.* file from
+//                          the main repo to the matching relative path
+//                          under the worktree. Skips *.example/*.template
+//                          and prunes vendored/build directories.
+//
+//   INSTALL_DEPS_RECIPE  — walks the worktree, detects every package
+//                          manifest (package.json, Cargo.toml, go.mod,
+//                          pyproject.toml, requirements.txt, Pipfile,
+//                          Gemfile, composer.json, mix.exs), and runs the
+//                          appropriate install command per manifest in
+//                          dependency-graph order (lockfile-aware for
+//                          Node). Idempotent — no-ops when nothing changed.
+//
+// Both recipes echo `installed`/`copied` lines so the run journal records
+// what happened.
+// ---------------------------------------------------------------------------
+const ENV_COPY_RECIPE =
+  `set -u\n` +
+  `src=${shellQuote(REPO_PATH)}\n` +
+  `dst=${shellQuote(WORKTREE_PATH)}\n` +
+  `# Build a find expression that prunes vendored / build dirs and matches\n` +
+  `# any .env* file that is NOT a committed example/template.\n` +
+  `find "$src" \\\n` +
+  `  \\( -name .git -o -name node_modules -o -name target -o -name dist \\\n` +
+  `     -o -name build -o -name .next -o -name .nuxt -o -name vendor \\\n` +
+  `     -o -name .venv -o -name venv -o -name __pycache__ \\) -prune -o \\\n` +
+  `  -type f \\( -name '.env' -o -name '.env.*' \\) ! -name '*.example' \\\n` +
+  `    ! -name '*.template' -print \\\n` +
+  `| while IFS= read -r abs; do\n` +
+  `  rel=\${abs#$src/}\n` +
+  `  mkdir -p "$(dirname "$dst/$rel")"\n` +
+  `  cp -p "$abs" "$dst/$rel"\n` +
+  `  echo "copied $rel bytes=$(wc -c <"$dst/$rel" | tr -d ' ')"\n` +
+  `done\n`;
+
+// Install-deps recipe. Walks worktree top-level + workspace members for
+// every supported manifest and runs the matching install. Lockfile-aware
+// for Node (pnpm-lock.yaml -> pnpm; yarn.lock -> yarn; package-lock.json
+// -> npm ci). The order is: backend first (Cargo/Go/Python/Ruby/PHP/
+// Elixir) then frontend (Node), so backend services that frontends consume
+// at build time are ready first.
+const INSTALL_DEPS_RECIPE =
+  `set -u\n` +
+  `cd ${shellQuote(WORKTREE_PATH)}\n` +
+  `# Skip these dirs everywhere — they never carry source-of-truth manifests.\n` +
+  `PRUNE=' ( -name .git -o -name node_modules -o -name target -o -name dist \\\n` +
+  `          -o -name build -o -name .next -o -name .nuxt -o -name vendor \\\n` +
+  `          -o -name .venv -o -name venv -o -name __pycache__ ) -prune '\n` +
+  `run() { echo "+ $*" >&2; "$@"; }\n` +
+  `\n` +
+  `# Pass 1 — backend manifests, processed first.\n` +
+  `find . $PRUNE -o -type f \\( -name Cargo.toml -o -name go.mod -o -name pyproject.toml \\\n` +
+  `   -o -name Pipfile -o -name requirements.txt -o -name Gemfile \\\n` +
+  `   -o -name composer.json -o -name mix.exs \\) -print \\\n` +
+  `| while IFS= read -r manifest; do\n` +
+  `  dir=$(dirname "$manifest"); name=$(basename "$manifest")\n` +
+  `  ( cd "$dir" || exit 0\n` +
+  `    case "$name" in\n` +
+  `      Cargo.toml)        echo "installed Cargo.toml in $dir (cargo fetches on first build)";;\n` +
+  `      go.mod)            run go mod download && echo "installed go.mod in $dir";;\n` +
+  `      pyproject.toml)\n` +
+  `        if [ -f poetry.lock ]; then run poetry install --no-interaction && echo "installed pyproject.toml (poetry) in $dir"\n` +
+  `        elif command -v pdm >/dev/null && [ -f pdm.lock ]; then run pdm install && echo "installed pyproject.toml (pdm) in $dir"\n` +
+  `        else echo "skipped pyproject.toml in $dir (no poetry.lock/pdm.lock)"; fi ;;\n` +
+  `      Pipfile)           run pipenv install --deploy && echo "installed Pipfile in $dir";;\n` +
+  `      requirements.txt)  run pip install -r requirements.txt && echo "installed requirements.txt in $dir";;\n` +
+  `      Gemfile)           run bundle install && echo "installed Gemfile in $dir";;\n` +
+  `      composer.json)     run composer install --no-interaction && echo "installed composer.json in $dir";;\n` +
+  `      mix.exs)           run mix deps.get && echo "installed mix.exs in $dir";;\n` +
+  `    esac ) || echo "ERROR installing $manifest" >&2\n` +
+  `done\n` +
+  `\n` +
+  `# Pass 2 — Node manifests. Workspace roots install once for the whole tree,\n` +
+  `# so detect by lockfile location (workspace root has the lockfile) rather\n` +
+  `# than installing per workspace member.\n` +
+  `find . $PRUNE -o -type f -name package.json -print \\\n` +
+  `| while IFS= read -r manifest; do\n` +
+  `  dir=$(dirname "$manifest")\n` +
+  `  ( cd "$dir" || exit 0\n` +
+  `    # Only install at the LOCKFILE directory (workspace root or single project).\n` +
+  `    if   [ -f pnpm-lock.yaml ];    then run pnpm install --frozen-lockfile && echo "installed package.json (pnpm) in $dir"\n` +
+  `    elif [ -f yarn.lock ];         then run yarn install --frozen-lockfile && echo "installed package.json (yarn) in $dir"\n` +
+  `    elif [ -f package-lock.json ]; then run npm ci && echo "installed package.json (npm ci) in $dir"\n` +
+  `    else\n` +
+  `      # No lockfile here — check if a parent directory has one (we're a workspace member).\n` +
+  `      up="$dir"; found=""\n` +
+  `      while [ "$up" != "." ] && [ "$up" != "/" ]; do\n` +
+  `        up=$(dirname "$up")\n` +
+  `        if [ -f "$up/pnpm-lock.yaml" ] || [ -f "$up/yarn.lock" ] || [ -f "$up/package-lock.json" ]; then\n` +
+  `          found="$up"; break\n` +
+  `        fi\n` +
+  `      done\n` +
+  `      if [ -n "$found" ]; then echo "skipped package.json in $dir (workspace member of $found)"\n` +
+  `      else run npm install && echo "installed package.json (npm install, no lockfile) in $dir"; fi\n` +
+  `    fi ) || echo "ERROR installing $manifest" >&2\n` +
+  `done\n`;
+
 // Step 1.5 — Spec directory + tracking JSON.
 log('Stage 1.5 spec dir + tracking JSON');
 await agent(
@@ -738,6 +839,65 @@ await agent(
     },
   },
 );
+
+// Step 1.6 — Worktree bootstrap. The Stage 1 worktree was created from a
+// branch, which means it inherits the tracked source but NOT:
+//   - .gitignore'd .env files (DB URLs, API keys, feature flags)
+//   - any installed deps (node_modules, .venv, vendor, target/, etc.)
+// Without this step the downstream gates fail in non-obvious ways: e.g.
+// gate-build.sh's `pnpm run build` fails with `next: command not found`
+// because the worktree has no node_modules even though the main repo does.
+// Polyglot monorepos with workspace package managers are especially fragile
+// here — qa-agent installs JS deps when the phase is JS-heavy, but a Go-
+// only phase skips the JS install and gate-build still tries to build the
+// frontend. Doing this once at Stage 1 means every downstream stage finds
+// a usable workspace.
+//
+// Both recipes are idempotent. If you resume a workflow, the bootstrap
+// re-runs but no-ops on already-installed deps and re-copies env files
+// (cheap, deterministic).
+log('Stage 1.6 worktree bootstrap: copy .env files + install dependencies');
+const bootstrapResult = await agent(
+  `Run the following two recipes in sequence. After each, report the captured ` +
+  `stdout lines verbatim — those tell the user what was copied/installed.\n\n` +
+  `--- Recipe 1: copy .env files ---\n` +
+  `\`\`\`bash\n${ENV_COPY_RECIPE}\`\`\`\n` +
+  `--- Recipe 2: install dependencies ---\n` +
+  `\`\`\`bash\n${INSTALL_DEPS_RECIPE}\`\`\`\n` +
+  `Return JSON: {"env_files_copied": int, "manifests_installed": int, ` +
+  `"install_errors": [string], "summary": string}. Count "copied <rel>" lines ` +
+  `for env_files_copied. Count "installed <manifest> in <dir>" lines for ` +
+  `manifests_installed (NOT "skipped" lines). Collect any "ERROR installing" ` +
+  `lines into install_errors verbatim. Do not retry on failure — surface the ` +
+  `errors so the user sees them.`,
+  {
+    label: 'worktree-bootstrap',
+    phase: 'Stage 1 — Setup',
+    agentType: 'general-purpose',
+    schema: {
+      type: 'object',
+      required: ['env_files_copied', 'manifests_installed', 'install_errors', 'summary'],
+      additionalProperties: false,
+      properties: {
+        env_files_copied:    { type: 'integer', minimum: 0 },
+        manifests_installed: { type: 'integer', minimum: 0 },
+        install_errors:      { type: 'array', items: { type: 'string' } },
+        summary:             { type: 'string' },
+      },
+    },
+  },
+);
+if (bootstrapResult.install_errors.length > 0) {
+  // Don't throw — installation errors for ONE manifest shouldn't block the
+  // whole workflow (a project may have legacy/optional manifests that fail
+  // to install on this OS). Surface them loudly and let downstream gates
+  // decide. gate-build will fail naturally if the install gap matters.
+  log(`Stage 1.6 had ${bootstrapResult.install_errors.length} install error(s):`);
+  for (const err of bootstrapResult.install_errors) log(`  - ${err}`);
+  log(`  Downstream gates (gate-build, qa, e2e) may still fail. Continuing.`);
+}
+log(`Stage 1.6 complete: ${bootstrapResult.env_files_copied} env file(s) copied, ` +
+    `${bootstrapResult.manifests_installed} manifest(s) installed.`);
 
 log(`Stage 1 complete. Worktree: ${WORKTREE_PATH}`);
 log(`Spec dir: ${SPEC_DIRECTORY}`);
@@ -1379,43 +1539,9 @@ const SPECIALIST_BY_LANG = {
 const specialistAgent = SPECIALIST_BY_LANG[LANGUAGE] ?? 'super-dev:dev-executor';
 log(`Stage 9: ${phases.length} phase(s) total; domain specialist = ${specialistAgent}; is_web_ui=${IS_WEB_UI}`);
 
-// ---------------------------------------------------------------------------
-// Env-copy recipe shared by every qa-agent and e2e-runner prompt that runs
-// against the worktree. The Stage 1 worktree was created from a branch and
-// therefore does NOT inherit .gitignore'd files — every .env* in the main
-// repo must be replicated at the matching relative path under the worktree
-// before any test that reads process.env / import.meta.env / os.Getenv /
-// etc. The recipe is bash, idempotent, and traverses the full directory
-// tree (not just root + one level): monorepos commonly hide env files under
-// apps/<name>/, services/<name>/, packages/<name>/, crates/<name>/, etc.
-//
-// Filters:
-//   - skip .git, node_modules, target, dist, build, .next, .nuxt, vendor,
-//     .venv, venv, __pycache__ — these never carry source-of-truth env data
-//   - skip *.example and *.template — committed placeholders, already in
-//     the worktree
-//
-// Output: printed list of `copied <rel> bytes=<N>` lines so the QA / E2E
-// report's `summary` field can quote them verbatim.
-// ---------------------------------------------------------------------------
-const ENV_COPY_RECIPE =
-  `set -u\n` +
-  `src=${shellQuote(REPO_PATH)}\n` +
-  `dst=${shellQuote(WORKTREE_PATH)}\n` +
-  `# Build a find expression that prunes vendored / build dirs and matches\n` +
-  `# any .env* file that is NOT a committed example/template.\n` +
-  `find "$src" \\\n` +
-  `  \\( -name .git -o -name node_modules -o -name target -o -name dist \\\n` +
-  `     -o -name build -o -name .next -o -name .nuxt -o -name vendor \\\n` +
-  `     -o -name .venv -o -name venv -o -name __pycache__ \\) -prune -o \\\n` +
-  `  -type f \\( -name '.env' -o -name '.env.*' \\) ! -name '*.example' \\\n` +
-  `    ! -name '*.template' -print \\\n` +
-  `| while IFS= read -r abs; do\n` +
-  `  rel=\${abs#$src/}\n` +
-  `  mkdir -p "$(dirname "$dst/$rel")"\n` +
-  `  cp -p "$abs" "$dst/$rel"\n` +
-  `  echo "copied $rel bytes=$(wc -c <"$dst/$rel" | tr -d ' ')"\n` +
-  `done\n`;
+// ENV_COPY_RECIPE + INSTALL_DEPS_RECIPE are defined near the top of the
+// file (right after WORKTREE_PATH/SPEC_DIRECTORY) so Stage 1.6 and Stage 9
+// share the same bash.
 
 const phaseResults = [];
 
