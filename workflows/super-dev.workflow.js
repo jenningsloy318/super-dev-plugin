@@ -951,9 +951,9 @@ const TRACKING_JSON_PATH = `${SPEC_DIRECTORY}/${specMeta.spec_identifier}-workfl
 //
 // Usage:
 //   await updateTracking({ stage: N, status: 'in_progress' })
-//   await updateTracking({ stage: N, status: 'complete', docs: [...] })
+//   await updateTracking({ stage: N, status: 'complete', docs: [...], files: {created, modified, deleted} })
 //   await updateTracking({ implPhase: { number: N, name: '...', status: 'in_progress' } })
-//   await updateTracking({ implPhase: { number: N, name: '...', status: 'complete' } })
+//   await updateTracking({ implPhase: { number: N, name: '...', status: 'complete', files: {...} } })
 // ---------------------------------------------------------------------------
 async function updateTracking(opts) {
   const parts = [];
@@ -964,7 +964,8 @@ async function updateTracking(opts) {
       (opts.status === 'in_progress' ? ` Set startedAt to current ISO 8601 timestamp (seconds precision).` : '') +
       (opts.status === 'complete' ? ` Set completedAt to current ISO 8601 timestamp (seconds precision).` : '') +
       (opts.status === 'skipped' ? ` Set completedAt to current ISO 8601 timestamp (seconds precision).` : '') +
-      (opts.docs ? ` Set docs to ${JSON.stringify(opts.docs)}.` : '')
+      (opts.docs ? ` Set docs to ${JSON.stringify(opts.docs)}.` : '') +
+      (opts.files ? ` Set files to ${JSON.stringify(opts.files)}.` : '')
     );
   }
   if (opts.implPhase) {
@@ -983,7 +984,8 @@ async function updateTracking(opts) {
       parts.push(
         `In the "implementationPhases" array, find the entry with phaseNumber=${p.number}. ` +
         `Set status="complete", completedAt to current ISO 8601 timestamp (seconds precision), ` +
-        `reviewIterations=${p.reviewIterations ?? 1}.`
+        `reviewIterations=${p.reviewIterations ?? 1}.` +
+        (p.files ? ` Set files to ${JSON.stringify(p.files)}.` : '')
       );
     }
   }
@@ -2111,7 +2113,13 @@ for (const ph of phases) {
     },
   );
   log(`  Phase ${ph.number} committed at ${commit.new_sha}${commit.skipped ? ' (no changes — empty commit skipped)' : ''}`);
-  await updateTracking({ implPhase: { number: ph.number, name: ph.name, status: 'complete', reviewIterations: phaseIter }, currentPhase: 'Stage 9 — Implementation' });
+  await updateTracking({
+    implPhase: {
+      number: ph.number, name: ph.name, status: 'complete', reviewIterations: phaseIter,
+      files: { created: tdd.test_files || [], modified: impl.files_modified || [], deleted: [] },
+    },
+    currentPhase: 'Stage 9 — Implementation',
+  });
 
   phaseResults.push({
     number: ph.number,
@@ -2127,7 +2135,14 @@ for (const ph of phases) {
   });
 }
 log(`Stage 9 complete: ${phaseResults.length} phase(s) implemented & committed.`);
-await updateTracking({ stage: 9, status: 'complete', currentPhase: 'Stage 9 — Implementation' });
+await updateTracking({
+  stage: 9, status: 'complete', currentPhase: 'Stage 9 — Implementation',
+  files: {
+    created: Array.from(new Set(phaseResults.flatMap(p => p.test_files))),
+    modified: Array.from(new Set(phaseResults.flatMap(p => p.impl_files))),
+    deleted: [],
+  },
+});
 
 // ---------------------------------------------------------------------------
 // Stage 10 — Code review + adversarial review (parallel) with iteration loop
@@ -2428,7 +2443,10 @@ while (reviewIter < MAX_REVIEW_ITERS) {
   log(`Stage 10 iteration ${reviewIter}: fixes applied, looping back for re-review`);
 }
 log(`Stage 10 complete after ${reviewIter} iteration(s).`);
-await updateTracking({ stage: 10, status: 'complete', currentPhase: 'Stage 10 — Code Review' });
+await updateTracking({
+  stage: 10, status: 'complete', currentPhase: 'Stage 10 — Code Review',
+  docs: [codeReview?.doc_path, advReview?.doc_path].filter(Boolean).map(p => p.split('/').pop()),
+});
 
 // ---------------------------------------------------------------------------
 // Stage 11 — Documentation
@@ -2502,7 +2520,10 @@ if (SKIP_HANDOFF) {
   );
   log(`handoff-writer: ${handoff.lines} lines, ${(handoff.unfinished_items ?? []).length} unfinished item(s).`);
 }
-await updateTracking({ stage: 11, status: 'complete', currentPhase: 'Stage 11 — Documentation' });
+await updateTracking({
+  stage: 11, status: 'complete', currentPhase: 'Stage 11 — Documentation',
+  files: { created: [], modified: docsResult.docs_updated || [], deleted: [] },
+});
 
 // ---------------------------------------------------------------------------
 // Stage 12 — Cleanup
@@ -2538,7 +2559,10 @@ if (cleanup.blocked) {
   );
 }
 log(`Stage 12 complete: cleaned ${cleanup.directories_removed.length} dir(s); reclaimed ${cleanup.disk_reclaimed_bytes} bytes.`);
-await updateTracking({ stage: 12, status: 'complete', currentPhase: 'Stage 12 — Cleanup' });
+await updateTracking({
+  stage: 12, status: 'complete', currentPhase: 'Stage 12 — Cleanup',
+  files: { created: [], modified: [], deleted: cleanup.directories_removed || [] },
+});
 
 // ---------------------------------------------------------------------------
 // Stage 13 — Trailing commit + merge (gated behind args.do_merge)
