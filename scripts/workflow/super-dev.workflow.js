@@ -580,13 +580,32 @@ if (!REQUEST || !PLUGIN_ROOT || !REPO_PATH) {
 }
 
 // ---------------------------------------------------------------------------
+// Retry wrapper — retries agent() calls up to MAX_RETRIES on null returns.
+// null = agent died on a terminal API error after the runtime's internal
+// retries. Common during long runs (network blips, rate limits, API outages).
+// Without this, a single transient failure kills the entire multi-hour workflow.
+// ---------------------------------------------------------------------------
+const MAX_RETRIES = 10;
+const agentWithRetry = async (prompt, opts) => {
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const result = await agent(prompt, opts);
+    if (result !== null && result !== undefined) return result;
+    if (attempt < MAX_RETRIES) {
+      log(`[retry] ${opts?.label || 'agent'} returned null — attempt ${attempt}/${MAX_RETRIES}, retrying...`);
+    }
+  }
+  log(`[retry] ${opts?.label || 'agent'} exhausted ${MAX_RETRIES} retries — returning null`);
+  return null;
+};
+
+// ---------------------------------------------------------------------------
 // Stage 1 — Setup
 // ---------------------------------------------------------------------------
 phase('Stage 1 — Setup');
 
 // Step 1.1 — Preflight env gate (must run BEFORE any other shell call).
 log('Stage 1.1 preflight: verifying CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 and Claude Code >= v2.1.178');
-const preflight = await agent(
+const preflight = await agentWithRetry(
   `Run this command and report:\n` +
   `  - the exit code\n` +
   `  - the LAST line of stdout/stderr (the 'preflight: ok ...' line on success, or the\n` +
@@ -635,7 +654,7 @@ const RAW_SHELL_SCHEMA = {
   },
 };
 
-const defaultBranchResult = await agent(
+const defaultBranchResult = await agentWithRetry(
   `Run this shell snippet in a single Bash call and report the result. ` +
   `Do NOT interpret success — report exactly what bash returns, even on non-zero exit:\n\n` +
   detectDefaultBranchSnippet(REPO_PATH) +
@@ -663,7 +682,7 @@ if (!DEFAULT_BRANCH) {
 }
 log(`Default branch resolved to: ${DEFAULT_BRANCH}`);
 
-const pullResult = await agent(
+const pullResult = await agentWithRetry(
   `Run this shell snippet in a single Bash call and report the result. ` +
   `Do NOT auto-rebase, force-pull, or stash. Do NOT interpret success — report ` +
   `exactly what bash returns, even on non-zero exit:\n\n` +
@@ -687,7 +706,7 @@ if (pullResult.exit_code !== 0) {
 
 // Step 1.3 — Spec index, name, identifier.
 log('Stage 1.3 spec naming');
-const specMeta = await agent(
+const specMeta = await agentWithRetry(
   `In the repo at ${shellQuote(REPO_PATH)}, look at the 'specification/' directory (it may not exist yet). ` +
   `Find the highest existing 2-digit numeric prefix (folders named NN-something). Compute next_index = max + 1, ` +
   `zero-padded to 2 digits (e.g. '07'). Derive spec_name from this user request as kebab-case lowercase: ` +
@@ -711,7 +730,7 @@ log(`Spec identifier: ${specMeta.spec_identifier}`);
 
 // Step 1.4 — Create worktree and capture the absolute path.
 log('Stage 1.4 worktree');
-const worktreeResult = await agent(
+const worktreeResult = await agentWithRetry(
   `Run this exactly and return the trimmed stdout (which is the absolute worktree path):\n\n` +
   worktreeAddSnippet(REPO_PATH, specMeta.spec_identifier) +
   `\nReturn JSON: {"ok": bool, "worktree_path": string, "stderr": string}.`,
@@ -835,7 +854,7 @@ const INSTALL_DEPS_RECIPE =
 
 // Step 1.5 — Spec directory + tracking JSON.
 log('Stage 1.5 spec dir + tracking JSON');
-await agent(
+await agentWithRetry(
   `Run: mkdir -p ${shellQuote(SPEC_DIRECTORY)}\n` +
   `Then copy ${shellQuote(PLUGIN_ROOT + '/reference/workflow-tracking-template.json')} to ` +
   `${shellQuote(SPEC_DIRECTORY + '/' + specMeta.spec_identifier + '-workflow-tracking.json')} and ` +
@@ -873,7 +892,7 @@ await agent(
 // re-runs but no-ops on already-installed deps and re-copies env files
 // (cheap, deterministic).
 log('Stage 1.6 worktree bootstrap: copy .env files + install dependencies');
-const bootstrapResult = await agent(
+const bootstrapResult = await agentWithRetry(
   `Run the following two recipes in sequence. After each, report the captured ` +
   `stdout lines verbatim — those tell the user what was copied/installed.\n\n` +
   `--- Recipe 1: copy .env files ---\n` +
@@ -969,7 +988,7 @@ async function updateTracking(opts) {
     }
   }
   if (parts.length === 0) return;
-  await agent(
+  await agentWithRetry(
     `Read ${shellQuote(TRACKING_JSON_PATH)}, apply these updates, then write it back:\n` +
     parts.map((p, i) => `  ${i + 1}. ${p}`).join('\n') +
     `\nReturn JSON: {"ok": true}.`,
@@ -990,7 +1009,7 @@ async function updateTracking(opts) {
 // the user fixes the document.
 // ---------------------------------------------------------------------------
 async function fileFingerprint(filePath, currentPhase) {
-  const result = await agent(
+  const result = await agentWithRetry(
     `Run: md5sum ${shellQuote(filePath)} 2>/dev/null || md5 -q ${shellQuote(filePath)} 2>/dev/null || echo "no-hash"\n` +
     `Return JSON: {"hash": string} (first 12 chars of the hash output).`,
     {
@@ -1115,7 +1134,7 @@ while (researchIteration < MAX_RESEARCH) {
     : docName('research-report.md');
   log(`Stage 3 iteration ${researchIteration} (${isDeep ? 'deep-research' : 'initial'})`);
 
-  const report = await agent(
+  const report = await agentWithRetry(
     `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
     `Inputs to read yourself: ${req.doc_path}, ${bdd.doc_path}` +
     (researchReports.length
@@ -1160,7 +1179,7 @@ if (!isBug) {
   await updateTracking({ stage: 4, status: 'in_progress', currentPhase: 'Stage 4 — Debug Analysis' });
   log('Stage 4: initial triage to enumerate hypotheses');
   const debugName = docName('debug-analysis.md');
-  const triage = await agent(
+  const triage = await agentWithRetry(
     `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
     `Inputs to read yourself: ${req.doc_path}, ${bdd.doc_path}, ${researchReports[researchReports.length - 1].doc_path}.\n` +
     `User report: ${JSON.stringify(REQUEST)}\n` +
@@ -1226,7 +1245,7 @@ await updateTracking({ stage: 5, status: 'in_progress', currentPhase: 'Stage 5 �
 
 log('Stage 5: code-assessor — first codebase exploration');
 const assessmentName = docName('code-assessment.md');
-const assessment = await agent(
+const assessment = await agentWithRetry(
   `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
   `Inputs to read yourself: ${req.doc_path}, ${bdd.doc_path}, ${researchReports[researchReports.length - 1].doc_path}` +
     (debugResult ? `, ${debugResult.doc_path}` : '') + `.\n\n` +
@@ -1287,7 +1306,7 @@ if (designerType) {
   }[designerType];
   const outputFile = docName(expectedSuffix);
 
-  design = await agent(
+  design = await agentWithRetry(
     `${designerInputs}\n\n` +
     `Produce ${shellQuote(SPEC_DIRECTORY + '/' + outputFile)}. ` +
     (designerType === 'product-designer'
@@ -1350,7 +1369,7 @@ if (!needPrototype) {
 
   if (samples.length === 0) {
     log(`Stage 6.5.1: sample-finder (args.input_samples empty; auto-discovering from codebase + prior-stage docs)`);
-    const finder = await agent(
+    const finder = await agentWithRetry(
       `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
       `The design at Stage 6 declared numeric constants that Stage 6.5.2 ` +
       `prototype-runner must validate against representative real input samples. ` +
@@ -1513,7 +1532,7 @@ const baseSpecInputs =
   (prototype ? `  - prototype: ${prototype.doc_path}\n` : '');
 
 const spawnSpecWriter = async (extraGuidance = '', iter = 1) => {
-  const result = await agent(
+  const result = await agentWithRetry(
     `${baseSpecInputs}\n` +
     `Produce three documents:\n` +
     `  1. ${shellQuote(SPEC_DIRECTORY + '/' + specName)}\n` +
@@ -1675,7 +1694,7 @@ while (specIter < MAX_SPEC_ITERS) {
   spec = await spawnSpecWriter(guidance, 1 + specIter);
 
   // Re-validate trace gate after the rewrite.
-  const reTrace = await agent(
+  const reTrace = await agentWithRetry(
     `Wait for the updated ${shellQuote(SPEC_DIRECTORY + '/' + specName)}, ` +
     `${shellQuote(SPEC_DIRECTORY + '/' + planName)}, and ${shellQuote(SPEC_DIRECTORY + '/' + tasksName)} ` +
     `to be stable, then run ` +
@@ -1760,7 +1779,7 @@ for (const ph of phases) {
   await updateTracking({ implPhase: { number: ph.number, name: ph.name, status: 'in_progress', totalPhases: phases.length }, currentPhase: 'Stage 9 — Implementation' });
 
   // 9.1 — capture base_sha BEFORE any test/code change.
-  const baseSha = (await agent(
+  const baseSha = (await agentWithRetry(
     `Run exactly:\n${captureHeadSnippet(WORKTREE_PATH)}\nReturn JSON: {"sha": string}.`,
     {
       label: `phase-${ph.number}:capture-base-sha`,
@@ -1772,7 +1791,7 @@ for (const ph of phases) {
 
   // 9.2 — tdd-guide: write failing tests scoped to this phase.
   log(`  Phase ${ph.number}/9.2: tdd-guide (RED)`);
-  const tdd = await agent(
+  const tdd = await agentWithRetry(
     `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
     `Inputs to read yourself:\n` +
     `  - requirements: ${req.doc_path}\n` +
@@ -1823,7 +1842,7 @@ for (const ph of phases) {
         log(`  Phase ${ph.number} iter ${phaseIter}: detected test gap (${uncovered.length} uncovered scenario${uncovered.length === 1 ? '' : 's'}` +
             (e2eFailedNoCoverage ? ', e2e fails on uncovered flow' : '') +
             `) — re-running tdd-guide BEFORE specialist`);
-        await agent(
+        await agentWithRetry(
           `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
           `Inputs to read yourself:\n` +
           `  - requirements: ${req.doc_path}\n` +
@@ -1871,7 +1890,7 @@ for (const ph of phases) {
     const reviewGuidance = testGapGuidance + codeFixGuidance;
 
     // 9.3 — domain specialist (GREEN).
-    impl = await agent(
+    impl = await agentWithRetry(
       `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
       `Inputs to read yourself:\n` +
       `  - specification: ${spec.specification_path}\n` +
@@ -1892,7 +1911,7 @@ for (const ph of phases) {
     );
 
     // 9.4 — impl-summary-writer (append per-phase section).
-    implSummary = await agent(
+    implSummary = await agentWithRetry(
       `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
       `phase_number: ${ph.number}. phase_name: "${ph.name}".\n` +
       `base_sha: ${baseSha}.\n` +
@@ -1907,7 +1926,7 @@ for (const ph of phases) {
     );
 
     // 9.5 — qa-agent (VERIFY).
-    qa = await agent(
+    qa = await agentWithRetry(
       `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
       `Inputs to read yourself: ${req.doc_path}, ${bdd.doc_path}, ${spec.specification_path}, ` +
       `${spec.plan_path}, ${spec.tasks_path}.\n` +
@@ -1961,7 +1980,7 @@ for (const ph of phases) {
 
     // 9.6 — e2e-runner (CONDITIONAL).
     if (IS_WEB_UI) {
-      e2e = await agent(
+      e2e = await agentWithRetry(
         `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
         `phase_number: ${ph.number}.\n\n` +
         // E2E suites are the most fragile w.r.t. env config: the dev server
@@ -2042,7 +2061,7 @@ for (const ph of phases) {
     }
 
     // 9.7 — gate-build. Final phase gate.
-    buildVerdict = await agent(
+    buildVerdict = await agentWithRetry(
       `Wait for the build to settle, then run ` +
       `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-build.sh')} ${shellQuote(WORKTREE_PATH)}. ` +
       `Return the gate verdict.`,
@@ -2077,7 +2096,7 @@ for (const ph of phases) {
   // base_sha; the commit message is feat(<phase-name>): <summary>.
   const phaseShortName = ph.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   const commitMessage = `feat(${phaseShortName || 'phase-' + ph.number}): ${implSummary.summary?.split('\n')[0] ?? 'implement phase ' + ph.number}`;
-  const commit = await agent(
+  const commit = await agentWithRetry(
     `Run exactly:\n${commitPhaseSnippet(WORKTREE_PATH, commitMessage)}\n` +
     `Return JSON: {"new_sha": string, "skipped": boolean}.`,
     {
@@ -2333,7 +2352,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
 
   if (testFindings.length > 0) {
     log(`Stage 10 iteration ${reviewIter}: ${testFindings.length} test/coverage findings — re-running tdd-guide`);
-    await agent(
+    await agentWithRetry(
       `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
       `Inputs to read yourself:\n` +
       `  - requirements: ${req.doc_path}\n` +
@@ -2355,7 +2374,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
   }
 
   log(`Stage 10 iteration ${reviewIter}: re-running ${specialistAgent} with review findings`);
-  await agent(
+  await agentWithRetry(
     `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
     `Inputs to read yourself: ${spec.specification_path}, ${spec.plan_path}, ${spec.tasks_path}.\n` +
     `Apply the targeted fixes below — quote reviewers verbatim, do not paraphrase. After your ` +
@@ -2369,7 +2388,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
   );
 
   log(`Stage 10 iteration ${reviewIter}: re-running qa-agent to verify fixes`);
-  await agent(
+  await agentWithRetry(
     `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
     `Inputs to read yourself: ${req.doc_path}, ${bdd.doc_path}, ${spec.specification_path}, ` +
     `${spec.plan_path}, ${spec.tasks_path}.\n\n` +
@@ -2418,7 +2437,7 @@ phase('Stage 11 — Documentation');
 await updateTracking({ stage: 11, status: 'in_progress', currentPhase: 'Stage 11 — Documentation' });
 
 log('Stage 11: docs-executor (update spec dir + project-level docs)');
-const docsResult = await agent(
+const docsResult = await agentWithRetry(
   `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
   `Inputs to read yourself:\n` +
   `  - requirements: ${req.doc_path}\n` +
@@ -2444,7 +2463,7 @@ const docsResult = await agent(
 log(`docs-executor: ${docsResult.spec_dir_files_updated ?? 0} spec docs + ${docsResult.docs_updated.length - (docsResult.spec_dir_files_updated ?? 0)} project docs updated.`);
 
 log('Stage 11: doc-validator (gate-docs-drift)');
-const docsDriftVerdict = await agent(
+const docsDriftVerdict = await agentWithRetry(
   `Run ${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-docs-drift.sh')} ${shellQuote(SPEC_DIRECTORY)}. ` +
   `This gate verifies docs do not lag behind the implementation diff. Return the gate verdict.`,
   {
@@ -2464,7 +2483,7 @@ if (SKIP_HANDOFF) {
 } else {
   log('Stage 11: handoff-writer');
   const handoffName = docName('handoff.md');
-  handoff = await agent(
+  handoff = await agentWithRetry(
     `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
     `Spec identifier: ${specMeta.spec_identifier}. Feature name: ${req.feature_name}.\n` +
     `Write a pointer-based handoff to ${shellQuote(SPEC_DIRECTORY + '/' + handoffName)} for the ` +
@@ -2494,7 +2513,7 @@ phase('Stage 12 — Cleanup');
 await updateTracking({ stage: 12, status: 'in_progress', currentPhase: 'Stage 12 — Cleanup' });
 
 log('Stage 12: build-cleaner (sensitive-data scan + artifact cleanup)');
-const cleanup = await agent(
+const cleanup = await agentWithRetry(
   `Worktree: ${WORKTREE_PATH}. Plugin root: ${PLUGIN_ROOT}.\n` +
   `Scan the worktree for project languages/frameworks (Cargo.toml, package.json, ` +
   `go.mod, Pipfile, etc.). FIRST: pattern-match across the working tree for accidentally ` +
@@ -2531,7 +2550,7 @@ phase('Stage 13 — Merge');
 await updateTracking({ stage: 13, status: 'in_progress', currentPhase: 'Stage 13 — Merge' });
 
 log('Stage 13.1: trailing commit (docs/handoff/cleanup)');
-const trailingCommit = await agent(
+const trailingCommit = await agentWithRetry(
   `Run exactly:\n${commitTrailingSnippet(WORKTREE_PATH, `chore(${specMeta.spec_name}): finalise docs, handoff, cleanup`)}\n` +
   `Return JSON: {"new_sha": string, "skipped": boolean}.`,
   {
@@ -2555,7 +2574,7 @@ if (!DO_MERGE) {
   log(`    git merge --no-ff ${specMeta.spec_identifier} -m ${JSON.stringify(mergeMessage)}`);
 } else {
   log('Stage 13.2: merging spec branch into default branch in the main repo');
-  const mergeResult = await agent(
+  const mergeResult = await agentWithRetry(
     `Run exactly:\n${mergeSpecBranchSnippet(REPO_PATH, DEFAULT_BRANCH, specMeta.spec_identifier, mergeMessage)}\n` +
     `Return JSON: {"ok": bool, "merge_sha": string, "stderr": string}.`,
     {
@@ -2765,7 +2784,7 @@ async function gatedSpecTraceLoop(opts) {
  * gate-spec-trace failure if the plan really has zero phases).
  */
 async function _recoverSpecFromDisk(specDirectory, specName, planName, tasksName) {
-  const result = await agent(
+  const result = await agentWithRetry(
     `Read these three files from disk and report metadata. Do NOT modify them.\n` +
     `  spec:  ${shellQuote(specDirectory + '/' + specName)}\n` +
     `  plan:  ${shellQuote(specDirectory + '/' + planName)}\n` +
