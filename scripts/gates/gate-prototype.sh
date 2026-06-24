@@ -67,7 +67,8 @@ else
 fi
 
 # P8: if verdict is FAIL, recommendation must mention pivot-protocol
-if grep -qiE 'overall.*(verdict).*(fail|FAIL)|verdict.*FAIL' "$report_file" 2>/dev/null; then
+# Use word boundary (\b) to prevent "failures" from matching "FAIL" as a substring
+if grep -qiP '\bverdict\b.*\bFAIL\b' "$report_file" 2>/dev/null; then
     has_pivot=$(grep -ciE 'pivot.protocol|pivot protocol|invoke pivot' "$report_file" 2>/dev/null || echo 0)
     check "FAIL verdict references pivot-protocol" \
           "$([ "$has_pivot" -gt 0 ] && echo true || echo false)"

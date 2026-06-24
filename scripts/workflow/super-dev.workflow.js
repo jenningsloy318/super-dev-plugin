@@ -919,6 +919,91 @@ log(`Stage 1 complete. Worktree: ${WORKTREE_PATH}`);
 log(`Spec dir: ${SPEC_DIRECTORY}`);
 
 // ---------------------------------------------------------------------------
+// Tracking JSON path — computed once; used by updateTracking() calls below.
+// ---------------------------------------------------------------------------
+const TRACKING_JSON_PATH = `${SPEC_DIRECTORY}/${specMeta.spec_identifier}-workflow-tracking.json`;
+
+// ---------------------------------------------------------------------------
+// updateTracking() — updates the workflow tracking JSON at stage/phase
+// boundaries. Delegates to a tiny general-purpose agent because the Workflow
+// runtime has no fs access. Each call is cheap (~2-3s) and ensures the
+// tracking JSON always reflects the actual workflow state for gate-
+// implementation-complete and any post-mortem analysis.
+//
+// Usage:
+//   await updateTracking({ stage: N, status: 'in_progress' })
+//   await updateTracking({ stage: N, status: 'complete', docs: [...] })
+//   await updateTracking({ implPhase: { number: N, name: '...', status: 'in_progress' } })
+//   await updateTracking({ implPhase: { number: N, name: '...', status: 'complete' } })
+// ---------------------------------------------------------------------------
+async function updateTracking(opts) {
+  const parts = [];
+  if (opts.stage != null) {
+    parts.push(
+      `In the "stages" array, find the entry with id=${opts.stage}. ` +
+      `Set status="${opts.status}".` +
+      (opts.status === 'in_progress' ? ` Set startedAt to current ISO 8601 timestamp (seconds precision).` : '') +
+      (opts.status === 'complete' ? ` Set completedAt to current ISO 8601 timestamp (seconds precision).` : '') +
+      (opts.status === 'skipped' ? ` Set completedAt to current ISO 8601 timestamp (seconds precision).` : '') +
+      (opts.docs ? ` Set docs to ${JSON.stringify(opts.docs)}.` : '')
+    );
+  }
+  if (opts.implPhase) {
+    const p = opts.implPhase;
+    if (p.status === 'in_progress') {
+      parts.push(
+        `In the "implementationPhases" array, append (or update if phaseNumber=${p.number} exists) ` +
+        `an entry: {"phaseNumber": ${p.number}, "name": ${JSON.stringify(p.name)}, ` +
+        `"status": "in_progress", "startedAt": "<current ISO 8601>", "completedAt": null, ` +
+        `"reviewIterations": 0}. ` +
+        `Also set "iteration.currentPhase" = ${p.number}, ` +
+        `"iteration.totalPhases" = ${p.totalPhases ?? p.number}, ` +
+        `"iteration.loops" = 0, "iteration.lastReviewVerdict" = null.`
+      );
+    } else if (p.status === 'complete') {
+      parts.push(
+        `In the "implementationPhases" array, find the entry with phaseNumber=${p.number}. ` +
+        `Set status="complete", completedAt to current ISO 8601 timestamp (seconds precision), ` +
+        `reviewIterations=${p.reviewIterations ?? 1}.`
+      );
+    }
+  }
+  if (parts.length === 0) return;
+  await agent(
+    `Read ${shellQuote(TRACKING_JSON_PATH)}, apply these updates, then write it back:\n` +
+    parts.map((p, i) => `  ${i + 1}. ${p}`).join('\n') +
+    `\nReturn JSON: {"ok": true}.`,
+    {
+      label: `tracking:${opts.stage != null ? 's' + opts.stage + ':' + (opts.status || '') : 'p' + opts.implPhase.number + ':' + opts.implPhase.status}`,
+      phase: opts.currentPhase || 'Stage 1 — Setup',
+      agentType: 'general-purpose',
+      schema: { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' } } },
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// fileFingerprint() — reads a file's md5 hash via a cheap agent call. Used
+// to inject content-dependent cache keys into gate agent prompts so the
+// Workflow resume cache invalidates when a target document is manually edited
+// between runs. Without this, a gate FAIL verdict stays cached even after
+// the user fixes the document.
+// ---------------------------------------------------------------------------
+async function fileFingerprint(filePath, currentPhase) {
+  const result = await agent(
+    `Run: md5sum ${shellQuote(filePath)} 2>/dev/null || md5 -q ${shellQuote(filePath)} 2>/dev/null || echo "no-hash"\n` +
+    `Return JSON: {"hash": string} (first 12 chars of the hash output).`,
+    {
+      label: `fingerprint:${filePath.split('/').pop()}`,
+      phase: currentPhase || 'Stage 1 — Setup',
+      agentType: 'general-purpose',
+      schema: { type: 'object', required: ['hash'], properties: { hash: { type: 'string' } } },
+    },
+  );
+  return result?.hash ?? 'unknown';
+}
+
+// ---------------------------------------------------------------------------
 // Document index counter — file prefixes follow "max existing + 1" rule.
 // We track the next prefix in JS so we don't have to grep the spec dir
 // between every stage. Initial value 1 because the spec dir is empty at
@@ -931,11 +1016,15 @@ const docName = (suffix) => {
   return `${idx}-${suffix}`;
 };
 
+// Mark Stage 1 complete, Stage 2 starting in tracking JSON.
+await updateTracking({ stage: 1, status: 'complete', currentPhase: 'Stage 1 — Setup' });
+
 // ---------------------------------------------------------------------------
 // Stage 2 — Requirements + BDD
 //   Two sequential writer+validator pairs, each pair runs in parallel.
 // ---------------------------------------------------------------------------
 phase('Stage 2 — Requirements + BDD');
+await updateTracking({ stage: 2, status: 'in_progress', currentPhase: 'Stage 2 — Requirements + BDD' });
 
 // 2A — Requirements + gate-requirements (with format-fix loop)
 const requirementsName = docName('requirements.md');
@@ -1003,6 +1092,7 @@ const bddLoop = await gatedStage2WriterLoop({
 });
 const bdd = bddLoop.writer;
 log(`BDD: ${bdd.scenario_count} scenarios (coverage ${Math.round((bdd.coverage_score ?? 0) * 100)}%, ${bddLoop.iterations} iteration${bddLoop.iterations === 1 ? '' : 's'}).`);
+await updateTracking({ stage: 2, status: 'complete', docs: [requirementsName, bddName], currentPhase: 'Stage 2 — Requirements + BDD' });
 
 // ---------------------------------------------------------------------------
 // Stage 3 — Research
@@ -1010,6 +1100,7 @@ log(`BDD: ${bdd.scenario_count} scenarios (coverage ${Math.round((bdd.coverage_s
 //   surface. Capped at 3 total iterations (the project rule).
 // ---------------------------------------------------------------------------
 phase('Stage 3 — Research');
+await updateTracking({ stage: 3, status: 'in_progress', currentPhase: 'Stage 3 — Research' });
 
 const researchReports = [];
 let researchIteration = 0;
@@ -1050,6 +1141,7 @@ while (researchIteration < MAX_RESEARCH) {
   log(`Stage 3 iteration ${researchIteration} flagged ${openIssues.length} open issue(s); ` +
       `${MAX_RESEARCH - researchIteration} iteration(s) remaining.`);
 }
+await updateTracking({ stage: 3, status: 'complete', currentPhase: 'Stage 3 — Research' });
 
 // ---------------------------------------------------------------------------
 // Stage 4 — Debug Analysis (bugs only)
@@ -1063,7 +1155,9 @@ let debugResult = null;
 const isBug = FEATURE_KIND === 'bug' || (FEATURE_KIND === 'auto' && /\b(bug|broken|crash|fail|regression|error|panic)\b/i.test(REQUEST));
 if (!isBug) {
   log(`Stage 4 skipped (feature_kind=${FEATURE_KIND}, no bug signals in request).`);
+  await updateTracking({ stage: 4, status: 'skipped', currentPhase: 'Stage 4 — Debug Analysis' });
 } else {
+  await updateTracking({ stage: 4, status: 'in_progress', currentPhase: 'Stage 4 — Debug Analysis' });
   log('Stage 4: initial triage to enumerate hypotheses');
   const debugName = docName('debug-analysis.md');
   const triage = await agent(
@@ -1121,12 +1215,14 @@ if (!isBug) {
   }
   const rootCause = debugResult.root_cause || '(unresolved — escalate or pivot)';
   log(`Stage 4 complete: root cause = ${rootCause}`);
+  await updateTracking({ stage: 4, status: 'complete', currentPhase: 'Stage 4 — Debug Analysis' });
 }
 
 // ---------------------------------------------------------------------------
 // Stage 5 — Code Assessment (first code-reading stage)
 // ---------------------------------------------------------------------------
 phase('Stage 5 — Code Assessment');
+await updateTracking({ stage: 5, status: 'in_progress', currentPhase: 'Stage 5 — Code Assessment' });
 
 log('Stage 5: code-assessor — first codebase exploration');
 const assessmentName = docName('code-assessment.md');
@@ -1145,6 +1241,7 @@ const assessment = await agent(
   },
 );
 log(`Stage 5 complete: ${assessment.files_assessed} files assessed, ${assessment.patterns.length} patterns to follow.`);
+await updateTracking({ stage: 5, status: 'complete', currentPhase: 'Stage 5 — Code Assessment' });
 
 // ---------------------------------------------------------------------------
 // Stage 6 — Design (routed by feature_kind + ui_scope)
@@ -1155,6 +1252,7 @@ log(`Stage 5 complete: ${assessment.files_assessed} files assessed, ${assessment
 //   bug      + 'none'   → SKIP (design changes only on confirmed pivot)
 // ---------------------------------------------------------------------------
 phase('Stage 6 — Design');
+await updateTracking({ stage: 6, status: 'in_progress', currentPhase: 'Stage 6 — Design' });
 
 let design = null;
 let designerType = null;
@@ -1164,6 +1262,7 @@ if (UI_SCOPE === 'ui+arch') {
   designerType = 'ui-ux-designer';
 } else if (FEATURE_KIND === 'bug') {
   log('Stage 6 skipped (bug fixes do not redesign — pivot-protocol owns design changes).');
+  await updateTracking({ stage: 6, status: 'skipped', currentPhase: 'Stage 6 — Design' });
 } else if (FEATURE_KIND === 'refactor') {
   designerType = 'architecture-improver';
 } else {
@@ -1207,6 +1306,7 @@ if (designerType) {
     },
   );
   log(`Stage 6 complete: ${design.docs.length} doc(s) written; numeric constants present: ${design.has_numeric_constants ?? false}`);
+  await updateTracking({ stage: 6, status: 'complete', currentPhase: 'Stage 6 — Design' });
 }
 
 // ---------------------------------------------------------------------------
@@ -1394,6 +1494,7 @@ if (!needPrototype) {
 //   to confirm every AC and BDD scenario is traced into the plan.
 // ---------------------------------------------------------------------------
 phase('Stage 7 — Specification');
+await updateTracking({ stage: 7, status: 'in_progress', currentPhase: 'Stage 7 — Specification' });
 
 const specName = docName('specification.md');
 const planName = docName('implementation-plan.md');
@@ -1479,6 +1580,7 @@ const specTraceLoop = await gatedSpecTraceLoop({
 });
 let spec = specTraceLoop.writer;
 log(`Stage 7 complete: spec + plan (${spec.phase_count} phases) + tasks; spec-trace gate PASS (${specTraceLoop.iterations} iteration${specTraceLoop.iterations === 1 ? '' : 's'}).`);
+await updateTracking({ stage: 7, status: 'complete', currentPhase: 'Stage 7 — Specification' });
 
 // ---------------------------------------------------------------------------
 // Stage 8 — Spec Review (with iteration loop, max MAX_SPEC_ITERS)
@@ -1493,6 +1595,7 @@ log(`Stage 7 complete: spec + plan (${spec.phase_count} phases) + tasks; spec-tr
 //     5. If iter === max → throw (escalate to user)
 // ---------------------------------------------------------------------------
 phase('Stage 8 — Spec Review');
+await updateTracking({ stage: 8, status: 'in_progress', currentPhase: 'Stage 8 — Spec Review' });
 
 let specReview = null;
 let specIter = 0;
@@ -1592,6 +1695,7 @@ while (specIter < MAX_SPEC_ITERS) {
     );
   }
 }
+await updateTracking({ stage: 8, status: 'complete', currentPhase: 'Stage 8 — Spec Review' });
 
 // ---------------------------------------------------------------------------
 // Stage 9 — Per-phase TDD implementation
@@ -1624,6 +1728,7 @@ while (specIter < MAX_SPEC_ITERS) {
 //   added in C8 via isolation: worktree).
 // ---------------------------------------------------------------------------
 phase('Stage 9 — Implementation');
+await updateTracking({ stage: 9, status: 'in_progress', currentPhase: 'Stage 9 — Implementation' });
 
 const phases = spec.phases?.length
   ? [...spec.phases].sort((a, b) => a.number - b.number)
@@ -1652,6 +1757,7 @@ const phaseResults = [];
 
 for (const ph of phases) {
   log(`Stage 9 phase ${ph.number}/${phases.length}: "${ph.name}"`);
+  await updateTracking({ implPhase: { number: ph.number, name: ph.name, status: 'in_progress', totalPhases: phases.length }, currentPhase: 'Stage 9 — Implementation' });
 
   // 9.1 — capture base_sha BEFORE any test/code change.
   const baseSha = (await agent(
@@ -1986,6 +2092,7 @@ for (const ph of phases) {
     },
   );
   log(`  Phase ${ph.number} committed at ${commit.new_sha}${commit.skipped ? ' (no changes — empty commit skipped)' : ''}`);
+  await updateTracking({ implPhase: { number: ph.number, name: ph.name, status: 'complete', reviewIterations: phaseIter }, currentPhase: 'Stage 9 — Implementation' });
 
   phaseResults.push({
     number: ph.number,
@@ -2001,6 +2108,7 @@ for (const ph of phases) {
   });
 }
 log(`Stage 9 complete: ${phaseResults.length} phase(s) implemented & committed.`);
+await updateTracking({ stage: 9, status: 'complete', currentPhase: 'Stage 9 — Implementation' });
 
 // ---------------------------------------------------------------------------
 // Stage 10 — Code review + adversarial review (parallel) with iteration loop
@@ -2026,7 +2134,7 @@ log(`Stage 9 complete: ${phaseResults.length} phase(s) implemented & committed.`
 //     with a revised design.
 // ---------------------------------------------------------------------------
 phase('Stage 10 — Code Review');
-
+await updateTracking({ stage: 10, status: 'in_progress', currentPhase: 'Stage 10 — Code Review' });
 const overallBaseSha = phaseResults[0]?.base_sha ?? null;
 const overallHeadSha = phaseResults[phaseResults.length - 1]?.head_sha ?? null;
 const filesChanged = Array.from(new Set(phaseResults.flatMap(p => [...p.impl_files, ...p.test_files])));
@@ -2041,6 +2149,16 @@ while (reviewIter < MAX_REVIEW_ITERS) {
   const codeReviewName = reviewIter === 1 ? docName('code-review.md') : docName(`code-review-${reviewIter}.md`);
   const advReviewName  = reviewIter === 1 ? docName('adversarial-review.md') : docName(`adversarial-review-${reviewIter}.md`);
   log(`Stage 10 iteration ${reviewIter}/${MAX_REVIEW_ITERS}: 5 reviewers in parallel`);
+
+  // Fingerprint the target files BEFORE spawning gate validators so the
+  // prompt cache key changes when a file is manually edited between resume
+  // runs. Without this, gate FAIL verdicts stay cached indefinitely even
+  // after the user fixes the document (fix for sub-issue c).
+  const [fpCode, fpAdv, fpTracking] = await parallel([
+    () => fileFingerprint(`${SPEC_DIRECTORY}/${codeReviewName}`, 'Stage 10 — Code Review'),
+    () => fileFingerprint(`${SPEC_DIRECTORY}/${advReviewName}`, 'Stage 10 — Code Review'),
+    () => fileFingerprint(TRACKING_JSON_PATH, 'Stage 10 — Code Review'),
+  ]);
 
   const reviewerBase =
     `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
@@ -2062,8 +2180,10 @@ while (reviewIter < MAX_REVIEW_ITERS) {
       `${reviewerBase}\n\n` +
       `Produce ${shellQuote(SPEC_DIRECTORY + '/' + codeReviewName)}. Cover ALL dimensions ` +
       `(correctness, security, performance, maintainability, style). Report EVERY finding ` +
-      `including UNCERTAIN ones (confidence < 0.5); never suppress. Only 'Approved' (zero ` +
-      `findings of any severity) ends Stage 10 — anything else iterates.`,
+      `including UNCERTAIN ones (confidence < 0.5); never suppress.\n` +
+      `Verdict rules: 'Approved' when zero Critical + zero High + zero Medium findings ` +
+      `(Low/Info findings are acceptable). 'Changes Requested' when any Medium+ finding ` +
+      `exists. 'Blocked' when any Critical finding exists.`,
       {
         label: `code-reviewer:${reviewIter}`,
         phase: 'Stage 10 — Code Review',
@@ -2088,7 +2208,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
     () => agent(
       `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + codeReviewName)} to appear, then run ` +
       `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-review.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + codeReviewName)}. ` +
-      `Return the gate verdict.`,
+      `Content fingerprint: ${fpCode}. Return the gate verdict.`,
       {
         label: `doc-validator:gate-review:code:${reviewIter}`,
         phase: 'Stage 10 — Code Review',
@@ -2099,7 +2219,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
     () => agent(
       `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + advReviewName)} to appear, then run ` +
       `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-review.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + advReviewName)}. ` +
-      `Return the gate verdict.`,
+      `Content fingerprint: ${fpAdv}. Return the gate verdict.`,
       {
         label: `doc-validator:gate-review:adversarial:${reviewIter}`,
         phase: 'Stage 10 — Code Review',
@@ -2110,7 +2230,8 @@ while (reviewIter < MAX_REVIEW_ITERS) {
     () => agent(
       `Run ${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-implementation-complete.sh')} ` +
       `${shellQuote(SPEC_DIRECTORY)}. This gate verifies all implementation-plan phases ` +
-      `show status='complete' in the tracking JSON. Return the gate verdict.`,
+      `show status='complete' in the tracking JSON. Content fingerprint: ${fpTracking}. ` +
+      `Return the gate verdict.`,
       {
         label: `doc-validator:gate-implementation-complete:${reviewIter}`,
         phase: 'Stage 10 — Code Review',
@@ -2285,6 +2406,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
   log(`Stage 10 iteration ${reviewIter}: fixes applied, looping back for re-review`);
 }
 log(`Stage 10 complete after ${reviewIter} iteration(s).`);
+await updateTracking({ stage: 10, status: 'complete', currentPhase: 'Stage 10 — Code Review' });
 
 // ---------------------------------------------------------------------------
 // Stage 11 — Documentation
@@ -2293,6 +2415,7 @@ log(`Stage 10 complete after ${reviewIter} iteration(s).`);
 //   completions don't need a resume document).
 // ---------------------------------------------------------------------------
 phase('Stage 11 — Documentation');
+await updateTracking({ stage: 11, status: 'in_progress', currentPhase: 'Stage 11 — Documentation' });
 
 log('Stage 11: docs-executor (update spec dir + project-level docs)');
 const docsResult = await agent(
@@ -2357,6 +2480,7 @@ if (SKIP_HANDOFF) {
   );
   log(`handoff-writer: ${handoff.lines} lines, ${(handoff.unfinished_items ?? []).length} unfinished item(s).`);
 }
+await updateTracking({ stage: 11, status: 'complete', currentPhase: 'Stage 11 — Documentation' });
 
 // ---------------------------------------------------------------------------
 // Stage 12 — Cleanup
@@ -2367,6 +2491,7 @@ if (SKIP_HANDOFF) {
 //   because it mutates the user's main repo.
 // ---------------------------------------------------------------------------
 phase('Stage 12 — Cleanup');
+await updateTracking({ stage: 12, status: 'in_progress', currentPhase: 'Stage 12 — Cleanup' });
 
 log('Stage 12: build-cleaner (sensitive-data scan + artifact cleanup)');
 const cleanup = await agent(
@@ -2391,6 +2516,7 @@ if (cleanup.blocked) {
   );
 }
 log(`Stage 12 complete: cleaned ${cleanup.directories_removed.length} dir(s); reclaimed ${cleanup.disk_reclaimed_bytes} bytes.`);
+await updateTracking({ stage: 12, status: 'complete', currentPhase: 'Stage 12 — Cleanup' });
 
 // ---------------------------------------------------------------------------
 // Stage 13 — Trailing commit + merge (gated behind args.do_merge)
@@ -2402,6 +2528,7 @@ log(`Stage 12 complete: cleaned ${cleanup.directories_removed.length} dir(s); re
 //        Otherwise returns the merge command for the user/caller to run.
 // ---------------------------------------------------------------------------
 phase('Stage 13 — Merge');
+await updateTracking({ stage: 13, status: 'in_progress', currentPhase: 'Stage 13 — Merge' });
 
 log('Stage 13.1: trailing commit (docs/handoff/cleanup)');
 const trailingCommit = await agent(
@@ -2452,6 +2579,7 @@ if (!DO_MERGE) {
   merge = { default_branch: DEFAULT_BRANCH, merge_sha: mergeResult.merge_sha };
   log(`Stage 13 complete: merged at ${mergeResult.merge_sha} on ${DEFAULT_BRANCH}.`);
 }
+await updateTracking({ stage: 13, status: 'complete', currentPhase: 'Stage 13 — Merge' });
 
 return {
   worktree_path: WORKTREE_PATH,

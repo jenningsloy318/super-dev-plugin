@@ -13,10 +13,10 @@ source "$(dirname "$0")/gate-lib.sh"
 # Find code review file
 CODE_REVIEW=$(find_spec_file "*code-review*")
 if [ -n "$CODE_REVIEW" ]; then
-    # Check for approved verdict
-    cr_verdict=$(grep -iE '(approved|changes requested|blocked)' "$CODE_REVIEW" | head -1 || echo "")
-    is_approved=$(echo "$cr_verdict" | grep -ci "approved" || true)
-    is_blocked=$(echo "$cr_verdict" | grep -ciE "(changes requested|blocked)" || true)
+    # Check for approved verdict (use word boundaries to prevent substring matches)
+    cr_verdict=$(grep -iP '\b(approved|changes requested|blocked)\b' "$CODE_REVIEW" | head -1 || echo "")
+    is_approved=$(echo "$cr_verdict" | grep -ciP '\bapproved\b' || true)
+    is_blocked=$(echo "$cr_verdict" | grep -ciP '\b(changes requested|blocked)\b' || true)
 
     check "Code review exists" "true"
     check "Code review approved (verdict: $(echo "$cr_verdict" | head -c 50))" "$([ "$is_approved" -gt 0 ] && [ "$is_blocked" -eq 0 ] && echo true || echo false)"
@@ -34,10 +34,10 @@ fi
 # Find adversarial review file
 ADV_REVIEW=$(find_spec_file "*adversarial*")
 if [ -n "$ADV_REVIEW" ]; then
-    # Check for PASS verdict
-    adv_verdict=$(grep -iE '(PASS|REJECT|HALT)' "$ADV_REVIEW" | head -1 || echo "")
-    is_pass=$(echo "$adv_verdict" | grep -ci "PASS" || true)
-    is_reject=$(echo "$adv_verdict" | grep -ci "REJECT" || true)
+    # Check for PASS verdict (use word boundaries to prevent substring matches)
+    adv_verdict=$(grep -iP '\b(PASS|REJECT|HALT)\b' "$ADV_REVIEW" | head -1 || echo "")
+    is_pass=$(echo "$adv_verdict" | grep -ciP '\bPASS\b' || true)
+    is_reject=$(echo "$adv_verdict" | grep -ciP '\bREJECT\b' || true)
 
     check "Adversarial review exists" "true"
     check "Adversarial review PASS (verdict: $(echo "$adv_verdict" | head -c 50))" "$([ "$is_pass" -gt 0 ] && [ "$is_reject" -eq 0 ] && echo true || echo false)"
