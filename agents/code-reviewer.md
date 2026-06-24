@@ -95,6 +95,27 @@ model: inherit
     <score value="2">Errors swallowed or poorly handled, unclear failure modes</score>
     <score value="1">No error handling, crashes on unexpected input</score>
   </dimension>
+  <dimension name="Concurrency">
+    <score value="5">All shared state properly synchronized, no race conditions, clear ownership model</score>
+    <score value="4">Minor gaps in concurrent access patterns, no data corruption risk</score>
+    <score value="3">Potential races under specific timing/load conditions</score>
+    <score value="2">Likely data races in normal concurrent usage</score>
+    <score value="1">Unprotected shared mutable state, deadlock-prone patterns</score>
+  </dimension>
+  <dimension name="Data Integrity">
+    <score value="5">All multi-step mutations wrapped in transactions, idempotent retries, no orphan risk</score>
+    <score value="4">Minor gaps in transactional boundaries, no corruption in normal flow</score>
+    <score value="3">Some operations lack atomicity under failure conditions</score>
+    <score value="2">Partial updates likely on error, data inconsistency in normal usage</score>
+    <score value="1">No transactional protection, data corruption on any failure</score>
+  </dimension>
+  <dimension name="Observability">
+    <score value="5">All error paths logged with context, critical paths instrumented, clear audit trail</score>
+    <score value="4">Good logging coverage, minor gaps in edge-case paths</score>
+    <score value="3">Some error paths silent, limited debugging context in logs</score>
+    <score value="2">Critical failures go unlogged, no way to diagnose production issues</score>
+    <score value="1">No logging, no metrics, blind in production</score>
+  </dimension>
 </review-dimension-scoring>
 
 <input>
@@ -133,7 +154,7 @@ model: inherit
   <step n="1" name="Validate Context">Verify spec path readable, implementation summary present, diff or file list available.</step>
   <step n="2" name="Parse Specification">Extract acceptance criteria, non-goals, API contracts, data models, validation rules, error handling expectations. Build AC checklist.</step>
   <step n="3" name="Static Analysis">Detect linters/SAST via config files (ESLint, Biome, Ruff, Clippy, golangci-lint). Run on scoped files. Parse output into findings.</step>
-  <step n="4" name="Dimension Reviews">Correctness (P0): Logic, edge cases, data transforms, state mutations. Security (P0): Input validation, authN/Z, sensitive data, XSS/CSRF, SSRF, injection (reference OWASP Top 10 2025 and security-detection checklist above). Performance (P1): N+1 queries, re-renders, memory leaks, blocking I/O. Maintainability (P1): Naming conventions (MANDATORY — see naming check), function length, dead code. Testability (P1): DI, isolation, interfaces, coverage. Error Handling (P1): Try/catch, messages, logging, recovery. Consistency (P2): Naming, structure, patterns. Accessibility (P2, UI-only): Semantic elements, ARIA, keyboard nav. For EVERY finding: annotate with severity, confidence (0.0-1.0), file:line, failure scenario, suggested fix. Confidence below 0.5 → tag UNCERTAIN. Score each dimension 1-5 per review-dimension-scoring criteria.</step>
+  <step n="4" name="Dimension Reviews">Correctness (P0): Logic, edge cases, data transforms, state mutations. Security (P0): Input validation, authN/Z, sensitive data, XSS/CSRF, SSRF, injection (reference OWASP Top 10 2025 and security-detection checklist above). Performance (P1): N+1 queries, re-renders, memory leaks, blocking I/O. Concurrency (P1): Data races, deadlocks, lock ordering, atomic violations, shared mutable state from async contexts without synchronization, missing mutex/semaphore on concurrent writes. Resource Management (P1): Unclosed connections/handles/streams/files, missing cleanup in error paths, resource leaks in long-running processes. Maintainability (P1): Naming conventions (MANDATORY — see naming check), function length, dead code. Testability (P1): DI, isolation, interfaces, coverage. Error Handling (P1): Try/catch, messages, logging, recovery. Data Integrity (P1): Missing transactions for multi-record updates, partial updates without rollback, orphaned records on failure, non-idempotent operations in retry-able paths. Observability (P2): Missing logging on error paths, no structured context in log messages, critical paths without metrics/tracing, swallowed errors that hide failures. API Contract (P2): Breaking changes to public APIs without versioning, missing input validation on API boundaries, undocumented behavior changes. Consistency (P2): Naming, structure, patterns. Accessibility (P2, UI-only): Semantic elements, ARIA, keyboard nav. Documentation Drift (P2): Code changes that invalidate existing comments, JSDoc, or README sections — flag stale docs adjacent to changed code. For EVERY finding: annotate with severity, confidence (0.0-1.0), file:line, failure scenario, suggested fix. Confidence below 0.5 → tag UNCERTAIN. Score each dimension 1-5 per review-dimension-scoring criteria.</step>
   <step n="4.5" name="Community-Informed Review">If research_report is available: (1) Extract community best practices and high-momentum recommendations relevant to the implementation. (2) Check if implementation aligns with or deviates from community consensus. (3) Flag deviations as findings with rationale — deviation may be justified but must be documented. (4) Note where implementation adopts novel community approaches positively.</step>
   <step n="5" name="AI Code Slop Removal">Eliminate uncharacteristic comments, over-defensive checks, type casts bypassing correctness, inconsistent styles.</step>
   <step n="5.5" name="Naming Convention Check (BLOCKING)">Check for prohibited generic names (data, item, value, result, temp, list, handle, process, params, utils.ts). Required patterns: variables `[feature][entity][property]`, functions `[verb][Entity][Action]`, files `[feature]-[entity].ext`. Any violation is BLOCKING (Critical/High severity).</step>

@@ -2190,9 +2190,12 @@ while (reviewIter < MAX_REVIEW_ITERS) {
     `  - tasks: ${spec.tasks_path}\n` +
     `  - assessment: ${assessment.doc_path}\n` +
     (design ? `  - design: ${design.docs.map(d => d.path).join(', ')}\n` : '') +
+    `  - implementation summaries: ${phaseResults.map(p => p.summary_doc).join(', ')}\n` +
+    `  - QA reports: ${phaseResults.map(p => p.qa_doc).join(', ')}\n` +
+    (phaseResults.some(p => p.e2e_doc) ? `  - E2E reports: ${phaseResults.filter(p => p.e2e_doc).map(p => p.e2e_doc).join(', ')}\n` : '') +
     `Diff base_sha: ${overallBaseSha ?? '(none — no Stage 9 phases)'}\n` +
     `Diff head_sha: ${overallHeadSha ?? '(none)'}\n` +
-    `files_changed (across all phases): ${filesChanged.length} file(s)`;
+    `files_changed (${filesChanged.length}):\n${filesChanged.map(f => '  ' + f).join('\n')}`;
 
   const [cr, ar, gateRevCode, gateRevAdv, gateImplComplete] = await parallel([
     () => agent(
