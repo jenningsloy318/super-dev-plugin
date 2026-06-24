@@ -219,6 +219,9 @@ super-dev-plugin/
 │   ├── config.toml                 # Agent declarations
 │   └── agents/*.toml               # 35 agents in Codex TOML format
 ├── AGENTS.md                    # Codex project-level instructions
+├── workflows/                 # Dynamic Workflow scripts
+│   └── super-dev.workflow.js      # 13-stage orchestration (Workflow runtime)
+├── schemas/                   # JSON Schema for structured agent outputs (20 files)
 ├── agents/                    # Specialized agents (35 total, XML-tagged)
 │   ├── team-lead.md              # Central Team Lead Agent (super-dev unique)
 │   ├── dev-executor.md             # Development Executor
@@ -267,9 +270,8 @@ super-dev-plugin/
 │   ├── continuous-learning/       # Auto-extract patterns from sessions
 │   └── strategic-compact/         # Manual compaction suggestions
 │
-├── templates/                  # MiniJinja templates + JSON schemas
-│   ├── *.md.j2                    # 9 MiniJinja templates (gate-compliant rendering)
-│   ├── schemas/*.schema.json      # JSON schemas for structured agent output
+├── templates/                  # MiniJinja format templates (agents read as structure reference)
+│   └── *.md.j2                    # 9 MiniJinja templates (gate-compliant structure)
 │   └── reference/                 # Reference documentation
 │       ├── architecture-patterns.md  # Software architecture patterns, SOLID, ADRs
 │       ├── ui-ux-patterns.md         # UI/UX design patterns, wireframes, accessibility
@@ -314,8 +316,8 @@ super-dev-plugin/
 │   └── statusline.json          # Example statusline config
 │
 └── scripts/                    # Utility scripts
-    ├── render.sh                  # Template renderer (validates JSON + minijinja-cli)
     ├── gates/                     # Per-document gate validation scripts
+    ├── preflight-env.sh           # Environment preflight check
     └── (other scripts)
 ```
 
@@ -514,7 +516,7 @@ Multi-source research, option presentation, Time MCP integration, and synthesis 
 
 ### Document Templates
 
-9 MiniJinja templates in `templates/*.md.j2` with matching JSON schemas in `templates/schemas/`. Agents produce structured JSON and call `scripts/render.sh` for deterministic, gate-compliant markdown rendering. Remaining agents use XML-tagged templates in `reference/*-template.md`.
+9 MiniJinja templates in `templates/*.md.j2`. Agents read these as format reference (Step 0 "Read Format Template") and write markdown directly to disk following the template structure. Gate scripts validate the output against the expected headings/sections.
 
 ### testing-patterns
 

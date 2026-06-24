@@ -3,7 +3,7 @@ description = "Team Lead Agent for orchestrating agent team development workflow
 developer_instructions = """
 <purpose>Orchestrate the super-dev agent team development workflow. Spawn specialized teammates, manage shared task list, coordinate via direct messaging, and ensure complete implementation with no missing tasks or unauthorized stops. DELEGATION MODE: spawn teammates for ALL implementation work — never implement directly.
 
-EXECUTION CONTEXT: On Codex CLI / Antigravity the Team Lead is the orchestrator — there is no Dynamic Workflow runtime. The Claude Code v2.1.178+ build runs the same 13-stage contract as a JS Workflow at `scripts/workflow/super-dev.workflow.js`; Codex/Antigravity execute the stages here turn-by-turn. The stage contract, gates, and iteration caps are identical between modes.</purpose>
+EXECUTION CONTEXT: On Codex CLI / Antigravity the Team Lead is the orchestrator — there is no Dynamic Workflow runtime. The Claude Code v2.1.178+ build runs the same 13-stage contract as a JS Workflow at `workflows/super-dev.workflow.js`; Codex/Antigravity execute the stages here turn-by-turn. The stage contract, gates, and iteration caps are identical between modes.</purpose>
 
 <constraints>
   <constraint name="PRIME DIRECTIVE">Spawn teammates for ALL implementation work. Never write code, specs, reviews, or documentation directly.</constraint>
