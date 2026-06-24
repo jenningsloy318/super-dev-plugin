@@ -1075,7 +1075,7 @@ const reqLoop = await gatedStage2WriterLoop({
   gateName: 'gate-requirements',
   writerLabel: 'requirements-clarifier',
   maxIters: MAX_REQ_ITERS,
-  spawnWriter: (iter, guidance) => agent(
+  spawnWriter: (iter, guidance) => agentWithRetry(
     `User request: ${JSON.stringify(REQUEST)}\n\n` +
     `Write the requirements document to ${shellQuote(SPEC_DIRECTORY + '/' + requirementsName)}. ` +
     `Capture acceptance criteria, scope, non-goals, constraints, and open questions. ` +
@@ -1087,7 +1087,7 @@ const reqLoop = await gatedStage2WriterLoop({
       schema: REQUIREMENTS_OUTPUT,
     },
   ),
-  spawnGate: () => agent(
+  spawnGate: () => agentWithRetry(
     `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + requirementsName)} to appear, then run ` +
     `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-requirements.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + requirementsName)}. ` +
     `Return the gate verdict.`,
@@ -1109,7 +1109,7 @@ const bddLoop = await gatedStage2WriterLoop({
   gateName: 'gate-bdd',
   writerLabel: 'bdd-scenario-writer',
   maxIters: MAX_BDD_ITERS,
-  spawnWriter: (iter, guidance) => agent(
+  spawnWriter: (iter, guidance) => agentWithRetry(
     `Read ${shellQuote(req.doc_path)} from the spec directory. Produce BDD Given/When/Then scenarios at ` +
     `${shellQuote(SPEC_DIRECTORY + '/' + bddName)} covering every acceptance criterion. ` +
     `Feature name: ${req.feature_name}. Worktree: ${WORKTREE_PATH}.` + guidance,
@@ -1120,7 +1120,7 @@ const bddLoop = await gatedStage2WriterLoop({
       schema: BDD_OUTPUT,
     },
   ),
-  spawnGate: () => agent(
+  spawnGate: () => agentWithRetry(
     `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + bddName)} to appear, then run ` +
     `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-bdd.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + bddName)}. ` +
     `Return the gate verdict.`,
@@ -1229,7 +1229,7 @@ if (!isBug) {
   if (tied.length >= 2 && leader < 0.6) {
     log(`Stage 4: ${tied.length} tied hypotheses (leader ${leader.toFixed(2)} < 0.6) — fanning out parallel investigators`);
     const investigations = await parallel(
-      tied.map((h, idx) => () => agent(
+      tied.map((h, idx) => () => agentWithRetry(
         `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
         `Investigate ONLY this hypothesis from ${triage.doc_path}:\n  ${h.statement}\n\n` +
         `Build a minimal reproduction, instrument the code, and confirm OR refute. ` +
@@ -1475,7 +1475,7 @@ if (!needPrototype) {
     gateName: 'gate-prototype',
     writerLabel: 'prototype-runner',
     maxIters: MAX_PROTOTYPE_ITERS,
-    spawnWriter: (iter, guidance) => agent(
+    spawnWriter: (iter, guidance) => agentWithRetry(
       `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
       `Design document: ${designDoc}\n` +
       `Input samples (JSON): ${JSON.stringify(samples)}\n` +
@@ -1501,7 +1501,7 @@ if (!needPrototype) {
         schema: PROTOTYPE_OUTPUT,
       },
     ),
-    spawnGate: () => agent(
+    spawnGate: () => agentWithRetry(
       `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + protoName)} to appear, then run ` +
       `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-prototype.sh')} ${shellQuote(SPEC_DIRECTORY)}. ` +
       `Return the gate verdict.`,
@@ -1599,7 +1599,7 @@ const spawnSpecWriter = async (extraGuidance = '', iter = 1) => {
   return recovered;
 };
 
-const spawnSpecTraceGate = () => agent(
+const spawnSpecTraceGate = () => agentWithRetry(
   `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + specName)}, ${shellQuote(SPEC_DIRECTORY + '/' + planName)}, ` +
   `and ${shellQuote(SPEC_DIRECTORY + '/' + tasksName)} to appear, then run ` +
   `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-spec-trace.sh')} ${shellQuote(SPEC_DIRECTORY)}. ` +
@@ -1649,7 +1649,7 @@ while (specIter < MAX_SPEC_ITERS) {
   log(`Stage 8 iteration ${specIter}/${MAX_SPEC_ITERS}: spec-reviewer + gate-spec-review`);
 
   const [review, reviewVerdict] = await parallel([
-    () => agent(
+    () => agentWithRetry(
       `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
       `Review the spec authored at ${spec.specification_path}, ${spec.plan_path}, ${spec.tasks_path}. ` +
       `Apply Fagan-style inspection across all 8 quality dimensions. Verify every reference ` +
@@ -1664,7 +1664,7 @@ while (specIter < MAX_SPEC_ITERS) {
         schema: SPEC_REVIEW_OUTPUT,
       },
     ),
-    () => agent(
+    () => agentWithRetry(
       `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + reviewName)} to appear, then run ` +
       `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-spec-review.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + reviewName)}. ` +
       `Return the gate verdict.`,
@@ -2232,7 +2232,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
     `files_changed (${filesChanged.length}):\n${filesChanged.map(f => '  ' + f).join('\n')}`;
 
   const [cr, ar, gateRevCode, gateRevAdv, gateImplComplete] = await parallel([
-    () => agent(
+    () => agentWithRetry(
       `${reviewerBase}\n\n` +
       `Produce ${shellQuote(SPEC_DIRECTORY + '/' + codeReviewName)}. Cover ALL dimensions ` +
       `(correctness, security, performance, maintainability, style). Report EVERY finding ` +
@@ -2247,7 +2247,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
         schema: CODE_REVIEW_OUTPUT,
       },
     ),
-    () => agent(
+    () => agentWithRetry(
       `${reviewerBase}\n\n` +
       `Produce ${shellQuote(SPEC_DIRECTORY + '/' + advReviewName)}. Run all three lenses ` +
       `(Skeptic / Architect / Minimalist). PASS only when zero high-severity findings remain. ` +
@@ -2261,7 +2261,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
         schema: ADVERSARIAL_REVIEW_OUTPUT,
       },
     ),
-    () => agent(
+    () => agentWithRetry(
       `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + codeReviewName)} to appear, then run ` +
       `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-review.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + codeReviewName)}. ` +
       `Return the gate verdict.`,
@@ -2272,7 +2272,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
         schema: GATE_VERDICT,
       },
     ),
-    () => agent(
+    () => agentWithRetry(
       `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + advReviewName)} to appear, then run ` +
       `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-review.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + advReviewName)}. ` +
       `Return the gate verdict.`,
@@ -2283,7 +2283,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
         schema: GATE_VERDICT,
       },
     ),
-    () => agent(
+    () => agentWithRetry(
       `Run ${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-implementation-complete.sh')} ` +
       `${shellQuote(SPEC_DIRECTORY)}. This gate verifies all implementation-plan phases ` +
       `show status='complete' in the tracking JSON. Return the gate verdict.`,
@@ -2487,76 +2487,48 @@ await updateTracking({
 phase('Stage 11 — Documentation');
 await updateTracking({ stage: 11, status: 'in_progress', currentPhase: 'Stage 11 — Documentation' });
 
-log('Stage 11: docs-executor (update spec dir + project-level docs)');
-const docsResult = await agentWithRetry(
-  `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
-  `Inputs to read yourself:\n` +
-  `  - requirements: ${req.doc_path}\n` +
-  `  - bdd: ${bdd.doc_path}\n` +
-  `  - specification: ${spec.specification_path}\n` +
-  `  - plan: ${spec.plan_path}\n` +
-  `  - tasks: ${spec.tasks_path}\n` +
-  (codeReview ? `  - code-review: ${codeReview.doc_path}\n` : '') +
-  (advReview ? `  - adversarial-review: ${advReview.doc_path}\n` : '') +
-  `Per-phase impl summaries: ${phaseResults.map(p => p.summary_doc).join(', ')}\n\n` +
-  `Review EVERY document in the spec directory and update each to reflect the ACTUAL ` +
-  `implementation that landed. Capture spec deviations discovered during ` +
-  `implementation/review. Also update project-level docs (README, architecture, design) ` +
-  `if they reference behavior the implementation changed. Docs ship with code — never as ` +
-  `a separate disconnected phase.`,
-  {
-    label: 'docs-executor',
-    phase: 'Stage 11 — Documentation',
-    agentType: 'super-dev:docs-executor',
-    schema: DOCS_OUTPUT,
-  },
-);
-log(`docs-executor: ${docsResult.spec_dir_files_updated ?? 0} spec docs + ${docsResult.docs_updated.length - (docsResult.spec_dir_files_updated ?? 0)} project docs updated.`);
-
-// Gate-docs-drift with retry loop: if docs still lag, re-spawn docs-executor
-// with the gate's error feedback, then re-validate (max 3 iterations).
-const MAX_DOCS_ITERS = 3;
-let docsIter = 0;
-let docsDriftVerdict = null;
-while (docsIter < MAX_DOCS_ITERS) {
-  docsIter += 1;
-  log(`Stage 11: doc-validator (gate-docs-drift) — iteration ${docsIter}/${MAX_DOCS_ITERS}`);
-  docsDriftVerdict = await agentWithRetry(
-    `Run ${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-docs-drift.sh')} ${shellQuote(SPEC_DIRECTORY)}. ` +
-    `This gate verifies docs do not lag behind the implementation diff. Return the gate verdict.`,
-    {
-      label: `doc-validator:gate-docs-drift:${docsIter}`,
-      phase: 'Stage 11 — Documentation',
-      agentType: 'super-dev:doc-validator',
-      schema: GATE_VERDICT,
-    },
-  );
-  if (docsDriftVerdict?.pass) break;
-
-  if (docsIter >= MAX_DOCS_ITERS) {
-    throw new Error(
-      `Stage 11 gate-docs-drift still failing after ${MAX_DOCS_ITERS} iteration(s): ` +
-      `${(docsDriftVerdict?.errors || []).join('; ')}`
-    );
-  }
-  log(`Stage 11 iteration ${docsIter}: gate-docs-drift FAIL — re-running docs-executor with findings`);
-  await agentWithRetry(
+// Stage 11 uses _gatedLoop: docs-executor + gate-docs-drift in parallel per iteration.
+// Same pattern as Stages 2/6.5/7 — writer produces doc, gate validates, FAIL feeds errors back.
+log('Stage 11: docs-executor + gate-docs-drift');
+const docsGateLoop = await _gatedLoop({
+  stage: 'Stage 11',
+  gateName: 'gate-docs-drift',
+  writerLabel: 'docs-executor',
+  maxIters: 3,
+  spawnWriter: (iter, guidance) => agentWithRetry(
     `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
-    `The gate-docs-drift check FAILED with these errors:\n` +
-    `${(docsDriftVerdict?.errors || []).map(e => '  - ' + e).join('\n')}\n\n` +
-    `Fix the documentation gaps identified above. Update spec directory docs and/or project-level ` +
-    `docs until they accurately reflect the implementation that landed.`,
+    `Inputs to read yourself:\n` +
+    `  - requirements: ${req.doc_path}\n` +
+    `  - bdd: ${bdd.doc_path}\n` +
+    `  - specification: ${spec.specification_path}\n` +
+    `  - plan: ${spec.plan_path}\n` +
+    `  - tasks: ${spec.tasks_path}\n` +
+    (codeReview ? `  - code-review: ${codeReview.doc_path}\n` : '') +
+    (advReview ? `  - adversarial-review: ${advReview.doc_path}\n` : '') +
+    `Per-phase impl summaries: ${phaseResults.map(p => p.summary_doc).join(', ')}\n\n` +
+    `Review EVERY document in the spec directory and update each to reflect the ACTUAL ` +
+    `implementation that landed. Capture spec deviations discovered during ` +
+    `implementation/review. Also update project-level docs (README, architecture, design) ` +
+    `if they reference behavior the implementation changed.` + guidance,
     {
-      label: `docs-executor:fix:${docsIter}`,
+      label: iter === 1 ? 'docs-executor' : `docs-executor:fix:${iter}`,
       phase: 'Stage 11 — Documentation',
       agentType: 'super-dev:docs-executor',
       schema: DOCS_OUTPUT,
     },
-  );
-}
-if (!docsDriftVerdict?.pass) {
-  throw new Error(`Stage 11 gate-docs-drift failed: ${(docsDriftVerdict?.errors || []).join('; ')}`);
-}
+  ),
+  spawnGate: () => agentWithRetry(
+    `Run ${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-docs-drift.sh')} ${shellQuote(SPEC_DIRECTORY)}. ` +
+    `This gate verifies docs do not lag behind the implementation diff. Return the gate verdict.`,
+    {
+      label: 'doc-validator:gate-docs-drift',
+      phase: 'Stage 11 — Documentation',
+      agentType: 'super-dev:doc-validator',
+      schema: GATE_VERDICT,
+    },
+  ),
+});
+log(`Stage 11 docs: gate-docs-drift PASS (${docsGateLoop.iterations} iteration${docsGateLoop.iterations === 1 ? '' : 's'}).`);
 
 let handoff = null;
 if (SKIP_HANDOFF) {
@@ -2582,7 +2554,7 @@ if (SKIP_HANDOFF) {
 }
 await updateTracking({
   stage: 11, status: 'complete', currentPhase: 'Stage 11 — Documentation',
-  files: { created: [], modified: docsResult.docs_updated || [], deleted: [] },
+  files: { created: [], modified: docsGateLoop.writer?.docs_updated || [], deleted: [] },
 });
 
 // ---------------------------------------------------------------------------
@@ -2734,8 +2706,8 @@ return {
     iterations: reviewIter,
   },
   docs: {
-    docs_updated: docsResult.docs_updated,
-    deviations_documented: docsResult.deviations_documented ?? [],
+    docs_updated: docsGateLoop.writer?.docs_updated ?? [],
+    deviations_documented: docsGateLoop.writer?.deviations_documented ?? [],
   },
   handoff: handoff
     ? { doc: handoff.doc_path, lines: handoff.lines, unfinished_items: handoff.unfinished_items ?? [] }
