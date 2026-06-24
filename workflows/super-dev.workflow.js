@@ -1678,10 +1678,14 @@ while (specIter < MAX_SPEC_ITERS) {
   ]);
 
   if (!reviewVerdict?.pass) {
-    throw new Error(
-      `Stage 8 gate-spec-review failed on iteration ${specIter}: ` +
-      `${(reviewVerdict?.errors || []).join('; ')}`
-    );
+    if (specIter >= MAX_SPEC_ITERS) {
+      throw new Error(
+        `Stage 8 gate-spec-review still failing after ${MAX_SPEC_ITERS} iteration(s): ` +
+        `${(reviewVerdict?.errors || []).join('; ')}`
+      );
+    }
+    log(`Stage 8 iteration ${specIter}: gate-spec-review FAIL — ${(reviewVerdict?.errors || []).join('; ')}. Iterating.`);
+    continue;
   }
 
   specReview = review;
@@ -1731,10 +1735,14 @@ while (specIter < MAX_SPEC_ITERS) {
     },
   );
   if (!reTrace?.pass) {
-    throw new Error(
-      `Stage 8 iteration ${specIter}: gate-spec-trace failed after spec rewrite: ` +
-      `${(reTrace.errors || []).join('; ')}`
-    );
+    if (specIter >= MAX_SPEC_ITERS) {
+      throw new Error(
+        `Stage 8: gate-spec-trace still failing after spec rewrite (iteration ${specIter}): ` +
+        `${(reTrace.errors || []).join('; ')}`
+      );
+    }
+    log(`Stage 8 iteration ${specIter}: gate-spec-trace FAIL after rewrite — ${(reTrace.errors || []).join('; ')}. Iterating.`);
+    // Loop continues — next iteration re-runs spec-reviewer which triggers another rewrite cycle
   }
 }
 await updateTracking({ stage: 8, status: 'complete', currentPhase: 'Stage 8 — Spec Review' });
@@ -2505,17 +2513,47 @@ const docsResult = await agentWithRetry(
 );
 log(`docs-executor: ${docsResult.spec_dir_files_updated ?? 0} spec docs + ${docsResult.docs_updated.length - (docsResult.spec_dir_files_updated ?? 0)} project docs updated.`);
 
-log('Stage 11: doc-validator (gate-docs-drift)');
-const docsDriftVerdict = await agentWithRetry(
-  `Run ${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-docs-drift.sh')} ${shellQuote(SPEC_DIRECTORY)}. ` +
-  `This gate verifies docs do not lag behind the implementation diff. Return the gate verdict.`,
-  {
-    label: 'doc-validator:gate-docs-drift',
-    phase: 'Stage 11 — Documentation',
-    agentType: 'super-dev:doc-validator',
-    schema: GATE_VERDICT,
-  },
-);
+// Gate-docs-drift with retry loop: if docs still lag, re-spawn docs-executor
+// with the gate's error feedback, then re-validate (max 3 iterations).
+const MAX_DOCS_ITERS = 3;
+let docsIter = 0;
+let docsDriftVerdict = null;
+while (docsIter < MAX_DOCS_ITERS) {
+  docsIter += 1;
+  log(`Stage 11: doc-validator (gate-docs-drift) — iteration ${docsIter}/${MAX_DOCS_ITERS}`);
+  docsDriftVerdict = await agentWithRetry(
+    `Run ${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-docs-drift.sh')} ${shellQuote(SPEC_DIRECTORY)}. ` +
+    `This gate verifies docs do not lag behind the implementation diff. Return the gate verdict.`,
+    {
+      label: `doc-validator:gate-docs-drift:${docsIter}`,
+      phase: 'Stage 11 — Documentation',
+      agentType: 'super-dev:doc-validator',
+      schema: GATE_VERDICT,
+    },
+  );
+  if (docsDriftVerdict?.pass) break;
+
+  if (docsIter >= MAX_DOCS_ITERS) {
+    throw new Error(
+      `Stage 11 gate-docs-drift still failing after ${MAX_DOCS_ITERS} iteration(s): ` +
+      `${(docsDriftVerdict?.errors || []).join('; ')}`
+    );
+  }
+  log(`Stage 11 iteration ${docsIter}: gate-docs-drift FAIL — re-running docs-executor with findings`);
+  await agentWithRetry(
+    `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
+    `The gate-docs-drift check FAILED with these errors:\n` +
+    `${(docsDriftVerdict?.errors || []).map(e => '  - ' + e).join('\n')}\n\n` +
+    `Fix the documentation gaps identified above. Update spec directory docs and/or project-level ` +
+    `docs until they accurately reflect the implementation that landed.`,
+    {
+      label: `docs-executor:fix:${docsIter}`,
+      phase: 'Stage 11 — Documentation',
+      agentType: 'super-dev:docs-executor',
+      schema: DOCS_OUTPUT,
+    },
+  );
+}
 if (!docsDriftVerdict?.pass) {
   throw new Error(`Stage 11 gate-docs-drift failed: ${(docsDriftVerdict?.errors || []).join('; ')}`);
 }
