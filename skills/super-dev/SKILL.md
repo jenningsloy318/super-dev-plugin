@@ -37,7 +37,8 @@ license: MIT
        scriptPath: "${plugin_root}/workflows/super-dev.workflow.js",
        args: { request, plugin_root, repo_path, feature_kind, ui_scope, language, is_web_ui,
                max_spec_iters: 3, max_phase_iters: 3, max_review_iters: 3,
-               skip_handoff: false, do_merge: false }
+               skip_handoff: false, do_merge: false,
+               commit_spec_dir: true, skip_worktree: false }
      })
      ```
   4. On completion: relay worktree path, phases completed, merge status. Point user to spec dir.
@@ -48,7 +49,9 @@ license: MIT
   `bug_evidence` (string), `input_samples` (string[]),
   `language` ('rust'|'go'|'frontend'|'backend'|'ios'|'android'|'macos'|'windows'|'mixed'),
   `is_web_ui` (boolean), `max_spec_iters` (int, 3), `max_phase_iters` (int, 3),
-  `max_review_iters` (int, 3), `skip_handoff` (boolean), `do_merge` (boolean, false).
+  `max_review_iters` (int, 3), `skip_handoff` (boolean), `do_merge` (boolean, false),
+  `commit_spec_dir` (boolean, true — set false to exclude specification/ from commits),
+  `skip_worktree` (boolean, false — set true when already on a feature branch).
 </orchestration-model>
 
 <triggers>Triggers on: "implement", "build", "fix bug", "refactor", "add feature", "develop this", "help me build", "add functionality", "optimize performance", "resolve deprecation", "systematic development". Do NOT trigger on: simple questions, file searches, one-off commands, code explanations, quick edits, non-development tasks.</triggers>

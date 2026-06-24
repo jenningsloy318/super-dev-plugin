@@ -157,13 +157,50 @@ Invoke the super-dev skill and describe your task
 
 On Claude Code v2.1.178+ the skill triggers `Workflow(${PLUGIN_ROOT}/workflows/super-dev.workflow.js)` with the user's request as `args.request`.
 
+### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `request` | string | *(required)* | Your natural-language task description |
+| `plugin_root` | string | *(auto)* | Plugin root path (resolved automatically) |
+| `repo_path` | string | *(auto)* | Target project path (resolved from cwd) |
+| `feature_kind` | string | `'auto'` | `'feature'` \| `'bug'` \| `'refactor'` \| `'auto'` (auto-detected from request) |
+| `language` | string | `'mixed'` | `'rust'` \| `'go'` \| `'frontend'` \| `'backend'` \| `'ios'` \| `'android'` \| `'macos'` \| `'windows'` \| `'mixed'` |
+| `ui_scope` | string | `'none'` | `'none'` \| `'ui-only'` \| `'ui+arch'` |
+| `is_web_ui` | boolean | `false` | Enable E2E testing (Playwright/Cypress) |
+| `bug_evidence` | string | `''` | Error logs/stack traces for bug fixes |
+| `input_samples` | string[] | `[]` | Sample data for prototype validation (Stage 6.5) |
+| `max_spec_iters` | int | `3` | Max spec-review iterations (Stage 8) |
+| `max_phase_iters` | int | `3` | Max build-fix iterations per implementation phase (Stage 9) |
+| `max_review_iters` | int | `3` | Max code-review iterations (Stage 10) |
+| `skip_handoff` | boolean | `false` | Skip handoff document generation (Stage 11) |
+| `do_merge` | boolean | `false` | Auto-merge spec branch into default branch (Stage 13) |
+| `commit_spec_dir` | boolean | `true` | Include `specification/` dir in commits. Set `false` to keep specs on disk only |
+| `skip_worktree` | boolean | `false` | Skip worktree/branch creation. Use when already on a feature branch |
+
 ### Examples
 
-```
-"Fix the login button not responding on mobile"
-"Implement user profile page with avatar upload"
-"Refactor the authentication module for better testability"
-"Improve API response time for product listing"
+```bash
+# Basic feature (all defaults)
+/super-dev:super-dev implement user authentication with OAuth2
+
+# Bug fix with evidence
+/super-dev:super-dev fix the login crash on mobile --bug-evidence "TypeError: null is not an object at auth.js:42"
+
+# Refactor on current branch (no worktree)
+/super-dev:super-dev refactor the payment module --skip-worktree
+
+# Feature without spec in git history
+/super-dev:super-dev add dark mode support --no-spec-commit
+
+# Both: current branch + no spec commit
+/super-dev:super-dev improve API response caching --skip-worktree --no-spec-commit
+
+# Rust project with auto-merge
+/super-dev:super-dev add WebSocket support --language rust --do-merge
+
+# Web UI feature with E2E tests
+/super-dev:super-dev redesign the settings page --ui-scope ui+arch --is-web-ui
 ```
 
 ### Additional Commands

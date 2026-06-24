@@ -554,6 +554,12 @@ const CLEANUP_OUTPUT = {
 //                                //   for the user/caller to run manually. Stage 13
 //                                //   merge is gated behind explicit confirmation
 //                                //   because it mutates the user's main repo.
+//     commit_spec_dir: boolean,  // Stage 9/13: when false, exclude the specification/
+//                                //   directory from git commits (spec artifacts stay on
+//                                //   disk but don't enter repo history). Default: true.
+//     skip_worktree:   boolean,  // Stage 1: when true, skip worktree + branch creation
+//                                //   and work directly on the current branch at repo_path.
+//                                //   Use when already on a feature branch. Default: false.
 //   }
 // ---------------------------------------------------------------------------
 const REQUEST     = args?.request ?? '';
@@ -574,6 +580,8 @@ const MAX_PHASE_ITERS = Number.isInteger(args?.max_phase_iters) ? args.max_phase
 const MAX_REVIEW_ITERS = Number.isInteger(args?.max_review_iters) ? args.max_review_iters : 3;
 const SKIP_HANDOFF = Boolean(args?.skip_handoff ?? false);
 const DO_MERGE     = Boolean(args?.do_merge ?? false);
+const COMMIT_SPEC_DIR = Boolean(args?.commit_spec_dir ?? true);
+const SKIP_WORKTREE = Boolean(args?.skip_worktree ?? false);
 
 if (!REQUEST || !PLUGIN_ROOT || !REPO_PATH) {
   throw new Error('super-dev workflow: args must include {request, plugin_root, repo_path}');
@@ -729,26 +737,34 @@ const specMeta = await agentWithRetry(
 log(`Spec identifier: ${specMeta.spec_identifier}`);
 
 // Step 1.4 — Create worktree and capture the absolute path.
-log('Stage 1.4 worktree');
-const worktreeResult = await agentWithRetry(
-  `Run this exactly and return the trimmed stdout (which is the absolute worktree path):\n\n` +
-  worktreeAddSnippet(REPO_PATH, specMeta.spec_identifier) +
-  `\nReturn JSON: {"ok": bool, "worktree_path": string, "stderr": string}.`,
-  {
-    label: 'worktree-add',
-    phase: 'Stage 1 — Setup',
-    agentType: 'general-purpose',
-    schema: {
-      type: 'object',
-      required: ['ok'],
-      properties: { ok: { type: 'boolean' }, worktree_path: { type: 'string' }, stderr: { type: 'string' } },
+// When SKIP_WORKTREE=true (user is already on a feature branch), skip
+// worktree/branch creation and use REPO_PATH directly.
+let WORKTREE_PATH;
+if (SKIP_WORKTREE) {
+  log('Stage 1.4 worktree SKIPPED (skip_worktree=true — using repo path directly)');
+  WORKTREE_PATH = REPO_PATH;
+} else {
+  log('Stage 1.4 worktree');
+  const worktreeResult = await agentWithRetry(
+    `Run this exactly and return the trimmed stdout (which is the absolute worktree path):\n\n` +
+    worktreeAddSnippet(REPO_PATH, specMeta.spec_identifier) +
+    `\nReturn JSON: {"ok": bool, "worktree_path": string, "stderr": string}.`,
+    {
+      label: 'worktree-add',
+      phase: 'Stage 1 — Setup',
+      agentType: 'general-purpose',
+      schema: {
+        type: 'object',
+        required: ['ok'],
+        properties: { ok: { type: 'boolean' }, worktree_path: { type: 'string' }, stderr: { type: 'string' } },
+      },
     },
-  },
-);
-if (!worktreeResult.ok) {
-  throw new Error(`Stage 1: 'git worktree add' failed — ${worktreeResult.stderr || 'unknown'}`);
+  );
+  if (!worktreeResult.ok) {
+    throw new Error(`Stage 1: 'git worktree add' failed — ${worktreeResult.stderr || 'unknown'}`);
+  }
+  WORKTREE_PATH = worktreeResult.worktree_path;
 }
-const WORKTREE_PATH = worktreeResult.worktree_path;
 const SPEC_DIRECTORY = `${WORKTREE_PATH}/specification/${specMeta.spec_identifier}`;
 
 // ---------------------------------------------------------------------------
@@ -875,10 +891,9 @@ await agentWithRetry(
   },
 );
 
-// Step 1.6 — Worktree bootstrap. The Stage 1 worktree was created from a
-// branch, which means it inherits the tracked source but NOT:
-//   - .gitignore'd .env files (DB URLs, API keys, feature flags)
-//   - any installed deps (node_modules, .venv, vendor, target/, etc.)
+// Step 1.6 — Worktree bootstrap. Copy .env files and install deps.
+// Runs even with SKIP_WORKTREE=true — the user's branch may still need
+// env files copied from the main repo and deps installed/updated.
 // Without this step the downstream gates fail in non-obvious ways: e.g.
 // gate-build.sh's `pnpm run build` fails with `next: command not found`
 // because the worktree has no node_modules even though the main repo does.
@@ -2919,11 +2934,17 @@ git rev-parse HEAD
  * when there is nothing to commit (e.g. tdd-guide only updated specs that
  * were already staged, or specialist made no source changes). This keeps
  * base_sha advancing without empty commits.
+ *
+ * When commitSpecDir=false, the specification/ directory is excluded from
+ * the commit (useful when spec artifacts shouldn't enter repo history).
  */
 function commitPhaseSnippet(worktreePath, message) {
+  const addCmd = COMMIT_SPEC_DIR
+    ? `git add -A`
+    : `git add -A && git reset HEAD -- specification/ 2>/dev/null || true`;
   return `set -e
 cd ${shellQuote(worktreePath)}
-git add -A
+${addCmd}
 if git diff --cached --quiet; then
   echo "skip-commit:no-staged-changes" >&2
   git rev-parse HEAD
