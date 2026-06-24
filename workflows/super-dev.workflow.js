@@ -1019,25 +1019,31 @@ async function updateTracking(opts) {
 }
 
 // ---------------------------------------------------------------------------
-// fileFingerprint() — reads a file's md5 hash via a cheap agent call. Used
-// to inject content-dependent cache keys into gate agent prompts so the
-// Workflow resume cache invalidates when a target document is manually edited
-// between runs. Without this, a gate FAIL verdict stays cached even after
-// the user fixes the document.
+// fileFingerprint() — DEPRECATED/REMOVED.
+//
+// The original design attempted to bust the resume cache by reading file
+// md5 hashes and injecting them into gate prompts. This DOES NOT WORK
+// because the fingerprint agent() call itself gets cached on resume (the
+// prompt is byte-identical: same path, same nonce sequence). The research
+// confirms: cache key = hash(prompt, opts) with prefix chaining; there is
+// no per-call noCache option; and the only way to bust cache is to change
+// the prompt string.
+//
+// The correct behavior on resume: if a gate threw (Stage 10 gate FAIL),
+// the throw happened AFTER the parallel() that spawned the gates returned.
+// That means the parallel() result (including FAIL) IS cached. On resume,
+// the cached FAIL replays and the throw fires again.
+//
+// RESOLUTION: After manually fixing a file that caused a gate failure,
+// users should re-invoke the workflow WITHOUT resumeFromRunId (fresh run).
+// The early stages (1-8) re-run cheaply (doc-producing, fast). Stage 9
+// implementation phases already committed their code to git — a fresh run
+// on the same branch detects the existing commits and gate-build passes.
+//
+// If partial resume is needed (to save Stage 9 time), edit the workflow
+// script trivially (add a comment) before resuming — per the research,
+// any script change invalidates the entire resume cache.
 // ---------------------------------------------------------------------------
-async function fileFingerprint(filePath, currentPhase) {
-  const result = await agentWithRetry(
-    `Run: md5sum ${shellQuote(filePath)} 2>/dev/null || md5 -q ${shellQuote(filePath)} 2>/dev/null || echo "no-hash"\n` +
-    `Return JSON: {"hash": string} (first 12 chars of the hash output).`,
-    {
-      label: `fingerprint:${filePath.split('/').pop()}`,
-      phase: currentPhase || 'Stage 1 — Setup',
-      agentType: 'general-purpose',
-      schema: { type: 'object', required: ['hash'], properties: { hash: { type: 'string' } } },
-    },
-  );
-  return result?.hash ?? 'unknown';
-}
 
 // ---------------------------------------------------------------------------
 // Document index counter — file prefixes follow "max existing + 1" rule.
@@ -2199,16 +2205,6 @@ while (reviewIter < MAX_REVIEW_ITERS) {
   const advReviewName  = reviewIter === 1 ? docName('adversarial-review.md') : docName(`adversarial-review-${reviewIter}.md`);
   log(`Stage 10 iteration ${reviewIter}/${MAX_REVIEW_ITERS}: 5 reviewers in parallel`);
 
-  // Fingerprint the target files BEFORE spawning gate validators so the
-  // prompt cache key changes when a file is manually edited between resume
-  // runs. Without this, gate FAIL verdicts stay cached indefinitely even
-  // after the user fixes the document (fix for sub-issue c).
-  const [fpCode, fpAdv, fpTracking] = await parallel([
-    () => fileFingerprint(`${SPEC_DIRECTORY}/${codeReviewName}`, 'Stage 10 — Code Review'),
-    () => fileFingerprint(`${SPEC_DIRECTORY}/${advReviewName}`, 'Stage 10 — Code Review'),
-    () => fileFingerprint(TRACKING_JSON_PATH, 'Stage 10 — Code Review'),
-  ]);
-
   const reviewerBase =
     `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
     `Inputs to read yourself:\n` +
@@ -2260,7 +2256,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
     () => agent(
       `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + codeReviewName)} to appear, then run ` +
       `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-review.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + codeReviewName)}. ` +
-      `Content fingerprint: ${fpCode}. Return the gate verdict.`,
+      `Return the gate verdict.`,
       {
         label: `doc-validator:gate-review:code:${reviewIter}`,
         phase: 'Stage 10 — Code Review',
@@ -2271,7 +2267,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
     () => agent(
       `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + advReviewName)} to appear, then run ` +
       `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-review.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + advReviewName)}. ` +
-      `Content fingerprint: ${fpAdv}. Return the gate verdict.`,
+      `Return the gate verdict.`,
       {
         label: `doc-validator:gate-review:adversarial:${reviewIter}`,
         phase: 'Stage 10 — Code Review',
@@ -2282,8 +2278,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
     () => agent(
       `Run ${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-implementation-complete.sh')} ` +
       `${shellQuote(SPEC_DIRECTORY)}. This gate verifies all implementation-plan phases ` +
-      `show status='complete' in the tracking JSON. Content fingerprint: ${fpTracking}. ` +
-      `Return the gate verdict.`,
+      `show status='complete' in the tracking JSON. Return the gate verdict.`,
       {
         label: `doc-validator:gate-implementation-complete:${reviewIter}`,
         phase: 'Stage 10 — Code Review',
