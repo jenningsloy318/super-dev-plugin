@@ -2291,15 +2291,27 @@ while (reviewIter < MAX_REVIEW_ITERS) {
   codeReview = cr;
   advReview = ar;
 
-  // Surface any gate failure as a hard error — these are structural, not
-  // findings the loop can fix by re-running the specialist.
-  for (const v of [gateRevCode, gateRevAdv, gateImplComplete]) {
-    if (!v?.pass) {
+  // Gate failures: instead of throwing, feed errors back into the iteration
+  // loop so the reviewer/specialist can fix the issue. Only throw if we've
+  // exhausted all iterations with a persistent gate failure.
+  const gateFailures = [gateRevCode, gateRevAdv, gateImplComplete]
+    .filter(v => !v?.pass);
+  if (gateFailures.length > 0) {
+    if (reviewIter >= MAX_REVIEW_ITERS) {
       throw new Error(
-        `Stage 10 iteration ${reviewIter}: gate '${v?.gate ?? 'unknown'}' FAILED — ` +
-        `${(v?.errors || []).join('; ')}`
+        `Stage 10: gate(s) still failing after ${MAX_REVIEW_ITERS} iteration(s). ` +
+        `Escalating to user.\n` +
+        gateFailures.map(v => `  - ${v?.gate ?? 'unknown'}: ${(v?.errors || []).join('; ')}`).join('\n')
       );
     }
+    const gateGuidance = gateFailures
+      .map(v => `Gate '${v?.gate ?? 'unknown'}' FAILED:\n  ${(v?.errors || []).join('\n  ')}`)
+      .join('\n');
+    log(`Stage 10 iteration ${reviewIter}: gate failure(s) — feeding back to reviewers:\n${gateGuidance}`);
+    // Loop continues — next iteration re-spawns reviewers with the gate
+    // errors visible in the log, and the reviewer prompt naturally produces
+    // a corrected document on the next pass.
+    continue;
   }
 
   const codePass = cr?.verdict === 'Approved';
