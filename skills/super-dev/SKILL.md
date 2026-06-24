@@ -36,6 +36,60 @@ license: MIT
   </mode>
 </execution-modes>
 
+<invocation-process name="How to invoke (MUST FOLLOW)">
+  On Claude Code v2.1.178+ the ONLY correct path is to call the Workflow tool directly.
+  Do NOT spawn a team-lead agent. Do NOT start implementing stages manually.
+
+  <step n="1" name="Verify Workflow tool">
+    Call `ToolSearch({query: "select:Workflow", max_results: 1})`. If no result, fall back to
+    Narrated mode by spawning Agent({subagent_type: "super-dev:team-lead", prompt: ...}).
+  </step>
+
+  <step n="2" name="Resolve parameters">
+    a. Resolve `plugin_root` from platform-paths (`${CLAUDE_PLUGIN_ROOT}`).
+    b. Resolve `repo_path`: the user's current working directory (the project they want to develop).
+    c. Detect `feature_kind` from the user's request: 'bug' if mentions bug/fix/broken/crash/error,
+       'refactor' if mentions refactor/restructure/improve, 'feature' otherwise. Default: 'auto'.
+    d. Detect `language` from the project (Cargo.toml→'rust', go.mod→'go', package.json→'frontend'
+       or 'backend', *.swift→'ios', etc.). Default: 'mixed'.
+    e. Detect `ui_scope`: 'ui-only' if purely UI work, 'ui+arch' if both, 'none' otherwise.
+    f. Set `is_web_ui` = true if the project has a web UI (Next.js, React, Vue, etc.).
+    g. The user's full request text becomes `request`.
+  </step>
+
+  <step n="3" name="Invoke Workflow">
+    Single tool call — invoke IMMEDIATELY after parameter resolution, do NOT pause for confirmation:
+    ```
+    Workflow({
+      scriptPath: "${plugin_root}/scripts/workflow/super-dev.workflow.js",
+      args: {
+        request: "<user's full request>",
+        plugin_root: "<resolved_plugin_root>",
+        repo_path: "<resolved_repo_path>",
+        feature_kind: "<auto|feature|bug|refactor>",
+        ui_scope: "<none|ui-only|ui+arch>",
+        language: "<mixed|rust|go|frontend|backend|ios|android|macos|windows>",
+        is_web_ui: <boolean>,
+        max_spec_iters: 3,
+        max_phase_iters: 3,
+        max_review_iters: 3,
+        skip_handoff: false,
+        do_merge: false
+      }
+    })
+    ```
+    The Workflow tool returns immediately with a runId. A `<task-notification>` arrives when done.
+  </step>
+
+  <step n="4" name="Surface result">
+    When the workflow completes, relay the compressed final result to the user:
+    - worktree path + spec directory
+    - phases completed + review iterations
+    - merge status (done or manual merge command)
+    Do NOT dump per-stage data — point the user to the spec directory for details.
+  </step>
+</invocation-process>
+
 <triggers>Triggers on: "implement", "build", "fix bug", "refactor", "add feature", "develop this", "help me build", "add functionality", "optimize performance", "resolve deprecation", "systematic development". Do NOT trigger on: simple questions, file searches, one-off commands, code explanations, quick edits, non-development tasks.</triggers>
 
 <note>Detailed protocols live in `${PLUGIN_ROOT}/reference/workflow/*.md` — load each one lazily at its triggering stage. See `<protocols>` block below for the file-per-process map.</note>
