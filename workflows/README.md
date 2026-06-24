@@ -7,9 +7,10 @@ as a Claude Code **Dynamic Workflow** script. See
 ## Layout
 
 ```
-scripts/workflow/
+workflows/
 ├── super-dev.workflow.js       # entry point: meta + 13-stage flow + inlined helpers
-└── schemas/                    # JSON Schema for structured agent outputs
+schemas/
+└── *.json                      # JSON Schema for structured agent outputs
 ```
 
 The workflow is invoked from the `super-dev:super-dev` skill via the harness's
@@ -25,5 +26,4 @@ and forbids `import` declarations, so the git-helper Bash snippets and
 ## Compatibility
 
 - Requires Claude Code ≥ v2.1.178 (`scripts/preflight-env.sh` enforces this).
-- The Codex CLI and Antigravity platforms have no Workflow runtime; they keep
-  the team-lead-narrated orchestration documented in `agents/team-lead.md`.
+- No fallback path — the Workflow tool MUST be available.

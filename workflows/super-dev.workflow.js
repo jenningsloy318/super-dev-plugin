@@ -1,4 +1,4 @@
-// super-dev/scripts/workflow/super-dev.workflow.js
+// super-dev/workflows/super-dev.workflow.js
 //
 // Dynamic Workflow entry point for the super-dev plugin. Replaces the
 // team-lead-narrated orchestration with a deterministic JS script that
@@ -70,7 +70,7 @@ export const meta = {
 
 // ---------------------------------------------------------------------------
 // JSON Schemas — loaded inline so the script is self-contained for the
-// runtime. Source of truth is scripts/workflow/schemas/*.json.
+// runtime. Source of truth is schemas/*.json.
 // ---------------------------------------------------------------------------
 const GATE_VERDICT = {
   type: 'object',

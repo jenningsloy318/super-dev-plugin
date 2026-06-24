@@ -19,7 +19,7 @@ license: MIT
 <orchestration-model>
   **Dynamic Workflow REQUIRED** (Claude Code v2.1.178+ / `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`).
   No fallback. No team-lead agent. The main loop invokes ONE `Workflow` tool call with
-  `scriptPath="${PLUGIN_ROOT}/scripts/workflow/super-dev.workflow.js"` and the args below.
+  `scriptPath="${PLUGIN_ROOT}/workflows/super-dev.workflow.js"` and the args below.
   The workflow runtime executes the script in an isolated environment; all per-stage data stays
   in script variables. Only the final compressed result returns. Progress via `/workflows`.
 
@@ -34,7 +34,7 @@ license: MIT
   3. Call immediately (no confirmation pause):
      ```
      Workflow({
-       scriptPath: "${plugin_root}/scripts/workflow/super-dev.workflow.js",
+       scriptPath: "${plugin_root}/workflows/super-dev.workflow.js",
        args: { request, plugin_root, repo_path, feature_kind, ui_scope, language, is_web_ui,
                max_spec_iters: 3, max_phase_iters: 3, max_review_iters: 3,
                skip_handoff: false, do_merge: false }
@@ -71,7 +71,7 @@ license: MIT
 <workflow>
   <!--
     This 13-stage contract is the source of truth for BOTH execution modes.
-    Workflow mode: every stage maps to a phase() block in scripts/workflow/super-dev.workflow.js.
+    Workflow mode: every stage maps to a phase() block in workflows/super-dev.workflow.js.
     Narrated mode: Team Lead walks the stages here turn-by-turn.
     Renumbering or adding stages requires updating BOTH the workflow script
     (meta.phases + phase()/agent() calls) AND the protocol files under

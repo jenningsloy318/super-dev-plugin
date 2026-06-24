@@ -104,33 +104,33 @@ This plugin provides a systematic development workflow with 13 stages. On Claude
 
 ## Workflow Engine
 
-The Workflow script at `scripts/workflow/super-dev.workflow.js` is the source of truth for the 13-stage pipeline. Layout:
+The Workflow script at `workflows/super-dev.workflow.js` is the source of truth for the 13-stage pipeline. Layout:
 
 ```
-scripts/workflow/
+workflows/
 ├── super-dev.workflow.js   # 13-stage orchestration body + inlined git helpers
-├── schemas/                # JSON Schema for every agent's structured return
-│   ├── gate-verdict.json
-│   ├── requirements-output.json
-│   ├── bdd-output.json
-│   ├── research-output.json
-│   ├── debug-output.json
-│   ├── assessment-output.json
-│   ├── design-output.json
-│   ├── prototype-output.json
-│   ├── spec-output.json
-│   ├── spec-review-output.json
-│   ├── tdd-output.json
-│   ├── impl-output.json
-│   ├── impl-summary-output.json
-│   ├── qa-output.json
-│   ├── e2e-output.json
-│   ├── code-review-output.json
-│   ├── adversarial-review-output.json
-│   ├── docs-output.json
-│   ├── handoff-output.json
-│   └── cleanup-output.json
-└── README.md
+├── README.md
+schemas/
+├── gate-verdict.json
+├── requirements-output.json
+├── bdd-output.json
+├── research-output.json
+├── debug-output.json
+├── assessment-output.json
+├── design-output.json
+├── prototype-output.json
+├── spec-output.json
+├── spec-review-output.json
+├── tdd-output.json
+├── impl-output.json
+├── impl-summary-output.json
+├── qa-output.json
+├── e2e-output.json
+├── code-review-output.json
+├── adversarial-review-output.json
+├── docs-output.json
+├── handoff-output.json
+└── cleanup-output.json
 ```
 
 The Workflow runtime requires `export const meta` to be the FIRST statement and forbids `import` declarations, so the git-helper Bash snippets and `shellQuote` are inlined as plain function declarations at the bottom of `super-dev.workflow.js` (hoisted within the module).
@@ -145,8 +145,6 @@ Key properties:
 - **Gated merge** — Stage 13 merges into the default branch only when `args.do_merge === true`. The default is false; the workflow logs the manual merge command otherwise.
 - **Resumable** — the Workflow runtime persists each agent result; an interrupted run replays the cached prefix and resumes from the first incomplete stage.
 
-The Team-Lead-narrated mode in `agents/team-lead.md` implements the same stage contract turn by turn. The narrated mode is the only path on Codex/Antigravity and on Claude Code installations older than v2.1.178; both modes share the same gate scripts under `scripts/gates/` and the same agent definitions under `agents/`.
-
 ## Usage
 
 ### Main Entry Point
@@ -157,7 +155,7 @@ Invoke the `super-dev` skill and describe your task:
 Invoke the super-dev skill and describe your task
 ```
 
-On Claude Code v2.1.178+ the skill triggers `Workflow(${PLUGIN_ROOT}/scripts/workflow/super-dev.workflow.js)` with the user's request as `args.request`. On other platforms it spawns the Team Lead agent.
+On Claude Code v2.1.178+ the skill triggers `Workflow(${PLUGIN_ROOT}/workflows/super-dev.workflow.js)` with the user's request as `args.request`.
 
 ### Examples
 
