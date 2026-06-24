@@ -14,81 +14,42 @@ license: MIT
   Use whichever value resolved to an actual path (not a literal variable name).
 </platform-paths>
 
-<purpose>13-stage development pipeline for features, bug fixes, and refactors. On Claude Code v2.1.178+ the entire pipeline runs as a Dynamic Workflow (deterministic JS orchestration); on platforms without a Workflow runtime the same 13-stage contract is executed by a Team Lead agent that spawns specialists itself.</purpose>
+<purpose>13-stage development pipeline for features, bug fixes, and refactors. Runs as a Dynamic Workflow (deterministic JS orchestration) on Claude Code v2.1.178+. There is no fallback path — the Workflow tool MUST be available.</purpose>
 
-<execution-modes>
-  <mode name="Workflow" preferred="true" platforms="Claude Code v2.1.178+">
-    Trigger Claude Code's Workflow tool with `${PLUGIN_ROOT}/scripts/workflow/super-dev.workflow.js`. The script holds the 13-stage plan in code: agents are spawned via `agent()`, parallel writer+validator pairs via `parallel()`, the Stage 8/9/10 iteration loops are real `while` loops capped at 3, and per-stage results are structured-output validated against JSON Schemas in `${PLUGIN_ROOT}/scripts/workflow/schemas/`. The runtime persists progress so an interrupted run resumes per-stage. See `${PLUGIN_ROOT}/scripts/workflow/README.md` for the layout and the in-file JSDoc for arg shape.
+<orchestration-model>
+  **Dynamic Workflow REQUIRED** (Claude Code v2.1.178+ / `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`).
+  No fallback. No team-lead agent. The main loop invokes ONE `Workflow` tool call with
+  `scriptPath="${PLUGIN_ROOT}/scripts/workflow/super-dev.workflow.js"` and the args below.
+  The workflow runtime executes the script in an isolated environment; all per-stage data stays
+  in script variables. Only the final compressed result returns. Progress via `/workflows`.
 
-    Required env: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. Stage 1 of the workflow runs `${PLUGIN_ROOT}/scripts/preflight-env.sh` to enforce this before any agent spawn.
+  Caps: 16 concurrent subagents / 1000 total agents per workflow run (harness-enforced).
+  Stage 1 runs `${PLUGIN_ROOT}/scripts/preflight-env.sh` to enforce env before any agent spawn.
 
-    Args (read by the workflow's `args` global):
-    `request` (string, required), `plugin_root` (string, required), `repo_path` (string, required),
-    `feature_kind` ('feature'|'bug'|'refactor'|'auto'), `ui_scope` ('none'|'ui-only'|'ui+arch'),
-    `bug_evidence` (string), `input_samples` (string[], required when design has numeric constants),
-    `language` ('rust'|'go'|'frontend'|'backend'|'ios'|'android'|'macos'|'windows'|'mixed'),
-    `is_web_ui` (boolean), `max_spec_iters` (int, default 3), `max_phase_iters` (int, default 3),
-    `max_review_iters` (int, default 3), `skip_handoff` (boolean), `do_merge` (boolean, default false).
-  </mode>
+  **Invocation (MUST FOLLOW — do NOT spawn agents, do NOT implement stages manually):**
+  1. `ToolSearch({query: "select:Workflow", max_results: 1})` — abort if unavailable.
+  2. Resolve: `plugin_root` from `${CLAUDE_PLUGIN_ROOT}`, `repo_path` from cwd,
+     `feature_kind` (auto|feature|bug|refactor), `language` (detect from manifests, default 'mixed'),
+     `ui_scope` (none|ui-only|ui+arch), `is_web_ui` (bool), `request` = user's full text.
+  3. Call immediately (no confirmation pause):
+     ```
+     Workflow({
+       scriptPath: "${plugin_root}/scripts/workflow/super-dev.workflow.js",
+       args: { request, plugin_root, repo_path, feature_kind, ui_scope, language, is_web_ui,
+               max_spec_iters: 3, max_phase_iters: 3, max_review_iters: 3,
+               skip_handoff: false, do_merge: false }
+     })
+     ```
+  4. On completion: relay worktree path, phases completed, merge status. Point user to spec dir.
 
-  <mode name="Narrated" platforms="Codex CLI, Antigravity, older Claude Code">
-    The Team Lead agent (`agents/team-lead.md`) reads this SKILL.md, the `<workflow>` block below, and the per-process protocols under `${PLUGIN_ROOT}/reference/workflow/*.md`, then spawns teammates itself stage by stage. This is the fallback when the Workflow tool is unavailable; the stage contract, gates, and iteration caps are identical to the Workflow mode.
-  </mode>
-</execution-modes>
-
-<invocation-process name="How to invoke (MUST FOLLOW)">
-  On Claude Code v2.1.178+ the ONLY correct path is to call the Workflow tool directly.
-  Do NOT spawn a team-lead agent. Do NOT start implementing stages manually.
-
-  <step n="1" name="Verify Workflow tool">
-    Call `ToolSearch({query: "select:Workflow", max_results: 1})`. If no result, fall back to
-    Narrated mode by spawning Agent({subagent_type: "super-dev:team-lead", prompt: ...}).
-  </step>
-
-  <step n="2" name="Resolve parameters">
-    a. Resolve `plugin_root` from platform-paths (`${CLAUDE_PLUGIN_ROOT}`).
-    b. Resolve `repo_path`: the user's current working directory (the project they want to develop).
-    c. Detect `feature_kind` from the user's request: 'bug' if mentions bug/fix/broken/crash/error,
-       'refactor' if mentions refactor/restructure/improve, 'feature' otherwise. Default: 'auto'.
-    d. Detect `language` from the project (Cargo.toml→'rust', go.mod→'go', package.json→'frontend'
-       or 'backend', *.swift→'ios', etc.). Default: 'mixed'.
-    e. Detect `ui_scope`: 'ui-only' if purely UI work, 'ui+arch' if both, 'none' otherwise.
-    f. Set `is_web_ui` = true if the project has a web UI (Next.js, React, Vue, etc.).
-    g. The user's full request text becomes `request`.
-  </step>
-
-  <step n="3" name="Invoke Workflow">
-    Single tool call — invoke IMMEDIATELY after parameter resolution, do NOT pause for confirmation:
-    ```
-    Workflow({
-      scriptPath: "${plugin_root}/scripts/workflow/super-dev.workflow.js",
-      args: {
-        request: "<user's full request>",
-        plugin_root: "<resolved_plugin_root>",
-        repo_path: "<resolved_repo_path>",
-        feature_kind: "<auto|feature|bug|refactor>",
-        ui_scope: "<none|ui-only|ui+arch>",
-        language: "<mixed|rust|go|frontend|backend|ios|android|macos|windows>",
-        is_web_ui: <boolean>,
-        max_spec_iters: 3,
-        max_phase_iters: 3,
-        max_review_iters: 3,
-        skip_handoff: false,
-        do_merge: false
-      }
-    })
-    ```
-    The Workflow tool returns immediately with a runId. A `<task-notification>` arrives when done.
-  </step>
-
-  <step n="4" name="Surface result">
-    When the workflow completes, relay the compressed final result to the user:
-    - worktree path + spec directory
-    - phases completed + review iterations
-    - merge status (done or manual merge command)
-    Do NOT dump per-stage data — point the user to the spec directory for details.
-  </step>
-</invocation-process>
+  Args reference:
+  `request` (string, required), `plugin_root` (string, required), `repo_path` (string, required),
+  `feature_kind` ('feature'|'bug'|'refactor'|'auto'), `ui_scope` ('none'|'ui-only'|'ui+arch'),
+  `bug_evidence` (string), `input_samples` (string[]),
+  `language` ('rust'|'go'|'frontend'|'backend'|'ios'|'android'|'macos'|'windows'|'mixed'),
+  `is_web_ui` (boolean), `max_spec_iters` (int, 3), `max_phase_iters` (int, 3),
+  `max_review_iters` (int, 3), `skip_handoff` (boolean), `do_merge` (boolean, false).
+</orchestration-model>
 
 <triggers>Triggers on: "implement", "build", "fix bug", "refactor", "add feature", "develop this", "help me build", "add functionality", "optimize performance", "resolve deprecation", "systematic development". Do NOT trigger on: simple questions, file searches, one-off commands, code explanations, quick edits, non-development tasks.</triggers>
 
