@@ -736,8 +736,9 @@ if (preflight.exit_code !== 0) {
 log(`super-dev plugin v${preflight.plugin_version} — preflight OK (${preflight.tail.trim()})`);
 
 // Step 1.2 — Pull latest. Detect default branch first; never hard-code 'main'.
-// When SKIP_WORKTREE=true, still detect the default branch (needed for Stage 13
-// merge) but skip the pull — user is already on their feature branch.
+// When SKIP_WORKTREE=true, skip entirely — user is already on their feature
+// branch. Use the current branch as the working branch; detect default branch
+// only for Stage 13 merge (if needed).
 const RAW_SHELL_SCHEMA = {
   type: 'object',
   required: ['exit_code', 'stdout', 'stderr'],
@@ -749,37 +750,41 @@ const RAW_SHELL_SCHEMA = {
   },
 };
 
-const defaultBranchResult = await agentWithRetry(
-  `Run this shell snippet in a single Bash call and report the result. ` +
-  `Do NOT interpret success — report exactly what bash returns, even on non-zero exit:\n\n` +
-  detectDefaultBranchSnippet(REPO_PATH) +
-  `\nReturn JSON: {"exit_code": int, "stdout": string (trimmed), "stderr": string (verbatim)}.`,
-  {
-    label: 'detect-default-branch',
-    phase: 'Stage 1 — Setup',
-    agentType: 'general-purpose',
-    schema: RAW_SHELL_SCHEMA,
-  },
-);
-if (defaultBranchResult.exit_code !== 0) {
-  throw new Error(
-    `Stage 1: cannot detect default branch (exit ${defaultBranchResult.exit_code}).\n` +
-    `stdout: ${defaultBranchResult.stdout || '(empty)'}\n` +
-    `stderr: ${defaultBranchResult.stderr || '(empty)'}`
-  );
-}
-const DEFAULT_BRANCH = defaultBranchResult.stdout.trim();
-if (!DEFAULT_BRANCH) {
-  throw new Error(
-    `Stage 1: default-branch detection returned exit 0 but empty stdout.\n` +
-    `stderr: ${defaultBranchResult.stderr || '(empty)'}`
-  );
-}
-log(`Default branch resolved to: ${DEFAULT_BRANCH}`);
-
+let DEFAULT_BRANCH;
 if (SKIP_WORKTREE) {
-  log('Stage 1.2 pull-latest SKIPPED (skip_worktree=true — already on feature branch)');
+  log('Stage 1.2 SKIPPED (skip_worktree=true — staying on current branch)');
+  // Detect default branch lazily — only needed if Stage 13 merge is requested.
+  // For now set to empty; Stage 13 will detect it if do_merge=true.
+  DEFAULT_BRANCH = '';
 } else {
+  const defaultBranchResult = await agentWithRetry(
+    `Run this shell snippet in a single Bash call and report the result. ` +
+    `Do NOT interpret success — report exactly what bash returns, even on non-zero exit:\n\n` +
+    detectDefaultBranchSnippet(REPO_PATH) +
+    `\nReturn JSON: {"exit_code": int, "stdout": string (trimmed), "stderr": string (verbatim)}.`,
+    {
+      label: 'detect-default-branch',
+      phase: 'Stage 1 — Setup',
+      agentType: 'general-purpose',
+      schema: RAW_SHELL_SCHEMA,
+    },
+  );
+  if (defaultBranchResult.exit_code !== 0) {
+    throw new Error(
+      `Stage 1: cannot detect default branch (exit ${defaultBranchResult.exit_code}).\n` +
+      `stdout: ${defaultBranchResult.stdout || '(empty)'}\n` +
+      `stderr: ${defaultBranchResult.stderr || '(empty)'}`
+    );
+  }
+  DEFAULT_BRANCH = defaultBranchResult.stdout.trim();
+  if (!DEFAULT_BRANCH) {
+    throw new Error(
+      `Stage 1: default-branch detection returned exit 0 but empty stdout.\n` +
+      `stderr: ${defaultBranchResult.stderr || '(empty)'}`
+    );
+  }
+  log(`Default branch resolved to: ${DEFAULT_BRANCH}`);
+
   log('Stage 1.2 pull-latest: fetching origin and fast-forwarding default branch');
   const pullResult = await agentWithRetry(
     `Run this shell snippet in a single Bash call and report the result. ` +
@@ -2779,9 +2784,22 @@ log(`Stage 13.1: HEAD now ${trailingCommit.new_sha}${trailingCommit.skipped ? ' 
 
 let merge = null;
 const mergeMessage = `Merge spec ${specMeta.spec_identifier}: ${req.feature_name}`;
+// Lazy-detect default branch for Stage 13 if it wasn't resolved in Step 1.2
+// (happens when SKIP_WORKTREE=true).
+if (!DEFAULT_BRANCH && DO_MERGE) {
+  const dbResult = await agentWithRetry(
+    `Run this shell snippet and report the result:\n\n` +
+    detectDefaultBranchSnippet(REPO_PATH) +
+    `\nReturn JSON: {"exit_code": int, "stdout": string (trimmed), "stderr": string (verbatim)}.`,
+    { label: 'detect-default-branch-late', phase: 'Stage 13 — Merge', agentType: 'general-purpose', schema: RAW_SHELL_SCHEMA },
+  );
+  if (dbResult && dbResult.exit_code === 0 && dbResult.stdout.trim()) {
+    DEFAULT_BRANCH = dbResult.stdout.trim();
+  }
+}
 if (!DO_MERGE) {
   log(`Stage 13.2 skipped (args.do_merge=false). To merge manually, run:`);
-  log(`  cd ${REPO_PATH} && git checkout ${DEFAULT_BRANCH} && git pull --ff-only && \\`);
+  log(`  cd ${REPO_PATH} && git checkout ${DEFAULT_BRANCH || '<default-branch>'} && git pull --ff-only && \\`);
   log(`    git merge --no-ff ${specMeta.spec_identifier} -m ${JSON.stringify(mergeMessage)}`);
 } else {
   log('Stage 13.2: merging spec branch into default branch in the main repo');
