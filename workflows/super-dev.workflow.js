@@ -562,29 +562,52 @@ const CLEANUP_OUTPUT = {
 //                                //   Use when already on a feature branch. Default: false.
 //   }
 // ---------------------------------------------------------------------------
-const REQUEST     = args?.request ?? '';
-const PLUGIN_ROOT = args?.plugin_root ?? '';
-const REPO_PATH   = args?.repo_path ?? '';
-const FEATURE_KIND = args?.feature_kind ?? 'auto';
-const UI_SCOPE    = args?.ui_scope ?? 'none';
-const BUG_EVIDENCE = args?.bug_evidence ?? '';
-const INPUT_SAMPLES = Array.isArray(args?.input_samples) ? args.input_samples : [];
-const MAX_SPEC_ITERS = Number.isInteger(args?.max_spec_iters) ? args.max_spec_iters : 3;
-const MAX_REQ_ITERS = Number.isInteger(args?.max_req_iters) ? args.max_req_iters : 3;
-const MAX_BDD_ITERS = Number.isInteger(args?.max_bdd_iters) ? args.max_bdd_iters : 3;
-const MAX_PROTOTYPE_ITERS = Number.isInteger(args?.max_prototype_iters) ? args.max_prototype_iters : 3;
-const MAX_SPEC_TRACE_ITERS = Number.isInteger(args?.max_spec_trace_iters) ? args.max_spec_trace_iters : 3;
-const LANGUAGE   = args?.language ?? 'mixed';
-const IS_WEB_UI  = Boolean(args?.is_web_ui ?? (UI_SCOPE !== 'none'));
-const MAX_PHASE_ITERS = Number.isInteger(args?.max_phase_iters) ? args.max_phase_iters : 3;
-const MAX_REVIEW_ITERS = Number.isInteger(args?.max_review_iters) ? args.max_review_iters : 3;
-const SKIP_HANDOFF = Boolean(args?.skip_handoff ?? false);
-const DO_MERGE     = Boolean(args?.do_merge ?? false);
-const COMMIT_SPEC_DIR = Boolean(args?.commit_spec_dir ?? true);
-const SKIP_WORKTREE = Boolean(args?.skip_worktree ?? false);
+// ---------------------------------------------------------------------------
+// Args normalization — handle the case where the caller passes args as a
+// string (the main loop sometimes fails to construct the JSON object
+// despite SKILL.md instructions). Also handle missing plugin_root/repo_path
+// by inferring from the environment when possible.
+// ---------------------------------------------------------------------------
+let _args = args;
+if (typeof _args === 'string') {
+  // Caller passed args as a raw string — treat as the request text
+  log(`[args] received string instead of object — wrapping as {request: ...}`);
+  _args = { request: _args };
+}
+if (!_args || typeof _args !== 'object') {
+  _args = {};
+}
+
+const REQUEST     = _args.request ?? '';
+const PLUGIN_ROOT = _args.plugin_root ?? '';
+const REPO_PATH   = _args.repo_path ?? '';
+const FEATURE_KIND = _args.feature_kind ?? 'auto';
+const UI_SCOPE    = _args.ui_scope ?? 'none';
+const BUG_EVIDENCE = _args.bug_evidence ?? '';
+const INPUT_SAMPLES = Array.isArray(_args.input_samples) ? _args.input_samples : [];
+const MAX_SPEC_ITERS = Number.isInteger(_args.max_spec_iters) ? _args.max_spec_iters : 3;
+const MAX_REQ_ITERS = Number.isInteger(_args.max_req_iters) ? _args.max_req_iters : 3;
+const MAX_BDD_ITERS = Number.isInteger(_args.max_bdd_iters) ? _args.max_bdd_iters : 3;
+const MAX_PROTOTYPE_ITERS = Number.isInteger(_args.max_prototype_iters) ? _args.max_prototype_iters : 3;
+const MAX_SPEC_TRACE_ITERS = Number.isInteger(_args.max_spec_trace_iters) ? _args.max_spec_trace_iters : 3;
+const LANGUAGE   = _args.language ?? 'mixed';
+const IS_WEB_UI  = Boolean(_args.is_web_ui ?? (UI_SCOPE !== 'none'));
+const MAX_PHASE_ITERS = Number.isInteger(_args.max_phase_iters) ? _args.max_phase_iters : 3;
+const MAX_REVIEW_ITERS = Number.isInteger(_args.max_review_iters) ? _args.max_review_iters : 3;
+const SKIP_HANDOFF = Boolean(_args.skip_handoff ?? false);
+const DO_MERGE     = Boolean(_args.do_merge ?? false);
+const COMMIT_SPEC_DIR = Boolean(_args.commit_spec_dir ?? true);
+const SKIP_WORKTREE = Boolean(_args.skip_worktree ?? false);
 
 if (!REQUEST || !PLUGIN_ROOT || !REPO_PATH) {
-  throw new Error('super-dev workflow: args must include {request, plugin_root, repo_path}');
+  throw new Error(
+    `super-dev workflow: args must include {request, plugin_root, repo_path}.\n` +
+    `Received: request=${REQUEST ? 'OK' : 'EMPTY'}, plugin_root=${PLUGIN_ROOT || 'EMPTY'}, ` +
+    `repo_path=${REPO_PATH || 'EMPTY'}.\n` +
+    `Raw args type: ${typeof args}, keys: ${args && typeof args === 'object' ? Object.keys(args).join(',') : '(not an object)'}.\n` +
+    `The caller MUST pass Workflow({scriptPath, args: {request: "...", plugin_root: "/...", repo_path: "/..."}}) ` +
+    `as a JSON object, not a string.`
+  );
 }
 
 // ---------------------------------------------------------------------------
