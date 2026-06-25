@@ -20,7 +20,7 @@
 //   Stage 10  — Code review + adversarial review (parallel) with iteration loop + pivot trigger
 //   Stage 11  — Docs (docs-executor -> gate-docs-drift) + optional handoff-writer
 //   Stage 12  — build-cleaner (artifacts + sensitive-data scan; blocking on findings)
-//   Stage 13  — Trailing commit + merge to default branch (gated on args.do_merge)
+//   Stage 13  — Trailing commit + manual merge instructions
 //
 // Phase A constraints honored:
 //   - preflight-env.sh runs FIRST (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 +
@@ -507,60 +507,13 @@ const CLEANUP_OUTPUT = {
 };
 
 // ---------------------------------------------------------------------------
-// args — set by the caller (super-dev:super-dev skill) and accessed via the
-// Workflow runtime's global `args`. Shape:
+// args — set by the caller (team-lead agent). Shape:
 //   {
-//     request:        string,   // user's natural-language ask
-//     plugin_root:    string,   // absolute path to super-dev-plugin checkout
-//     repo_path:      string,   // absolute path to the target project repo
-//     feature_kind:   'feature' | 'bug' | 'refactor' | 'auto'  (default 'auto')
-//     ui_scope:       'none' | 'ui-only' | 'ui+arch'           (default 'none')
-//                       Drives Stage 6 designer routing:
-//                         feature/refactor + 'none'    -> architecture-designer / -improver
-//                         any              + 'ui-only' -> ui-ux-designer
-//                         any              + 'ui+arch' -> product-designer
-//     bug_evidence:   string,   // evidence/logs/repro for bugs (Stage 4)
-//     input_samples:  string[]  // OPTIONAL Stage 6.5 sample paths / inline data
-//                                  used by prototype-runner when the design
-//                                  declares numeric constants. When empty,
-//                                  Stage 6.5.1 sample-finder auto-discovers
-//                                  representative samples from the codebase
-//                                  and prior-stage docs (research, assessment,
-//                                  design). Only when sample-finder ALSO
-//                                  comes up empty does the stage abort.
-//     max_req_iters:       integer, // Stage 2A gate-requirements format-fix loop cap (default 3)
-//     max_bdd_iters:       integer, // Stage 2B gate-bdd format-fix loop cap (default 3)
-//     max_prototype_iters: integer, // Stage 6.5 gate-prototype format-fix loop cap (default 3)
-//                                   //   NOTE: PROTOTYPE_FAILED (empirical failure) still
-//                                   //   throws PIVOT_REQUIRED immediately — the loop only
-//                                   //   covers gate-script format/structure failures.
-//     max_spec_trace_iters: integer,// Stage 7 gate-spec-trace format-fix loop cap (default 3)
-//     max_spec_iters:      integer, // Stage 8 spec-review iteration cap (default 3)
-//     language:       'rust' | 'go' | 'frontend' | 'backend' | 'ios' |
-//                     'android' | 'macos' | 'windows' | 'mixed'  (default 'mixed')
-//                       Routes the Stage 9.2 domain specialist. 'mixed'
-//                       falls back to dev-executor.
-//     is_web_ui:      boolean,   // Stage 9.5 e2e gate. Default: false.
-//     max_phase_iters: integer,  // Stage 9 per-phase build-fix iteration cap (default 3)
-//     max_review_iters: integer, // Stage 10 review iteration cap (default 3). Pivot
-//                                //   trigger checked starting at iteration 2.
-//     skip_handoff:    boolean,  // Stage 11: skip handoff-writer (e.g. when the
-//                                //   whole workflow completes in a single session
-//                                //   and no continuation is needed). Default: false.
-//     do_merge:        boolean,  // Stage 13: when true, merge the spec branch back
-//                                //   into the default branch in the main repo with
-//                                //   --no-ff. When false (DEFAULT), the workflow
-//                                //   returns after Stage 12 with the merge command
-//                                //   for the user/caller to run manually. Stage 13
-//                                //   merge is gated behind explicit confirmation
-//                                //   because it mutates the user's main repo.
-//     commit_spec_dir: boolean,  // Stage 9/13: when false, exclude the specification/
-//                                //   directory from git commits (spec artifacts stay on
-//                                //   disk but don't enter repo history). Default: true.
-//     skip_worktree:   boolean,  // Stage 1: when true, skip worktree + branch creation
-//                                //   and work directly on the current branch at repo_path.
-//                                //   Use when already on a feature branch. Default: false.
+//     request:     string,   // user's natural-language ask
+//     plugin_root: string,   // absolute path to super-dev-plugin install
+//     repo_path:   string,   // absolute path to the target project repo
 //   }
+// All other behavior (feature_kind, language, ui_scope) is auto-detected.
 // ---------------------------------------------------------------------------
 
 // Phase MUST be declared before any agent() call — the runtime requires it.
@@ -595,51 +548,34 @@ const agentWithRetry = async (prompt, opts) => {
 let _args = args;
 log(`[super-dev] args received: type=${typeof args}`);
 if (typeof _args === 'string') {
-  log(`[super-dev] parsing string args inline`);
-  const text = _args;
-  _args = {
-    request: text.replace(/--\S+/g, '').trim(),
-    skip_worktree: /--skip-worktree/i.test(text),
-    commit_spec_dir: !/--no-spec-commit/i.test(text),
-    do_merge: /--do-merge/i.test(text),
-    skip_handoff: /--skip-handoff/i.test(text),
-  };
+  _args = { request: _args };
 }
 if (!_args || typeof _args !== 'object') {
   _args = {};
 }
 
-// Also parse flags from request field if team-lead embedded them there
-// instead of setting them as separate keys.
-if (_args.request && typeof _args.request === 'string') {
-  const req = _args.request;
-  if (/--skip-worktree/i.test(req) && _args.skip_worktree === undefined) _args.skip_worktree = true;
-  if (/--no-spec-commit/i.test(req) && _args.commit_spec_dir === undefined) _args.commit_spec_dir = false;
-  if (/--do-merge/i.test(req) && _args.do_merge === undefined) _args.do_merge = true;
-  if (/--skip-handoff/i.test(req) && _args.skip_handoff === undefined) _args.skip_handoff = true;
-  _args.request = req.replace(/--\S+/g, '').trim();
-}
-
 let REQUEST     = _args.request ?? '';
 let PLUGIN_ROOT = _args.plugin_root ?? '';
 let REPO_PATH   = _args.repo_path ?? '';
-const FEATURE_KIND = _args.feature_kind ?? 'auto';
-const UI_SCOPE    = _args.ui_scope ?? 'none';
-const BUG_EVIDENCE = _args.bug_evidence ?? '';
-const INPUT_SAMPLES = Array.isArray(_args.input_samples) ? _args.input_samples : [];
-const MAX_SPEC_ITERS = Number.isInteger(_args.max_spec_iters) ? _args.max_spec_iters : 3;
-const MAX_REQ_ITERS = Number.isInteger(_args.max_req_iters) ? _args.max_req_iters : 3;
-const MAX_BDD_ITERS = Number.isInteger(_args.max_bdd_iters) ? _args.max_bdd_iters : 3;
-const MAX_PROTOTYPE_ITERS = Number.isInteger(_args.max_prototype_iters) ? _args.max_prototype_iters : 3;
-const MAX_SPEC_TRACE_ITERS = Number.isInteger(_args.max_spec_trace_iters) ? _args.max_spec_trace_iters : 3;
-const LANGUAGE   = _args.language ?? 'mixed';
-const IS_WEB_UI  = Boolean(_args.is_web_ui ?? (UI_SCOPE !== 'none'));
-const MAX_PHASE_ITERS = Number.isInteger(_args.max_phase_iters) ? _args.max_phase_iters : 3;
-const MAX_REVIEW_ITERS = Number.isInteger(_args.max_review_iters) ? _args.max_review_iters : 3;
-const SKIP_HANDOFF = Boolean(_args.skip_handoff ?? false);
-const DO_MERGE     = Boolean(_args.do_merge ?? false);
-const COMMIT_SPEC_DIR = Boolean(_args.commit_spec_dir ?? true);
-const SKIP_WORKTREE = Boolean(_args.skip_worktree ?? false);
+const MAX_SPEC_ITERS = 3;
+const MAX_REQ_ITERS = 3;
+const MAX_BDD_ITERS = 3;
+const MAX_PROTOTYPE_ITERS = 3;
+const MAX_SPEC_TRACE_ITERS = 3;
+const MAX_PHASE_ITERS = 3;
+const MAX_REVIEW_ITERS = 3;
+
+// Auto-detect feature_kind from request text
+const FEATURE_KIND = /\b(bug|fix|broken|crash|error|panic|fail|regression)\b/i.test(REQUEST) ? 'bug'
+  : /\b(refactor|restructure|improve|cleanup|clean up)\b/i.test(REQUEST) ? 'refactor'
+  : 'feature';
+// These are always auto-discovered by the workflow stages themselves
+const BUG_EVIDENCE = '';
+const INPUT_SAMPLES = [];
+const UI_SCOPE = 'none';
+// IS_WEB_UI and LANGUAGE are auto-detected after REPO_PATH is resolved
+let IS_WEB_UI = false;
+let LANGUAGE = 'mixed';
 
 // Auto-discover missing paths via agent. If agents return null (0s invocation
 // by name), fall back to ${PLUGIN_ROOT} harness variable.
@@ -693,6 +629,41 @@ if (!PLUGIN_ROOT || !REPO_PATH) {
   }
 }
 
+// Auto-detect language and IS_WEB_UI from project structure
+if (REPO_PATH) {
+  const detect = await agentWithRetry(
+    `In the directory ${shellQuote(REPO_PATH)}, check which files exist and return JSON:\n` +
+    `- has_cargo_toml: does Cargo.toml exist?\n` +
+    `- has_go_mod: does go.mod exist?\n` +
+    `- has_package_json: does package.json exist?\n` +
+    `- has_ui_framework: does package.json contain "react", "next", "vue", "svelte", "angular", or "nuxt"?\n` +
+    `Return JSON: {"has_cargo_toml": bool, "has_go_mod": bool, "has_package_json": bool, "has_ui_framework": bool}`,
+    {
+      label: 'detect-project-type',
+      phase: 'Stage 1 — Setup',
+      agentType: 'general-purpose',
+      schema: {
+        type: 'object',
+        required: ['has_cargo_toml', 'has_go_mod', 'has_package_json', 'has_ui_framework'],
+        properties: {
+          has_cargo_toml: { type: 'boolean' },
+          has_go_mod: { type: 'boolean' },
+          has_package_json: { type: 'boolean' },
+          has_ui_framework: { type: 'boolean' },
+        },
+      },
+    },
+  );
+  if (detect) {
+    if (detect.has_cargo_toml) LANGUAGE = 'rust';
+    else if (detect.has_go_mod) LANGUAGE = 'go';
+    else if (detect.has_ui_framework) LANGUAGE = 'frontend';
+    else if (detect.has_package_json) LANGUAGE = 'backend';
+    IS_WEB_UI = detect.has_ui_framework;
+  }
+  log(`[super-dev] Auto-detected: language=${LANGUAGE}, is_web_ui=${IS_WEB_UI}`);
+}
+
 // ---------------------------------------------------------------------------
 // Stage 1 — Setup (continued — phase already declared above for auto-discovery)
 // ---------------------------------------------------------------------------
@@ -736,9 +707,6 @@ if (preflight.exit_code !== 0) {
 log(`super-dev plugin v${preflight.plugin_version} — preflight OK (${preflight.tail.trim()})`);
 
 // Step 1.2 — Pull latest. Detect default branch first; never hard-code 'main'.
-// When SKIP_WORKTREE=true, skip entirely — user is already on their feature
-// branch. Use the current branch as the working branch; detect default branch
-// only for Stage 13 merge (if needed).
 const RAW_SHELL_SCHEMA = {
   type: 'object',
   required: ['exit_code', 'stdout', 'stderr'],
@@ -750,63 +718,55 @@ const RAW_SHELL_SCHEMA = {
   },
 };
 
-let DEFAULT_BRANCH;
-if (SKIP_WORKTREE) {
-  log('Stage 1.2 SKIPPED (skip_worktree=true — staying on current branch)');
-  // Detect default branch lazily — only needed if Stage 13 merge is requested.
-  // For now set to empty; Stage 13 will detect it if do_merge=true.
-  DEFAULT_BRANCH = '';
-} else {
-  const defaultBranchResult = await agentWithRetry(
-    `Run this shell snippet in a single Bash call and report the result. ` +
-    `Do NOT interpret success — report exactly what bash returns, even on non-zero exit:\n\n` +
-    detectDefaultBranchSnippet(REPO_PATH) +
-    `\nReturn JSON: {"exit_code": int, "stdout": string (trimmed), "stderr": string (verbatim)}.`,
-    {
-      label: 'detect-default-branch',
-      phase: 'Stage 1 — Setup',
-      agentType: 'general-purpose',
-      schema: RAW_SHELL_SCHEMA,
-    },
+const defaultBranchResult = await agentWithRetry(
+  `Run this shell snippet in a single Bash call and report the result. ` +
+  `Do NOT interpret success — report exactly what bash returns, even on non-zero exit:\n\n` +
+  detectDefaultBranchSnippet(REPO_PATH) +
+  `\nReturn JSON: {"exit_code": int, "stdout": string (trimmed), "stderr": string (verbatim)}.`,
+  {
+    label: 'detect-default-branch',
+    phase: 'Stage 1 — Setup',
+    agentType: 'general-purpose',
+    schema: RAW_SHELL_SCHEMA,
+  },
+);
+if (defaultBranchResult.exit_code !== 0) {
+  throw new Error(
+    `Stage 1: cannot detect default branch (exit ${defaultBranchResult.exit_code}).\n` +
+    `stdout: ${defaultBranchResult.stdout || '(empty)'}\n` +
+    `stderr: ${defaultBranchResult.stderr || '(empty)'}`
   );
-  if (defaultBranchResult.exit_code !== 0) {
-    throw new Error(
-      `Stage 1: cannot detect default branch (exit ${defaultBranchResult.exit_code}).\n` +
-      `stdout: ${defaultBranchResult.stdout || '(empty)'}\n` +
-      `stderr: ${defaultBranchResult.stderr || '(empty)'}`
-    );
-  }
-  DEFAULT_BRANCH = defaultBranchResult.stdout.trim();
-  if (!DEFAULT_BRANCH) {
-    throw new Error(
-      `Stage 1: default-branch detection returned exit 0 but empty stdout.\n` +
-      `stderr: ${defaultBranchResult.stderr || '(empty)'}`
-    );
-  }
-  log(`Default branch resolved to: ${DEFAULT_BRANCH}`);
+}
+const DEFAULT_BRANCH = defaultBranchResult.stdout.trim();
+if (!DEFAULT_BRANCH) {
+  throw new Error(
+    `Stage 1: default-branch detection returned exit 0 but empty stdout.\n` +
+    `stderr: ${defaultBranchResult.stderr || '(empty)'}`
+  );
+}
+log(`Default branch resolved to: ${DEFAULT_BRANCH}`);
 
-  log('Stage 1.2 pull-latest: fetching origin and fast-forwarding default branch');
-  const pullResult = await agentWithRetry(
-    `Run this shell snippet in a single Bash call and report the result. ` +
-    `Do NOT auto-rebase, force-pull, or stash. Do NOT interpret success — report ` +
-    `exactly what bash returns, even on non-zero exit:\n\n` +
-    pullLatestSnippet(REPO_PATH, DEFAULT_BRANCH) +
-    `\nReturn JSON: {"exit_code": int, "stdout": string (verbatim), "stderr": string (verbatim)}.`,
-    {
-      label: 'pull-latest',
-      phase: 'Stage 1 — Setup',
-      agentType: 'general-purpose',
-      schema: RAW_SHELL_SCHEMA,
-    },
+log('Stage 1.2 pull-latest: fetching origin and fast-forwarding default branch');
+const pullResult = await agentWithRetry(
+  `Run this shell snippet in a single Bash call and report the result. ` +
+  `Do NOT auto-rebase, force-pull, or stash. Do NOT interpret success — report ` +
+  `exactly what bash returns, even on non-zero exit:\n\n` +
+  pullLatestSnippet(REPO_PATH, DEFAULT_BRANCH) +
+  `\nReturn JSON: {"exit_code": int, "stdout": string (verbatim), "stderr": string (verbatim)}.`,
+  {
+    label: 'pull-latest',
+    phase: 'Stage 1 — Setup',
+    agentType: 'general-purpose',
+    schema: RAW_SHELL_SCHEMA,
+  },
+);
+if (pullResult.exit_code !== 0) {
+  throw new Error(
+    `Stage 1: 'git pull --ff-only' failed on ${DEFAULT_BRANCH} (exit ${pullResult.exit_code}). ` +
+    `Resolve manually (divergence / dirty tree / detached HEAD) and retry.\n` +
+    `stdout:\n${pullResult.stdout || '(empty)'}\n` +
+    `stderr:\n${pullResult.stderr || '(empty)'}`
   );
-  if (pullResult.exit_code !== 0) {
-    throw new Error(
-      `Stage 1: 'git pull --ff-only' failed on ${DEFAULT_BRANCH} (exit ${pullResult.exit_code}). ` +
-      `Resolve manually (divergence / dirty tree / detached HEAD) and retry.\n` +
-      `stdout:\n${pullResult.stdout || '(empty)'}\n` +
-      `stderr:\n${pullResult.stderr || '(empty)'}`
-    );
-  }
 }
 
 // Step 1.3 — Spec index, name, identifier.
@@ -834,34 +794,26 @@ const specMeta = await agentWithRetry(
 log(`Spec identifier: ${specMeta.spec_identifier}`);
 
 // Step 1.4 — Create worktree and capture the absolute path.
-// When SKIP_WORKTREE=true (user is already on a feature branch), skip
-// worktree/branch creation and use REPO_PATH directly.
-let WORKTREE_PATH;
-if (SKIP_WORKTREE) {
-  log('Stage 1.4 worktree SKIPPED (skip_worktree=true — using repo path directly)');
-  WORKTREE_PATH = REPO_PATH;
-} else {
-  log('Stage 1.4 worktree');
-  const worktreeResult = await agentWithRetry(
-    `Run this exactly and return the trimmed stdout (which is the absolute worktree path):\n\n` +
-    worktreeAddSnippet(REPO_PATH, specMeta.spec_identifier) +
-    `\nReturn JSON: {"ok": bool, "worktree_path": string, "stderr": string}.`,
-    {
-      label: 'worktree-add',
-      phase: 'Stage 1 — Setup',
-      agentType: 'general-purpose',
-      schema: {
-        type: 'object',
-        required: ['ok'],
-        properties: { ok: { type: 'boolean' }, worktree_path: { type: 'string' }, stderr: { type: 'string' } },
-      },
+log('Stage 1.4 worktree');
+const worktreeResult = await agentWithRetry(
+  `Run this exactly and return the trimmed stdout (which is the absolute worktree path):\n\n` +
+  worktreeAddSnippet(REPO_PATH, specMeta.spec_identifier) +
+  `\nReturn JSON: {"ok": bool, "worktree_path": string, "stderr": string}.`,
+  {
+    label: 'worktree-add',
+    phase: 'Stage 1 — Setup',
+    agentType: 'general-purpose',
+    schema: {
+      type: 'object',
+      required: ['ok'],
+      properties: { ok: { type: 'boolean' }, worktree_path: { type: 'string' }, stderr: { type: 'string' } },
     },
-  );
-  if (!worktreeResult.ok) {
-    throw new Error(`Stage 1: 'git worktree add' failed — ${worktreeResult.stderr || 'unknown'}`);
-  }
-  WORKTREE_PATH = worktreeResult.worktree_path;
+  },
+);
+if (!worktreeResult.ok) {
+  throw new Error(`Stage 1: 'git worktree add' failed — ${worktreeResult.stderr || 'unknown'}`);
 }
+const WORKTREE_PATH = worktreeResult.worktree_path;
 const SPEC_DIRECTORY = `${WORKTREE_PATH}/specification/${specMeta.spec_identifier}`;
 
 // ---------------------------------------------------------------------------
@@ -989,8 +941,7 @@ await agentWithRetry(
 );
 
 // Step 1.6 — Worktree bootstrap. Copy .env files and install deps.
-// Runs even with SKIP_WORKTREE=true — the user's branch may still need
-// env files copied from the main repo and deps installed/updated.
+// The worktree needs env files copied from the main repo and deps installed.
 // Without this step the downstream gates fail in non-obvious ways: e.g.
 // gate-build.sh's `pnpm run build` fails with `next: command not found`
 // because the worktree has no node_modules even though the main repo does.
@@ -2633,8 +2584,6 @@ await updateTracking({
 // ---------------------------------------------------------------------------
 // Stage 11 — Documentation
 //   Sequential: docs-executor -> doc-validator(gate-docs-drift) -> handoff-writer.
-//   handoff-writer is skipped when args.skip_handoff is true (single-session
-//   completions don't need a resume document).
 // ---------------------------------------------------------------------------
 phase('Stage 11 — Documentation');
 await updateTracking({ stage: 11, status: 'in_progress', currentPhase: 'Stage 11 — Documentation' });
@@ -2683,27 +2632,23 @@ const docsGateLoop = await _gatedLoop({
 log(`Stage 11 docs: gate-docs-drift PASS (${docsGateLoop.iterations} iteration${docsGateLoop.iterations === 1 ? '' : 's'}).`);
 
 let handoff = null;
-if (SKIP_HANDOFF) {
-  log('Stage 11 handoff-writer skipped (args.skip_handoff=true).');
-} else {
-  log('Stage 11: handoff-writer');
-  const handoffName = docName('handoff.md');
-  handoff = await agentWithRetry(
-    `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
-    `Spec identifier: ${specMeta.spec_identifier}. Feature name: ${req.feature_name}.\n` +
-    `Write a pointer-based handoff to ${shellQuote(SPEC_DIRECTORY + '/' + handoffName)} for the ` +
-    `next AI agent session. Budget: under 300 lines. The next session will read Sections 2 ` +
-    `(Progress), 4 (Unfinished Items), and 7 (Next Steps) first — those three sections must ` +
-    `be 100% self-contained and actionable.`,
-    {
-      label: 'handoff-writer',
-      phase: 'Stage 11 — Documentation',
-      agentType: 'super-dev:handoff-writer',
-      schema: HANDOFF_OUTPUT,
-    },
-  );
-  log(`handoff-writer: ${handoff.lines} lines, ${(handoff.unfinished_items ?? []).length} unfinished item(s).`);
-}
+log('Stage 11: handoff-writer');
+const handoffName = docName('handoff.md');
+handoff = await agentWithRetry(
+  `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
+  `Spec identifier: ${specMeta.spec_identifier}. Feature name: ${req.feature_name}.\n` +
+  `Write a pointer-based handoff to ${shellQuote(SPEC_DIRECTORY + '/' + handoffName)} for the ` +
+  `next AI agent session. Budget: under 300 lines. The next session will read Sections 2 ` +
+  `(Progress), 4 (Unfinished Items), and 7 (Next Steps) first — those three sections must ` +
+  `be 100% self-contained and actionable.`,
+  {
+    label: 'handoff-writer',
+    phase: 'Stage 11 — Documentation',
+    agentType: 'super-dev:handoff-writer',
+    schema: HANDOFF_OUTPUT,
+  },
+);
+log(`handoff-writer: ${handoff.lines} lines, ${(handoff.unfinished_items ?? []).length} unfinished item(s).`);
 await updateTracking({
   stage: 11, status: 'complete', currentPhase: 'Stage 11 — Documentation',
   files: { created: [], modified: docsGateLoop.writer?.docs_updated || [], deleted: [] },
@@ -2713,9 +2658,6 @@ await updateTracking({
 // Stage 12 — Cleanup
 //   build-cleaner detects project type, scans for sensitive data (BLOCKING
 //   on any finding), then removes build artifacts and dependency caches.
-//   The workflow returns to the caller after this stage UNLESS args.do_merge
-//   is true — Stage 13 merge is gated behind explicit user confirmation
-//   because it mutates the user's main repo.
 // ---------------------------------------------------------------------------
 phase('Stage 12 — Cleanup');
 await updateTracking({ stage: 12, status: 'in_progress', currentPhase: 'Stage 12 — Cleanup' });
@@ -2738,8 +2680,7 @@ const cleanup = await agentWithRetry(
 if (cleanup.blocked) {
   // Graceful degradation: log the findings as a prominent WARNING but don't
   // kill the workflow. The final return includes the findings so the user can
-  // review before merging. Stage 13 merge (if do_merge=true) will still be
-  // gated on the user's explicit confirmation.
+  // review before merging.
   log(`⚠️  Stage 12 WARNING: sensitive-data findings (${cleanup.sensitive_data_findings.length} item(s)):`);
   for (const f of cleanup.sensitive_data_findings) {
     log(`  ⚠️  ${f.kind} in ${f.file}${f.line ? ':' + f.line : ''}`);
@@ -2754,13 +2695,11 @@ await updateTracking({
 });
 
 // ---------------------------------------------------------------------------
-// Stage 13 — Trailing commit + merge (gated behind args.do_merge)
+// Stage 13 — Trailing commit + merge instructions
 //   13.1 commit any remaining changes in the worktree (docs/handoff often
 //        land after the last per-phase commit; this captures them under a
 //        single chore() commit).
-//   13.2 (only if args.do_merge) checkout default branch in the MAIN repo,
-//        ff-only pull, merge --no-ff <spec branch>. Returns the merge SHA.
-//        Otherwise returns the merge command for the user/caller to run.
+//   13.2 print the manual merge command for the user to run.
 // ---------------------------------------------------------------------------
 phase('Stage 13 — Merge');
 await updateTracking({ stage: 13, status: 'in_progress', currentPhase: 'Stage 13 — Merge' });
@@ -2782,51 +2721,10 @@ const trailingCommit = await agentWithRetry(
 );
 log(`Stage 13.1: HEAD now ${trailingCommit.new_sha}${trailingCommit.skipped ? ' (no trailing changes)' : ''}`);
 
-let merge = null;
 const mergeMessage = `Merge spec ${specMeta.spec_identifier}: ${req.feature_name}`;
-// Lazy-detect default branch for Stage 13 if it wasn't resolved in Step 1.2
-// (happens when SKIP_WORKTREE=true).
-if (!DEFAULT_BRANCH && DO_MERGE) {
-  const dbResult = await agentWithRetry(
-    `Run this shell snippet and report the result:\n\n` +
-    detectDefaultBranchSnippet(REPO_PATH) +
-    `\nReturn JSON: {"exit_code": int, "stdout": string (trimmed), "stderr": string (verbatim)}.`,
-    { label: 'detect-default-branch-late', phase: 'Stage 13 — Merge', agentType: 'general-purpose', schema: RAW_SHELL_SCHEMA },
-  );
-  if (dbResult && dbResult.exit_code === 0 && dbResult.stdout.trim()) {
-    DEFAULT_BRANCH = dbResult.stdout.trim();
-  }
-}
-if (!DO_MERGE) {
-  log(`Stage 13.2 skipped (args.do_merge=false). To merge manually, run:`);
-  log(`  cd ${REPO_PATH} && git checkout ${DEFAULT_BRANCH || '<default-branch>'} && git pull --ff-only && \\`);
-  log(`    git merge --no-ff ${specMeta.spec_identifier} -m ${JSON.stringify(mergeMessage)}`);
-} else {
-  log('Stage 13.2: merging spec branch into default branch in the main repo');
-  const mergeResult = await agentWithRetry(
-    `Run exactly:\n${mergeSpecBranchSnippet(REPO_PATH, DEFAULT_BRANCH, specMeta.spec_identifier, mergeMessage)}\n` +
-    `Return JSON: {"ok": bool, "merge_sha": string, "stderr": string}.`,
-    {
-      label: 'stage-13:merge',
-      phase: 'Stage 13 — Merge',
-      agentType: 'general-purpose',
-      schema: {
-        type: 'object',
-        required: ['ok'],
-        properties: { ok: { type: 'boolean' }, merge_sha: { type: 'string' }, stderr: { type: 'string' } },
-      },
-    },
-  );
-  if (!mergeResult.ok) {
-    throw new Error(
-      `Stage 13: merge into ${DEFAULT_BRANCH} failed. ` +
-      `Resolve manually and re-run with args.do_merge=true if needed.\n` +
-      `git stderr:\n${mergeResult.stderr || '(empty)'}`
-    );
-  }
-  merge = { default_branch: DEFAULT_BRANCH, merge_sha: mergeResult.merge_sha };
-  log(`Stage 13 complete: merged at ${mergeResult.merge_sha} on ${DEFAULT_BRANCH}.`);
-}
+log(`Stage 13.2: To merge manually, run:`);
+log(`  cd ${REPO_PATH} && git checkout ${DEFAULT_BRANCH} && git pull --ff-only && \\`);
+log(`    git merge --no-ff ${specMeta.spec_identifier} -m ${JSON.stringify(mergeMessage)}`);
 await updateTracking({ stage: 13, status: 'complete', currentPhase: 'Stage 13 — Merge' });
 
 return {
@@ -2893,9 +2791,8 @@ return {
     new_sha: trailingCommit.new_sha,
     skipped: Boolean(trailingCommit.skipped),
   },
-  merge,
-  merged: Boolean(merge),
-  next_stage: merge ? null : 13,
+  merged: false,
+  next_stage: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -3123,17 +3020,11 @@ git rev-parse HEAD
  * when there is nothing to commit (e.g. tdd-guide only updated specs that
  * were already staged, or specialist made no source changes). This keeps
  * base_sha advancing without empty commits.
- *
- * When commitSpecDir=false, the specification/ directory is excluded from
- * the commit (useful when spec artifacts shouldn't enter repo history).
  */
 function commitPhaseSnippet(worktreePath, message) {
-  const addCmd = COMMIT_SPEC_DIR
-    ? `git add -A`
-    : `git add -A && git reset HEAD -- specification/ 2>/dev/null || true`;
   return `set -e
 cd ${shellQuote(worktreePath)}
-${addCmd}
+git add -A
 if git diff --cached --quiet; then
   echo "skip-commit:no-staged-changes" >&2
   git rev-parse HEAD
