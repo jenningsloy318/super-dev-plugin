@@ -19,25 +19,23 @@ license: MIT
 <orchestration-model>
   **Dynamic Workflow REQUIRED** (Claude Code v2.1.178+ / `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`).
 
-  The team-lead agent invokes ONE `Workflow` tool call with
-  `scriptPath="${PLUGIN_ROOT}/workflows/super-dev.workflow.js"` and the mode/parameter args.
+  **Invocation (MUST FOLLOW — NO EXCEPTIONS):**
+  Spawn the team-lead agent. It discovers the plugin path at runtime and invokes the workflow.
+  ```
+  Agent({
+    subagent_type: "super-dev:team-lead",
+    prompt: "<user's full message verbatim>"
+  })
+  ```
+  Do NOT call Workflow directly. Do NOT construct args yourself. Do NOT use ${PLUGIN_ROOT}
+  to build a scriptPath — the harness-resolved path is unreliable on some platforms.
+  The team-lead agent discovers the correct path via `find` and handles everything.
+
   The workflow runtime executes the script in an isolated environment; all per-stage data stays
   in script variables. Only the final compressed result returns to team-lead, which relays it
   to the user. Progress via `/workflows`.
 
   Caps: 16 concurrent subagents / 1000 total agents per workflow run (harness-enforced).
-
-  **Invocation (MUST FOLLOW):**
-  Spawn the team-lead agent. It handles arg construction + Workflow dispatch.
-  ```
-  Agent({
-    subagent_type: "super-dev:team-lead",
-    prompt: "<user's full message including any --flags>"
-  })
-  ```
-  Do NOT call Workflow directly. Do NOT construct args yourself. The team-lead agent
-  has tools (Bash, Read) to resolve paths, parse flags, detect language, and build
-  the correct JSON args object before invoking Workflow.
 </orchestration-model>
 
 <triggers>Triggers on: "implement", "build", "fix bug", "refactor", "add feature", "develop this", "help me build", "add functionality", "optimize performance", "resolve deprecation", "systematic development". Do NOT trigger on: simple questions, file searches, one-off commands, code explanations, quick edits, non-development tasks.</triggers>
