@@ -725,7 +725,8 @@ if (preflight.exit_code !== 0) {
 log(`super-dev plugin v${preflight.plugin_version} — preflight OK (${preflight.tail.trim()})`);
 
 // Step 1.2 — Pull latest. Detect default branch first; never hard-code 'main'.
-log('Stage 1.2 pull-latest: fetching origin and fast-forwarding default branch');
+// When SKIP_WORKTREE=true, still detect the default branch (needed for Stage 13
+// merge) but skip the pull — user is already on their feature branch.
 const RAW_SHELL_SCHEMA = {
   type: 'object',
   required: ['exit_code', 'stdout', 'stderr'],
@@ -765,26 +766,31 @@ if (!DEFAULT_BRANCH) {
 }
 log(`Default branch resolved to: ${DEFAULT_BRANCH}`);
 
-const pullResult = await agentWithRetry(
-  `Run this shell snippet in a single Bash call and report the result. ` +
-  `Do NOT auto-rebase, force-pull, or stash. Do NOT interpret success — report ` +
-  `exactly what bash returns, even on non-zero exit:\n\n` +
-  pullLatestSnippet(REPO_PATH, DEFAULT_BRANCH) +
-  `\nReturn JSON: {"exit_code": int, "stdout": string (verbatim), "stderr": string (verbatim)}.`,
-  {
-    label: 'pull-latest',
-    phase: 'Stage 1 — Setup',
-    agentType: 'general-purpose',
-    schema: RAW_SHELL_SCHEMA,
-  },
-);
-if (pullResult.exit_code !== 0) {
-  throw new Error(
-    `Stage 1: 'git pull --ff-only' failed on ${DEFAULT_BRANCH} (exit ${pullResult.exit_code}). ` +
-    `Resolve manually (divergence / dirty tree / detached HEAD) and retry.\n` +
-    `stdout:\n${pullResult.stdout || '(empty)'}\n` +
-    `stderr:\n${pullResult.stderr || '(empty)'}`
+if (SKIP_WORKTREE) {
+  log('Stage 1.2 pull-latest SKIPPED (skip_worktree=true — already on feature branch)');
+} else {
+  log('Stage 1.2 pull-latest: fetching origin and fast-forwarding default branch');
+  const pullResult = await agentWithRetry(
+    `Run this shell snippet in a single Bash call and report the result. ` +
+    `Do NOT auto-rebase, force-pull, or stash. Do NOT interpret success — report ` +
+    `exactly what bash returns, even on non-zero exit:\n\n` +
+    pullLatestSnippet(REPO_PATH, DEFAULT_BRANCH) +
+    `\nReturn JSON: {"exit_code": int, "stdout": string (verbatim), "stderr": string (verbatim)}.`,
+    {
+      label: 'pull-latest',
+      phase: 'Stage 1 — Setup',
+      agentType: 'general-purpose',
+      schema: RAW_SHELL_SCHEMA,
+    },
   );
+  if (pullResult.exit_code !== 0) {
+    throw new Error(
+      `Stage 1: 'git pull --ff-only' failed on ${DEFAULT_BRANCH} (exit ${pullResult.exit_code}). ` +
+      `Resolve manually (divergence / dirty tree / detached HEAD) and retry.\n` +
+      `stdout:\n${pullResult.stdout || '(empty)'}\n` +
+      `stderr:\n${pullResult.stderr || '(empty)'}`
+    );
+  }
 }
 
 // Step 1.3 — Spec index, name, identifier.
