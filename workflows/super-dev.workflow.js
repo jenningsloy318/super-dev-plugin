@@ -567,6 +567,27 @@ const CLEANUP_OUTPUT = {
 phase('Stage 1 — Setup');
 
 // ---------------------------------------------------------------------------
+// Retry wrapper — MUST be defined before any usage (const doesn't hoist).
+// Retries agent() calls up to MAX_RETRIES on null returns.
+// ---------------------------------------------------------------------------
+const MAX_RETRIES = 10;
+const agentWithRetry = async (prompt, opts) => {
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const effectivePrompt = attempt === 1
+      ? prompt
+      : `${prompt}\n\n[RETRY ${attempt}/${MAX_RETRIES}: Prior attempt(s) returned no result ` +
+        `(likely API timeout or rate limit). Simplify if possible. Attempt ${attempt}.]`;
+    const result = await agent(effectivePrompt, opts);
+    if (result !== null && result !== undefined) return result;
+    if (attempt < MAX_RETRIES) {
+      log(`[retry] ${opts?.label || 'agent'} returned null — attempt ${attempt}/${MAX_RETRIES}, retrying with backoff context...`);
+    }
+  }
+  log(`[retry] ${opts?.label || 'agent'} exhausted ${MAX_RETRIES} retries — returning null`);
+  return null;
+};
+
+// ---------------------------------------------------------------------------
 // Args normalization — the workflow MUST work even when args is undefined,
 // a string, or missing keys. This is the primary reliability layer: never
 // throw on missing args, always auto-discover.
@@ -639,42 +660,20 @@ if (!REQUEST) {
 }
 
 if (!PLUGIN_ROOT || !REPO_PATH) {
-  throw new Error(
-    `super-dev workflow: could not resolve paths after auto-discovery.\n` +
-    `plugin_root=${PLUGIN_ROOT || 'EMPTY'}, repo_path=${REPO_PATH || 'EMPTY'}.\n` +
-    `Ensure the plugin is installed under ~/.claude/plugins/ and you are in a git repo.`
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Retry wrapper — retries agent() calls up to MAX_RETRIES on null returns.
-// null = agent died on a terminal API error after the runtime's internal
-// retries. Common during long runs (network blips, rate limits, API outages).
-// Without this, a single transient failure kills the entire multi-hour workflow.
-//
-// Backoff strategy: since the Workflow runtime bans Date.now()/sleep, we use
-// progressive prompt enrichment — each retry appends failure context so the
-// agent is aware of prior failures and can adapt (e.g., simplify its approach,
-// avoid the tool that caused the timeout). This also naturally changes the
-// prompt hash on each attempt, preventing the resume cache from replaying
-// the same failure.
-// ---------------------------------------------------------------------------
-const MAX_RETRIES = 10;
-const agentWithRetry = async (prompt, opts) => {
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    const effectivePrompt = attempt === 1
-      ? prompt
-      : `${prompt}\n\n[RETRY ${attempt}/${MAX_RETRIES}: Prior attempt(s) returned no result ` +
-        `(likely API timeout or rate limit). Simplify if possible. Attempt ${attempt}.]`;
-    const result = await agent(effectivePrompt, opts);
-    if (result !== null && result !== undefined) return result;
-    if (attempt < MAX_RETRIES) {
-      log(`[retry] ${opts?.label || 'agent'} returned null — attempt ${attempt}/${MAX_RETRIES}, retrying with backoff context...`);
-    }
+  // Last resort: if auto-discovery agent also failed, try hardcoded common paths
+  if (!PLUGIN_ROOT) {
+    PLUGIN_ROOT = '/home/' + (REPO_PATH.split('/')[2] || 'user') + '/.claude/plugins/marketplaces/super-dev';
+    log(`[super-dev] WARNING: plugin_root discovery failed — using best-guess: ${PLUGIN_ROOT}`);
   }
-  log(`[retry] ${opts?.label || 'agent'} exhausted ${MAX_RETRIES} retries — returning null`);
-  return null;
-};
+  if (!REPO_PATH) {
+    // Cannot proceed without knowing where the repo is
+    throw new Error(
+      `super-dev workflow: could not determine repo_path (current working directory).\n` +
+      `The auto-discovery agent failed to run. Ensure the workflow is invoked with:\n` +
+      `  Workflow({scriptPath: "...", args: {request: "...", plugin_root: "...", repo_path: "..."}})`
+    );
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Stage 1 — Setup (continued — phase already declared above for auto-discovery)
