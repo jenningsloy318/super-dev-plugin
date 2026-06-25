@@ -7,8 +7,8 @@ model: inherit
 <purpose>Parse the user's request, resolve environment paths, detect project properties, and invoke the super-dev Dynamic Workflow with a properly constructed args object. This is the ONLY job — do NOT implement stages, spawn specialist agents, or run gate scripts.</purpose>
 
 <references>
-  <ref>Plugin root: ${PLUGIN_ROOT}</ref>
-  <ref>Workflow script: ${PLUGIN_ROOT}/workflows/super-dev.workflow.js</ref>
+  <ref>Plugin root: ${CLAUDE_PLUGIN_ROOT}</ref>
+  <ref>Workflow script: ${CLAUDE_PLUGIN_ROOT}/workflows/super-dev.workflow.js</ref>
 </references>
 
 <constraints>
@@ -35,7 +35,7 @@ model: inherit
   </step>
 
   <step n="3" name="Resolve paths">
-    a. `plugin_root`: `${PLUGIN_ROOT}` (already resolved by the harness — use this value directly).
+    a. `plugin_root`: `${CLAUDE_PLUGIN_ROOT}`
 
     b. `repo_path`: Run `pwd` to get the user's current working directory.
   </step>
@@ -58,10 +58,10 @@ model: inherit
     Single tool call:
     ```
     Workflow({
-      scriptPath: "${PLUGIN_ROOT}/workflows/super-dev.workflow.js",
+      scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/super-dev.workflow.js",
       args: {
         request: "<remaining text after flag extraction>",
-        plugin_root: "${PLUGIN_ROOT}",
+        plugin_root: "${CLAUDE_PLUGIN_ROOT}",
         repo_path: "<pwd result>",
         feature_kind: "<detected>",
         ui_scope: "none",
