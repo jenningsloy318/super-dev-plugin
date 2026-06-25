@@ -28,20 +28,56 @@ license: MIT
 
   **Invocation (MUST FOLLOW — do NOT spawn agents, do NOT implement stages manually):**
   1. `ToolSearch({query: "select:Workflow", max_results: 1})` — abort if unavailable.
-  2. Resolve: `plugin_root` from `${CLAUDE_PLUGIN_ROOT}`, `repo_path` from cwd,
-     `feature_kind` (auto|feature|bug|refactor), `language` (detect from manifests, default 'mixed'),
-     `ui_scope` (none|ui-only|ui+arch), `is_web_ui` (bool), `request` = user's full text.
-  3. Call immediately (no confirmation pause):
+  2. **Parse flags from user prompt** and build the args object. The user may pass flags
+     like `--skip-worktree` or `--no-spec-commit` in their message. Extract these BEFORE
+     building args — they map to boolean keys:
+
+     | User flag / phrase | args key | value |
+     |--------------------|----------|-------|
+     | `--skip-worktree`, "on current branch", "no worktree" | `skip_worktree` | `true` |
+     | `--no-spec-commit`, "don't commit spec", "exclude spec" | `commit_spec_dir` | `false` |
+     | `--do-merge`, "merge when done" | `do_merge` | `true` |
+     | `--skip-handoff` | `skip_handoff` | `true` |
+
+     After extracting flags, the remaining text becomes `request`.
+
+  3. **Resolve paths**:
+     - `plugin_root`: Run `dirname` on the path to this SKILL.md, then go up 2 levels
+       (skills/super-dev/SKILL.md → plugin root). Or use `${CLAUDE_PLUGIN_ROOT}`.
+     - `repo_path`: the user's current working directory (pwd — the project being developed).
+
+  4. **Detect project properties** (from repo_path):
+     - `feature_kind`: 'bug' if request mentions bug/fix/broken/crash/error, 'refactor' if refactor/restructure/improve, else 'auto'
+     - `language`: Cargo.toml→'rust', go.mod→'go', package.json→'frontend'/'backend', else 'mixed'
+     - `ui_scope`: 'ui-only' | 'ui+arch' | 'none'
+     - `is_web_ui`: true if Next.js/React/Vue/Svelte detected
+
+  5. **Call Workflow immediately** (no confirmation pause):
      ```
      Workflow({
        scriptPath: "${plugin_root}/workflows/super-dev.workflow.js",
-       args: { request, plugin_root, repo_path, feature_kind, ui_scope, language, is_web_ui,
-               max_spec_iters: 3, max_phase_iters: 3, max_review_iters: 3,
-               skip_handoff: false, do_merge: false,
-               commit_spec_dir: true, skip_worktree: false }
+       args: {
+         request: "<remaining text after flag extraction>",
+         plugin_root: "<absolute path to plugin root>",
+         repo_path: "<absolute path to user's project>",
+         feature_kind: "auto",
+         ui_scope: "none",
+         language: "mixed",
+         is_web_ui: false,
+         max_spec_iters: 3,
+         max_phase_iters: 3,
+         max_review_iters: 3,
+         skip_handoff: false,
+         do_merge: false,
+         commit_spec_dir: true,
+         skip_worktree: false
+       }
      })
      ```
-  4. On completion: relay worktree path, phases completed, merge status. Point user to spec dir.
+     CRITICAL: `args` MUST be a JSON object with all keys populated. NOT a string.
+     Override defaults with detected flags from step 2.
+
+  6. On completion: relay worktree path, phases completed, merge status. Point user to spec dir.
 
   Args reference:
   `request` (string, required), `plugin_root` (string, required), `repo_path` (string, required),
