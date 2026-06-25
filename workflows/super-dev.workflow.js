@@ -562,16 +562,18 @@ const CLEANUP_OUTPUT = {
 //                                //   Use when already on a feature branch. Default: false.
 //   }
 // ---------------------------------------------------------------------------
+
+// Phase MUST be declared before any agent() call — the runtime requires it.
+phase('Stage 1 — Setup');
+
 // ---------------------------------------------------------------------------
-// Args normalization — handle the case where the caller passes args as a
-// string (the main loop sometimes fails to construct the JSON object
-// despite SKILL.md instructions). Also handle missing plugin_root/repo_path
-// by inferring from the environment when possible.
+// Args normalization — the workflow MUST work even when args is undefined,
+// a string, or missing keys. This is the primary reliability layer: never
+// throw on missing args, always auto-discover.
 // ---------------------------------------------------------------------------
 let _args = args;
-log(`[args] Raw input: type=${typeof args}, value=${JSON.stringify(args)?.slice(0, 200)}`);
+log(`[super-dev] args received: type=${typeof args}`);
 if (typeof _args === 'string') {
-  log(`[args] received string instead of object — wrapping as {request: ...}`);
   _args = { request: _args };
 }
 if (!_args || typeof _args !== 'object') {
@@ -599,28 +601,20 @@ const DO_MERGE     = Boolean(_args.do_merge ?? false);
 const COMMIT_SPEC_DIR = Boolean(_args.commit_spec_dir ?? true);
 const SKIP_WORKTREE = Boolean(_args.skip_worktree ?? false);
 
-if (!REQUEST || !PLUGIN_ROOT || !REPO_PATH) {
-  // Attempt auto-discovery: spawn a quick agent to resolve missing paths.
-  // This handles the common case where the caller didn't construct the args
-  // object properly (passed a string, or omitted plugin_root/repo_path).
-  log(`[args] Missing required fields — attempting auto-discovery...`);
-  log(`[args] request=${REQUEST ? 'OK' : 'EMPTY'}, plugin_root=${PLUGIN_ROOT || 'EMPTY'}, repo_path=${REPO_PATH || 'EMPTY'}`);
-  log(`[args] Raw args type: ${typeof args}, _args keys: ${Object.keys(_args).join(',') || '(none)'}`);
-
+// Auto-discover missing paths — ALWAYS runs when plugin_root or repo_path is empty.
+// This is the primary path, not a fallback. The team-lead agent should pass these
+// but we don't depend on it.
+if (!PLUGIN_ROOT || !REPO_PATH) {
+  log(`[super-dev] Auto-discovering paths (plugin_root=${PLUGIN_ROOT || 'empty'}, repo_path=${REPO_PATH || 'empty'})`);
   const discovery = await agentWithRetry(
-    `Determine these two paths and return JSON:\n` +
-    `1. plugin_root: Find the super-dev plugin root directory. Look for a file called ` +
-    `   "workflows/super-dev.workflow.js" under ~/.claude/plugins/. The plugin root is ` +
-    `   the directory containing that workflows/ folder. Try these locations in order:\n` +
-    `   - ~/.claude/plugins/marketplaces/super-dev/\n` +
-    `   - ~/.claude/plugins/super-dev/\n` +
-    `   - ~/.claude/plugins/cache/super-dev/super-dev/\n` +
-    `   Run: find ~/.claude/plugins -name "super-dev.workflow.js" -path "*/workflows/*" 2>/dev/null | head -1\n` +
-    `   Then dirname twice to get the plugin root.\n` +
-    `2. repo_path: The user's current working directory. Run: pwd\n\n` +
-    `Return JSON: {"plugin_root": string, "repo_path": string}`,
+    `Run these two commands and return the results as JSON:\n` +
+    `1. Find the super-dev plugin root:\n` +
+    `   bash -c "find ~/.claude/plugins -name 'super-dev.workflow.js' -path '*/workflows/*' 2>/dev/null | head -1 | xargs dirname | xargs dirname"\n` +
+    `2. Get current working directory:\n` +
+    `   pwd\n\n` +
+    `Return JSON: {"plugin_root": "<result of command 1>", "repo_path": "<result of command 2>"}`,
     {
-      label: 'args-discovery',
+      label: 'discover-paths',
       phase: 'Stage 1 — Setup',
       agentType: 'general-purpose',
       schema: {
@@ -630,36 +624,26 @@ if (!REQUEST || !PLUGIN_ROOT || !REPO_PATH) {
       },
     },
   );
-
   if (discovery) {
-    if (!PLUGIN_ROOT && discovery.plugin_root) {
-      log(`[args] Auto-discovered plugin_root: ${discovery.plugin_root}`);
-    }
-    if (!REPO_PATH && discovery.repo_path) {
-      log(`[args] Auto-discovered repo_path: ${discovery.repo_path}`);
-    }
+    if (!PLUGIN_ROOT) PLUGIN_ROOT = discovery.plugin_root;
+    if (!REPO_PATH) REPO_PATH = discovery.repo_path;
   }
+  log(`[super-dev] After discovery: plugin_root=${PLUGIN_ROOT}, repo_path=${REPO_PATH}`);
+}
 
-  const effectivePluginRoot = PLUGIN_ROOT || discovery?.plugin_root || '';
-  const effectiveRepoPath = REPO_PATH || discovery?.repo_path || '';
-  const effectiveRequest = REQUEST || _args.request || JSON.stringify(_args) || '';
+// If request is still empty, use a generic placeholder — the requirements stage
+// will ask the user for details anyway.
+if (!REQUEST) {
+  REQUEST = _args.request || 'Implement the requested changes (see conversation context)';
+  log(`[super-dev] No explicit request in args — using placeholder. The requirements stage will clarify.`);
+}
 
-  if (!effectiveRequest || !effectivePluginRoot || !effectiveRepoPath) {
-    throw new Error(
-      `super-dev workflow: args must include {request, plugin_root, repo_path}.\n` +
-      `After auto-discovery: request=${effectiveRequest ? 'OK' : 'EMPTY'}, ` +
-      `plugin_root=${effectivePluginRoot || 'EMPTY'}, repo_path=${effectiveRepoPath || 'EMPTY'}.\n` +
-      `Raw args type: ${typeof args}, _args keys: ${Object.keys(_args).join(',') || '(none)'}.\n` +
-      `The caller MUST pass Workflow({scriptPath, args: {request: "...", plugin_root: "/...", repo_path: "/..."}}) ` +
-      `as a JSON object, not a string.`
-    );
-  }
-
-  // Patch the variables with discovered values
-  REQUEST = effectiveRequest;
-  PLUGIN_ROOT = effectivePluginRoot;
-  REPO_PATH = effectiveRepoPath;
-  log(`[args] Auto-discovery complete. Proceeding with: plugin_root=${PLUGIN_ROOT}, repo_path=${REPO_PATH}`);
+if (!PLUGIN_ROOT || !REPO_PATH) {
+  throw new Error(
+    `super-dev workflow: could not resolve paths after auto-discovery.\n` +
+    `plugin_root=${PLUGIN_ROOT || 'EMPTY'}, repo_path=${REPO_PATH || 'EMPTY'}.\n` +
+    `Ensure the plugin is installed under ~/.claude/plugins/ and you are in a git repo.`
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -693,9 +677,8 @@ const agentWithRetry = async (prompt, opts) => {
 };
 
 // ---------------------------------------------------------------------------
-// Stage 1 — Setup
+// Stage 1 — Setup (continued — phase already declared above for auto-discovery)
 // ---------------------------------------------------------------------------
-phase('Stage 1 — Setup');
 
 // Step 1.1 — Preflight env gate (must run BEFORE any other shell call).
 log('Stage 1.1 preflight: verifying CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 and Claude Code >= v2.1.178');
