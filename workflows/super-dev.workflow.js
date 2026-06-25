@@ -609,6 +609,17 @@ if (!_args || typeof _args !== 'object') {
   _args = {};
 }
 
+// Also parse flags from request field if team-lead embedded them there
+// instead of setting them as separate keys.
+if (_args.request && typeof _args.request === 'string') {
+  const req = _args.request;
+  if (/--skip-worktree/i.test(req) && _args.skip_worktree === undefined) _args.skip_worktree = true;
+  if (/--no-spec-commit/i.test(req) && _args.commit_spec_dir === undefined) _args.commit_spec_dir = false;
+  if (/--do-merge/i.test(req) && _args.do_merge === undefined) _args.do_merge = true;
+  if (/--skip-handoff/i.test(req) && _args.skip_handoff === undefined) _args.skip_handoff = true;
+  _args.request = req.replace(/--\S+/g, '').trim();
+}
+
 let REQUEST     = _args.request ?? '';
 let PLUGIN_ROOT = _args.plugin_root ?? '';
 let REPO_PATH   = _args.repo_path ?? '';
