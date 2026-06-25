@@ -569,8 +569,8 @@ const CLEANUP_OUTPUT = {
 // by inferring from the environment when possible.
 // ---------------------------------------------------------------------------
 let _args = args;
+log(`[args] Raw input: type=${typeof args}, value=${JSON.stringify(args)?.slice(0, 200)}`);
 if (typeof _args === 'string') {
-  // Caller passed args as a raw string — treat as the request text
   log(`[args] received string instead of object — wrapping as {request: ...}`);
   _args = { request: _args };
 }
@@ -607,7 +607,7 @@ if (!REQUEST || !PLUGIN_ROOT || !REPO_PATH) {
   log(`[args] request=${REQUEST ? 'OK' : 'EMPTY'}, plugin_root=${PLUGIN_ROOT || 'EMPTY'}, repo_path=${REPO_PATH || 'EMPTY'}`);
   log(`[args] Raw args type: ${typeof args}, _args keys: ${Object.keys(_args).join(',') || '(none)'}`);
 
-  const discovery = await agent(
+  const discovery = await agentWithRetry(
     `Determine these two paths and return JSON:\n` +
     `1. plugin_root: Find the super-dev plugin root directory. Look for a file called ` +
     `   "workflows/super-dev.workflow.js" under ~/.claude/plugins/. The plugin root is ` +
