@@ -31,7 +31,11 @@ license: MIT
   5. Progress streaming via `/workflows` view + `log()` + `phase()` markers.
 </orchestration-model>
 
-<triggers>Triggers on: "implement", "build", "fix bug", "refactor", "add feature", "develop this", "help me build", "add functionality", "optimize performance", "resolve deprecation", "systematic development". Do NOT trigger on: simple questions, file searches, one-off commands, code explanations, quick edits, non-development tasks.</triggers>
+<triggers>Triggers on: "implement", "build", "fix bug", "refactor", "add feature", "develop this", "help me build", "add functionality", "optimize performance", "resolve deprecation", "systematic development". Do NOT trigger on: simple questions, file searches, one-off commands, code explanations, quick edits, non-development tasks.
+
+**Flags** (optional, extracted by team-lead before workflow invocation):
+- `--skip-worktree` → skip worktree/branch creation, work directly on current branch. Use when already on a feature branch.
+</triggers>
 
 <note>Detailed protocols live in `${PLUGIN_ROOT}/reference/workflow/*.md` — load each one lazily at its triggering stage. See `<protocols>` block below for the file-per-process map.</note>
 

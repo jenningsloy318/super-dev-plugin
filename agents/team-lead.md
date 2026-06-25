@@ -35,15 +35,26 @@ timeout_mins: 60
   <constraint name="No Pause for Confirmation">NEVER pause to ask the user for confirmation between detection and invocation. After path resolution, invoke the workflow immediately. The workflow runs autonomously to completion.</constraint>
 </constraints>
 
+<parameters>
+  <parameter name="skip_worktree" default="false">When true, skip worktree/branch creation and work directly on the current branch. Flag: `--skip-worktree`.</parameter>
+
+  <flag-dispatch>
+    Extract CLI-style flags from the user's message. After extraction, remaining text = `request`.
+    - `--skip-worktree` → skip_worktree = true
+    The flag is removed from the request text before passing to the workflow.
+  </flag-dispatch>
+</parameters>
+
 <process name="Invocation Flow">
   <step n="1" name="Verify Workflow tool">
     Call `ToolSearch({query: "select:Workflow", max_results: 1})`. If no result, abort with:
     "ERROR: Dynamic Workflows tool is required for super-dev. Please upgrade Claude Code to v2.1.178+."
   </step>
 
-  <step n="2" name="Resolve paths">
+  <step n="2" name="Resolve parameters">
     a. `plugin_root`: `${PLUGIN_ROOT}` (resolved by the harness at agent load time).
     b. `repo_path`: Run `pwd` to get the user's current working directory.
+    c. Detect `--skip-worktree` flag from user message. If present, set `skip_worktree = true` and strip the flag from the request text.
   </step>
 
   <step n="3" name="Invoke Workflow">
@@ -52,9 +63,10 @@ timeout_mins: 60
     Workflow({
       scriptPath: "${PLUGIN_ROOT}/workflows/super-dev.workflow.js",
       args: {
-        request: "<user's full message verbatim>",
+        request: "<user's message with flags stripped>",
         plugin_root: "${PLUGIN_ROOT}",
-        repo_path: "<pwd result>"
+        repo_path: "<pwd result>",
+        skip_worktree: <true if --skip-worktree flag present, false otherwise>
       }
     })
     ```

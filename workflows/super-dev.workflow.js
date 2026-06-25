@@ -569,6 +569,7 @@ const MAX_REVIEW_ITERS = 3;
 const FEATURE_KIND = /\b(bug|fix|broken|crash|error|panic|fail|regression)\b/i.test(REQUEST) ? 'bug'
   : /\b(refactor|restructure|improve|cleanup|clean up)\b/i.test(REQUEST) ? 'refactor'
   : 'feature';
+const SKIP_WORKTREE = Boolean(_args.skip_worktree ?? false);
 // These are always auto-discovered by the workflow stages themselves
 const BUG_EVIDENCE = '';
 const INPUT_SAMPLES = [];
@@ -707,6 +708,7 @@ if (preflight.exit_code !== 0) {
 log(`super-dev plugin v${preflight.plugin_version} — preflight OK (${preflight.tail.trim()})`);
 
 // Step 1.2 — Pull latest. Detect default branch first; never hard-code 'main'.
+// When SKIP_WORKTREE=true, skip entirely — user is already on their feature branch.
 const RAW_SHELL_SCHEMA = {
   type: 'object',
   required: ['exit_code', 'stdout', 'stderr'],
@@ -718,55 +720,60 @@ const RAW_SHELL_SCHEMA = {
   },
 };
 
-const defaultBranchResult = await agentWithRetry(
-  `Run this shell snippet in a single Bash call and report the result. ` +
-  `Do NOT interpret success — report exactly what bash returns, even on non-zero exit:\n\n` +
-  detectDefaultBranchSnippet(REPO_PATH) +
-  `\nReturn JSON: {"exit_code": int, "stdout": string (trimmed), "stderr": string (verbatim)}.`,
-  {
-    label: 'detect-default-branch',
-    phase: 'Stage 1 — Setup',
-    agentType: 'general-purpose',
-    schema: RAW_SHELL_SCHEMA,
-  },
-);
-if (defaultBranchResult.exit_code !== 0) {
-  throw new Error(
-    `Stage 1: cannot detect default branch (exit ${defaultBranchResult.exit_code}).\n` +
-    `stdout: ${defaultBranchResult.stdout || '(empty)'}\n` +
-    `stderr: ${defaultBranchResult.stderr || '(empty)'}`
+let DEFAULT_BRANCH = '';
+if (SKIP_WORKTREE) {
+  log('Stage 1.2 SKIPPED (skip_worktree=true — staying on current branch)');
+} else {
+  const defaultBranchResult = await agentWithRetry(
+    `Run this shell snippet in a single Bash call and report the result. ` +
+    `Do NOT interpret success — report exactly what bash returns, even on non-zero exit:\n\n` +
+    detectDefaultBranchSnippet(REPO_PATH) +
+    `\nReturn JSON: {"exit_code": int, "stdout": string (trimmed), "stderr": string (verbatim)}.`,
+    {
+      label: 'detect-default-branch',
+      phase: 'Stage 1 — Setup',
+      agentType: 'general-purpose',
+      schema: RAW_SHELL_SCHEMA,
+    },
   );
-}
-const DEFAULT_BRANCH = defaultBranchResult.stdout.trim();
-if (!DEFAULT_BRANCH) {
-  throw new Error(
-    `Stage 1: default-branch detection returned exit 0 but empty stdout.\n` +
-    `stderr: ${defaultBranchResult.stderr || '(empty)'}`
-  );
-}
-log(`Default branch resolved to: ${DEFAULT_BRANCH}`);
+  if (defaultBranchResult.exit_code !== 0) {
+    throw new Error(
+      `Stage 1: cannot detect default branch (exit ${defaultBranchResult.exit_code}).\n` +
+      `stdout: ${defaultBranchResult.stdout || '(empty)'}\n` +
+      `stderr: ${defaultBranchResult.stderr || '(empty)'}`
+    );
+  }
+  DEFAULT_BRANCH = defaultBranchResult.stdout.trim();
+  if (!DEFAULT_BRANCH) {
+    throw new Error(
+      `Stage 1: default-branch detection returned exit 0 but empty stdout.\n` +
+      `stderr: ${defaultBranchResult.stderr || '(empty)'}`
+    );
+  }
+  log(`Default branch resolved to: ${DEFAULT_BRANCH}`);
 
-log('Stage 1.2 pull-latest: fetching origin and fast-forwarding default branch');
-const pullResult = await agentWithRetry(
-  `Run this shell snippet in a single Bash call and report the result. ` +
-  `Do NOT auto-rebase, force-pull, or stash. Do NOT interpret success — report ` +
-  `exactly what bash returns, even on non-zero exit:\n\n` +
-  pullLatestSnippet(REPO_PATH, DEFAULT_BRANCH) +
-  `\nReturn JSON: {"exit_code": int, "stdout": string (verbatim), "stderr": string (verbatim)}.`,
-  {
-    label: 'pull-latest',
-    phase: 'Stage 1 — Setup',
-    agentType: 'general-purpose',
-    schema: RAW_SHELL_SCHEMA,
-  },
-);
-if (pullResult.exit_code !== 0) {
-  throw new Error(
-    `Stage 1: 'git pull --ff-only' failed on ${DEFAULT_BRANCH} (exit ${pullResult.exit_code}). ` +
-    `Resolve manually (divergence / dirty tree / detached HEAD) and retry.\n` +
-    `stdout:\n${pullResult.stdout || '(empty)'}\n` +
-    `stderr:\n${pullResult.stderr || '(empty)'}`
+  log('Stage 1.2 pull-latest: fetching origin and fast-forwarding default branch');
+  const pullResult = await agentWithRetry(
+    `Run this shell snippet in a single Bash call and report the result. ` +
+    `Do NOT auto-rebase, force-pull, or stash. Do NOT interpret success — report ` +
+    `exactly what bash returns, even on non-zero exit:\n\n` +
+    pullLatestSnippet(REPO_PATH, DEFAULT_BRANCH) +
+    `\nReturn JSON: {"exit_code": int, "stdout": string (verbatim), "stderr": string (verbatim)}.`,
+    {
+      label: 'pull-latest',
+      phase: 'Stage 1 — Setup',
+      agentType: 'general-purpose',
+      schema: RAW_SHELL_SCHEMA,
+    },
   );
+  if (pullResult.exit_code !== 0) {
+    throw new Error(
+      `Stage 1: 'git pull --ff-only' failed on ${DEFAULT_BRANCH} (exit ${pullResult.exit_code}). ` +
+      `Resolve manually (divergence / dirty tree / detached HEAD) and retry.\n` +
+      `stdout:\n${pullResult.stdout || '(empty)'}\n` +
+      `stderr:\n${pullResult.stderr || '(empty)'}`
+    );
+  }
 }
 
 // Step 1.3 — Spec index, name, identifier.
@@ -794,26 +801,33 @@ const specMeta = await agentWithRetry(
 log(`Spec identifier: ${specMeta.spec_identifier}`);
 
 // Step 1.4 — Create worktree and capture the absolute path.
-log('Stage 1.4 worktree');
-const worktreeResult = await agentWithRetry(
-  `Run this exactly and return the trimmed stdout (which is the absolute worktree path):\n\n` +
-  worktreeAddSnippet(REPO_PATH, specMeta.spec_identifier) +
-  `\nReturn JSON: {"ok": bool, "worktree_path": string, "stderr": string}.`,
-  {
-    label: 'worktree-add',
-    phase: 'Stage 1 — Setup',
-    agentType: 'general-purpose',
-    schema: {
-      type: 'object',
-      required: ['ok'],
-      properties: { ok: { type: 'boolean' }, worktree_path: { type: 'string' }, stderr: { type: 'string' } },
+// When SKIP_WORKTREE=true, use REPO_PATH directly (user is on their feature branch).
+let WORKTREE_PATH;
+if (SKIP_WORKTREE) {
+  log('Stage 1.4 worktree SKIPPED (skip_worktree=true — using repo path directly)');
+  WORKTREE_PATH = REPO_PATH;
+} else {
+  log('Stage 1.4 worktree');
+  const worktreeResult = await agentWithRetry(
+    `Run this exactly and return the trimmed stdout (which is the absolute worktree path):\n\n` +
+    worktreeAddSnippet(REPO_PATH, specMeta.spec_identifier) +
+    `\nReturn JSON: {"ok": bool, "worktree_path": string, "stderr": string}.`,
+    {
+      label: 'worktree-add',
+      phase: 'Stage 1 — Setup',
+      agentType: 'general-purpose',
+      schema: {
+        type: 'object',
+        required: ['ok'],
+        properties: { ok: { type: 'boolean' }, worktree_path: { type: 'string' }, stderr: { type: 'string' } },
+      },
     },
-  },
-);
-if (!worktreeResult.ok) {
-  throw new Error(`Stage 1: 'git worktree add' failed — ${worktreeResult.stderr || 'unknown'}`);
+  );
+  if (!worktreeResult.ok) {
+    throw new Error(`Stage 1: 'git worktree add' failed — ${worktreeResult.stderr || 'unknown'}`);
+  }
+  WORKTREE_PATH = worktreeResult.worktree_path;
 }
-const WORKTREE_PATH = worktreeResult.worktree_path;
 const SPEC_DIRECTORY = `${WORKTREE_PATH}/specification/${specMeta.spec_identifier}`;
 
 // ---------------------------------------------------------------------------
