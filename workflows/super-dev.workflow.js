@@ -578,9 +578,9 @@ if (!_args || typeof _args !== 'object') {
   _args = {};
 }
 
-const REQUEST     = _args.request ?? '';
-const PLUGIN_ROOT = _args.plugin_root ?? '';
-const REPO_PATH   = _args.repo_path ?? '';
+let REQUEST     = _args.request ?? '';
+let PLUGIN_ROOT = _args.plugin_root ?? '';
+let REPO_PATH   = _args.repo_path ?? '';
 const FEATURE_KIND = _args.feature_kind ?? 'auto';
 const UI_SCOPE    = _args.ui_scope ?? 'none';
 const BUG_EVIDENCE = _args.bug_evidence ?? '';
@@ -600,14 +600,66 @@ const COMMIT_SPEC_DIR = Boolean(_args.commit_spec_dir ?? true);
 const SKIP_WORKTREE = Boolean(_args.skip_worktree ?? false);
 
 if (!REQUEST || !PLUGIN_ROOT || !REPO_PATH) {
-  throw new Error(
-    `super-dev workflow: args must include {request, plugin_root, repo_path}.\n` +
-    `Received: request=${REQUEST ? 'OK' : 'EMPTY'}, plugin_root=${PLUGIN_ROOT || 'EMPTY'}, ` +
-    `repo_path=${REPO_PATH || 'EMPTY'}.\n` +
-    `Raw args type: ${typeof args}, keys: ${args && typeof args === 'object' ? Object.keys(args).join(',') : '(not an object)'}.\n` +
-    `The caller MUST pass Workflow({scriptPath, args: {request: "...", plugin_root: "/...", repo_path: "/..."}}) ` +
-    `as a JSON object, not a string.`
+  // Attempt auto-discovery: spawn a quick agent to resolve missing paths.
+  // This handles the common case where the caller didn't construct the args
+  // object properly (passed a string, or omitted plugin_root/repo_path).
+  log(`[args] Missing required fields — attempting auto-discovery...`);
+  log(`[args] request=${REQUEST ? 'OK' : 'EMPTY'}, plugin_root=${PLUGIN_ROOT || 'EMPTY'}, repo_path=${REPO_PATH || 'EMPTY'}`);
+  log(`[args] Raw args type: ${typeof args}, _args keys: ${Object.keys(_args).join(',') || '(none)'}`);
+
+  const discovery = await agent(
+    `Determine these two paths and return JSON:\n` +
+    `1. plugin_root: Find the super-dev plugin root directory. Look for a file called ` +
+    `   "workflows/super-dev.workflow.js" under ~/.claude/plugins/. The plugin root is ` +
+    `   the directory containing that workflows/ folder. Try these locations in order:\n` +
+    `   - ~/.claude/plugins/marketplaces/super-dev/\n` +
+    `   - ~/.claude/plugins/super-dev/\n` +
+    `   - ~/.claude/plugins/cache/super-dev/super-dev/\n` +
+    `   Run: find ~/.claude/plugins -name "super-dev.workflow.js" -path "*/workflows/*" 2>/dev/null | head -1\n` +
+    `   Then dirname twice to get the plugin root.\n` +
+    `2. repo_path: The user's current working directory. Run: pwd\n\n` +
+    `Return JSON: {"plugin_root": string, "repo_path": string}`,
+    {
+      label: 'args-discovery',
+      phase: 'Stage 1 — Setup',
+      agentType: 'general-purpose',
+      schema: {
+        type: 'object',
+        required: ['plugin_root', 'repo_path'],
+        properties: { plugin_root: { type: 'string' }, repo_path: { type: 'string' } },
+      },
+    },
   );
+
+  if (discovery) {
+    if (!PLUGIN_ROOT && discovery.plugin_root) {
+      log(`[args] Auto-discovered plugin_root: ${discovery.plugin_root}`);
+    }
+    if (!REPO_PATH && discovery.repo_path) {
+      log(`[args] Auto-discovered repo_path: ${discovery.repo_path}`);
+    }
+  }
+
+  const effectivePluginRoot = PLUGIN_ROOT || discovery?.plugin_root || '';
+  const effectiveRepoPath = REPO_PATH || discovery?.repo_path || '';
+  const effectiveRequest = REQUEST || _args.request || JSON.stringify(_args) || '';
+
+  if (!effectiveRequest || !effectivePluginRoot || !effectiveRepoPath) {
+    throw new Error(
+      `super-dev workflow: args must include {request, plugin_root, repo_path}.\n` +
+      `After auto-discovery: request=${effectiveRequest ? 'OK' : 'EMPTY'}, ` +
+      `plugin_root=${effectivePluginRoot || 'EMPTY'}, repo_path=${effectiveRepoPath || 'EMPTY'}.\n` +
+      `Raw args type: ${typeof args}, _args keys: ${Object.keys(_args).join(',') || '(none)'}.\n` +
+      `The caller MUST pass Workflow({scriptPath, args: {request: "...", plugin_root: "/...", repo_path: "/..."}}) ` +
+      `as a JSON object, not a string.`
+    );
+  }
+
+  // Patch the variables with discovered values
+  REQUEST = effectiveRequest;
+  PLUGIN_ROOT = effectivePluginRoot;
+  REPO_PATH = effectiveRepoPath;
+  log(`[args] Auto-discovery complete. Proceeding with: plugin_root=${PLUGIN_ROOT}, repo_path=${REPO_PATH}`);
 }
 
 // ---------------------------------------------------------------------------
