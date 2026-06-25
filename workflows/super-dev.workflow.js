@@ -565,11 +565,20 @@ const MAX_SPEC_TRACE_ITERS = 3;
 const MAX_PHASE_ITERS = 3;
 const MAX_REVIEW_ITERS = 3;
 
+// Parse --skip-worktree from args key OR from request text (fallback if team-lead
+// embeds the flag in the request string instead of extracting it).
+const SKIP_WORKTREE = Boolean(
+  _args.skip_worktree ?? /--skip-worktree/i.test(REQUEST)
+);
+// Strip the flag from request text so downstream stages don't see it
+if (/--skip-worktree/i.test(REQUEST)) {
+  REQUEST = REQUEST.replace(/--skip-worktree/gi, '').trim();
+}
+
 // Auto-detect feature_kind from request text
 const FEATURE_KIND = /\b(bug|fix|broken|crash|error|panic|fail|regression)\b/i.test(REQUEST) ? 'bug'
   : /\b(refactor|restructure|improve|cleanup|clean up)\b/i.test(REQUEST) ? 'refactor'
   : 'feature';
-const SKIP_WORKTREE = Boolean(_args.skip_worktree ?? false);
 // These are always auto-discovered by the workflow stages themselves
 const BUG_EVIDENCE = '';
 const INPUT_SAMPLES = [];
@@ -955,61 +964,62 @@ await agentWithRetry(
 );
 
 // Step 1.6 — Worktree bootstrap. Copy .env files and install deps.
-// The worktree needs env files copied from the main repo and deps installed.
-// Without this step the downstream gates fail in non-obvious ways: e.g.
-// gate-build.sh's `pnpm run build` fails with `next: command not found`
-// because the worktree has no node_modules even though the main repo does.
-// Polyglot monorepos with workspace package managers are especially fragile
-// here — qa-agent installs JS deps when the phase is JS-heavy, but a Go-
-// only phase skips the JS install and gate-build still tries to build the
-// frontend. Doing this once at Stage 1 means every downstream stage finds
-// a usable workspace.
-//
-// Both recipes are idempotent. If you resume a workflow, the bootstrap
-// re-runs but no-ops on already-installed deps and re-copies env files
-// (cheap, deterministic).
-log('Stage 1.6 worktree bootstrap: copy .env files + install dependencies');
-const bootstrapResult = await agentWithRetry(
-  `Run the following two recipes in sequence. After each, report the captured ` +
-  `stdout lines verbatim — those tell the user what was copied/installed.\n\n` +
-  `--- Recipe 1: copy .env files ---\n` +
-  `\`\`\`bash\n${ENV_COPY_RECIPE}\`\`\`\n` +
-  `--- Recipe 2: install dependencies ---\n` +
-  `\`\`\`bash\n${INSTALL_DEPS_RECIPE}\`\`\`\n` +
-  `Return JSON: {"env_files_copied": int, "manifests_installed": int, ` +
-  `"install_errors": [string], "summary": string}. Count "copied <rel>" lines ` +
-  `for env_files_copied. Count "installed <manifest> in <dir>" lines for ` +
-  `manifests_installed (NOT "skipped" lines). Collect any "ERROR installing" ` +
-  `lines into install_errors verbatim. Do not retry on failure — surface the ` +
-  `errors so the user sees them.`,
-  {
-    label: 'worktree-bootstrap',
-    phase: 'Stage 1 — Setup',
-    agentType: 'general-purpose',
-    schema: {
-      type: 'object',
-      required: ['env_files_copied', 'manifests_installed', 'install_errors', 'summary'],
-      additionalProperties: false,
-      properties: {
-        env_files_copied:    { type: 'integer', minimum: 0 },
-        manifests_installed: { type: 'integer', minimum: 0 },
-        install_errors:      { type: 'array', items: { type: 'string' } },
-        summary:             { type: 'string' },
+// Skip when SKIP_WORKTREE=true — the user's repo already has deps installed.
+if (SKIP_WORKTREE) {
+  log('Stage 1.6 worktree bootstrap SKIPPED (skip_worktree=true — repo already set up)');
+} else {
+  // The worktree needs env files copied from the main repo and deps installed.
+  // Without this step the downstream gates fail in non-obvious ways: e.g.
+  // gate-build.sh's `pnpm run build` fails with `next: command not found`
+  // because the worktree has no node_modules even though the main repo does.
+  // Polyglot monorepos with workspace package managers are especially fragile
+  // here — qa-agent installs JS deps when the phase is JS-heavy, but a Go-
+  // only phase skips the JS install and gate-build still tries to build the
+  // frontend. Doing this once at Stage 1 means every downstream stage finds
+  // a usable workspace.
+  //
+  // Both recipes are idempotent. If you resume a workflow, the bootstrap
+  // re-runs but no-ops on already-installed deps and re-copies env files
+  // (cheap, deterministic).
+  log('Stage 1.6 worktree bootstrap: copy .env files + install dependencies');
+  const bootstrapResult = await agentWithRetry(
+    `Run the following two recipes in sequence. After each, report the captured ` +
+    `stdout lines verbatim — those tell the user what was copied/installed.\n\n` +
+    `--- Recipe 1: copy .env files ---\n` +
+    `\`\`\`bash\n${ENV_COPY_RECIPE}\`\`\`\n` +
+    `--- Recipe 2: install dependencies ---\n` +
+    `\`\`\`bash\n${INSTALL_DEPS_RECIPE}\`\`\`\n` +
+    `Return JSON: {"env_files_copied": int, "manifests_installed": int, ` +
+    `"install_errors": [string], "summary": string}. Count "copied <rel>" lines ` +
+    `for env_files_copied. Count "installed <manifest> in <dir>" lines for ` +
+    `manifests_installed (NOT "skipped" lines). Collect any "ERROR installing" ` +
+    `lines into install_errors verbatim. Do not retry on failure — surface the ` +
+    `errors so the user sees them.`,
+    {
+      label: 'worktree-bootstrap',
+      phase: 'Stage 1 — Setup',
+      agentType: 'general-purpose',
+      schema: {
+        type: 'object',
+        required: ['env_files_copied', 'manifests_installed', 'install_errors', 'summary'],
+        additionalProperties: false,
+        properties: {
+          env_files_copied:    { type: 'integer', minimum: 0 },
+          manifests_installed: { type: 'integer', minimum: 0 },
+          install_errors:      { type: 'array', items: { type: 'string' } },
+          summary:             { type: 'string' },
+        },
       },
     },
-  },
-);
-if (bootstrapResult.install_errors.length > 0) {
-  // Don't throw — installation errors for ONE manifest shouldn't block the
-  // whole workflow (a project may have legacy/optional manifests that fail
-  // to install on this OS). Surface them loudly and let downstream gates
-  // decide. gate-build will fail naturally if the install gap matters.
-  log(`Stage 1.6 had ${bootstrapResult.install_errors.length} install error(s):`);
-  for (const err of bootstrapResult.install_errors) log(`  - ${err}`);
-  log(`  Downstream gates (gate-build, qa, e2e) may still fail. Continuing.`);
+  );
+  if (bootstrapResult.install_errors.length > 0) {
+    log(`Stage 1.6 had ${bootstrapResult.install_errors.length} install error(s):`);
+    for (const err of bootstrapResult.install_errors) log(`  - ${err}`);
+    log(`  Downstream gates (gate-build, qa, e2e) may still fail. Continuing.`);
+  }
+  log(`Stage 1.6 complete: ${bootstrapResult.env_files_copied} env file(s) copied, ` +
+      `${bootstrapResult.manifests_installed} manifest(s) installed.`);
 }
-log(`Stage 1.6 complete: ${bootstrapResult.env_files_copied} env file(s) copied, ` +
-    `${bootstrapResult.manifests_installed} manifest(s) installed.`);
 
 log(`Stage 1 complete. Worktree: ${WORKTREE_PATH}`);
 log(`Spec dir: ${SPEC_DIRECTORY}`);
