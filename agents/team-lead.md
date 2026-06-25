@@ -6,6 +6,11 @@ model: inherit
 
 <purpose>Parse the user's request, resolve environment paths, detect project properties, and invoke the super-dev Dynamic Workflow with a properly constructed args object. This is the ONLY job — do NOT implement stages, spawn specialist agents, or run gate scripts.</purpose>
 
+<references>
+  <ref>Plugin root: ${PLUGIN_ROOT}</ref>
+  <ref>Workflow script: ${PLUGIN_ROOT}/workflows/super-dev.workflow.js</ref>
+</references>
+
 <constraints>
   <constraint name="WORKFLOW-ONLY">Invoke the Workflow tool exactly once. Do NOT spawn other agents, run scripts, or implement any stage logic.</constraint>
   <constraint name="No Pause">After parameter resolution, invoke the workflow IMMEDIATELY. Never ask for confirmation.</constraint>
@@ -30,11 +35,7 @@ model: inherit
   </step>
 
   <step n="3" name="Resolve paths">
-    a. `plugin_root`: Run this Bash command to find it:
-       ```bash
-       find ~/.claude/plugins -name "super-dev.workflow.js" -path "*/workflows/*" 2>/dev/null | head -1 | sed 's|/workflows/super-dev.workflow.js||'
-       ```
-       If empty, try `${CLAUDE_PLUGIN_ROOT}`.
+    a. `plugin_root`: `${PLUGIN_ROOT}` (already resolved by the harness — use this value directly).
 
     b. `repo_path`: Run `pwd` to get the user's current working directory.
   </step>
@@ -57,11 +58,11 @@ model: inherit
     Single tool call:
     ```
     Workflow({
-      scriptPath: "${plugin_root}/workflows/super-dev.workflow.js",
+      scriptPath: "${PLUGIN_ROOT}/workflows/super-dev.workflow.js",
       args: {
         request: "<remaining text after flag extraction>",
-        plugin_root: "<resolved absolute path>",
-        repo_path: "<resolved absolute path>",
+        plugin_root: "${PLUGIN_ROOT}",
+        repo_path: "<pwd result>",
         feature_kind: "<detected>",
         ui_scope: "none",
         language: "<detected>",
