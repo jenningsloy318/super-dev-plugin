@@ -589,13 +589,21 @@ const agentWithRetry = async (prompt, opts) => {
 
 // ---------------------------------------------------------------------------
 // Args normalization — the workflow MUST work even when args is undefined,
-// a string, or missing keys. This is the primary reliability layer: never
-// throw on missing args, always auto-discover.
+// a string, or missing keys. When invoked by name (not scriptPath), agent()
+// calls may return null instantly. Parse flags inline without agents.
 // ---------------------------------------------------------------------------
 let _args = args;
 log(`[super-dev] args received: type=${typeof args}`);
 if (typeof _args === 'string') {
-  _args = { request: _args };
+  log(`[super-dev] parsing string args inline`);
+  const text = _args;
+  _args = {
+    request: text.replace(/--\S+/g, '').trim(),
+    skip_worktree: /--skip-worktree/i.test(text),
+    commit_spec_dir: !/--no-spec-commit/i.test(text),
+    do_merge: /--do-merge/i.test(text),
+    skip_handoff: /--skip-handoff/i.test(text),
+  };
 }
 if (!_args || typeof _args !== 'object') {
   _args = {};
@@ -622,11 +630,10 @@ const DO_MERGE     = Boolean(_args.do_merge ?? false);
 const COMMIT_SPEC_DIR = Boolean(_args.commit_spec_dir ?? true);
 const SKIP_WORKTREE = Boolean(_args.skip_worktree ?? false);
 
-// Auto-discover missing paths — ALWAYS runs when plugin_root or repo_path is empty.
-// This is the primary path, not a fallback. The team-lead agent should pass these
-// but we don't depend on it.
+// Auto-discover missing paths via agent. If agents return null (0s invocation
+// by name), fall back to ${PLUGIN_ROOT} harness variable.
 if (!PLUGIN_ROOT || !REPO_PATH) {
-  log(`[super-dev] Auto-discovering paths (plugin_root=${PLUGIN_ROOT || 'empty'}, repo_path=${REPO_PATH || 'empty'})`);
+  log(`[super-dev] Auto-discovering paths...`);
   const discovery = await agentWithRetry(
     `Run these two commands and return the results as JSON:\n` +
     `1. Find the super-dev plugin root:\n` +
