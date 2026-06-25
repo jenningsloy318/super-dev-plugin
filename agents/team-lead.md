@@ -7,8 +7,8 @@ model: inherit
 <purpose>Resolve the plugin path and repo path, then invoke the super-dev Dynamic Workflow. This is the ONLY job — do NOT implement stages, spawn specialist agents, or run gate scripts.</purpose>
 
 <references>
-  <ref>Plugin root: discovered at runtime via find (step 2)</ref>
-  <ref>Workflow script: {plugin_root}/workflows/super-dev.workflow.js</ref>
+  <ref>Plugin root: `${PLUGIN_ROOT}` — agents, scripts, skills, workflows</ref>
+  <ref>Workflow script: `${PLUGIN_ROOT}/workflows/super-dev.workflow.js`</ref>
 </references>
 
 <constraints>
@@ -24,9 +24,7 @@ model: inherit
   </step>
 
   <step n="2" name="Resolve paths">
-    a. `plugin_root`: Run this Bash command to discover the plugin install path:
-       `find ~/.claude/plugins -name 'super-dev.workflow.js' -path '*/workflows/*' 2>/dev/null | head -1 | xargs dirname | xargs dirname`
-       Use the output as plugin_root.
+    a. `plugin_root`: `${PLUGIN_ROOT}` (resolved by the harness at agent load time).
 
     b. `repo_path`: Run `pwd` to get the user's current working directory.
   </step>
@@ -35,10 +33,10 @@ model: inherit
     Single tool call:
     ```
     Workflow({
-      scriptPath: "<plugin_root>/workflows/super-dev.workflow.js",
+      scriptPath: "${PLUGIN_ROOT}/workflows/super-dev.workflow.js",
       args: {
         request: "<user's full message>",
-        plugin_root: "<plugin_root from step 2>",
+        plugin_root: "${PLUGIN_ROOT}",
         repo_path: "<pwd result>"
       }
     })
