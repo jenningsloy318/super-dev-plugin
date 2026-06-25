@@ -592,14 +592,25 @@ if (!REQUEST || !PLUGIN_ROOT || !REPO_PATH) {
 // null = agent died on a terminal API error after the runtime's internal
 // retries. Common during long runs (network blips, rate limits, API outages).
 // Without this, a single transient failure kills the entire multi-hour workflow.
+//
+// Backoff strategy: since the Workflow runtime bans Date.now()/sleep, we use
+// progressive prompt enrichment — each retry appends failure context so the
+// agent is aware of prior failures and can adapt (e.g., simplify its approach,
+// avoid the tool that caused the timeout). This also naturally changes the
+// prompt hash on each attempt, preventing the resume cache from replaying
+// the same failure.
 // ---------------------------------------------------------------------------
 const MAX_RETRIES = 10;
 const agentWithRetry = async (prompt, opts) => {
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    const result = await agent(prompt, opts);
+    const effectivePrompt = attempt === 1
+      ? prompt
+      : `${prompt}\n\n[RETRY ${attempt}/${MAX_RETRIES}: Prior attempt(s) returned no result ` +
+        `(likely API timeout or rate limit). Simplify if possible. Attempt ${attempt}.]`;
+    const result = await agent(effectivePrompt, opts);
     if (result !== null && result !== undefined) return result;
     if (attempt < MAX_RETRIES) {
-      log(`[retry] ${opts?.label || 'agent'} returned null — attempt ${attempt}/${MAX_RETRIES}, retrying...`);
+      log(`[retry] ${opts?.label || 'agent'} returned null — attempt ${attempt}/${MAX_RETRIES}, retrying with backoff context...`);
     }
   }
   log(`[retry] ${opts?.label || 'agent'} exhausted ${MAX_RETRIES} retries — returning null`);
@@ -1046,6 +1057,14 @@ async function updateTracking(opts) {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
+// Stable prompt prefix — front-loaded so downstream agent() prompts benefit
+// from the Workflow runtime's prompt caching (prefix matching). Varying
+// context (iteration guidance, gate errors) goes AFTER this block.
+// ---------------------------------------------------------------------------
+const STABLE_PREFIX =
+  `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n`;
+
+// ---------------------------------------------------------------------------
 // Document index counter — file prefixes follow "max existing + 1" rule.
 // We track the next prefix in JS so we don't have to grep the spec dir
 // between every stage. Initial value 1 because the spec dir is empty at
@@ -1186,104 +1205,148 @@ while (researchIteration < MAX_RESEARCH) {
 await updateTracking({ stage: 3, status: 'complete', currentPhase: 'Stage 3 — Research' });
 
 // ---------------------------------------------------------------------------
-// Stage 4 — Debug Analysis (bugs only)
-//   Multi-hypothesis: when an initial triage returns 2+ hypotheses with
-//   similar confidence, fan out parallel debug-analyzers (one per hypothesis)
-//   so the first confirmed cause wins without serializing investigation.
+// Stages 4 + 5 — Debug Analysis (bugs only) + Code Assessment
+//   These two stages both depend on Stage 3 (research) but NOT on each other.
+//   For bug-type tasks, both run in parallel to save wall-clock time.
+//   For non-bug tasks, Stage 4 is skipped and Stage 5 runs alone.
+//
+//   Stage 4: Multi-hypothesis parallel debug investigation.
+//   Stage 5: First code-reading stage — patterns/idioms discovery.
 // ---------------------------------------------------------------------------
 phase('Stage 4 — Debug Analysis');
 
 let debugResult = null;
 const isBug = FEATURE_KIND === 'bug' || (FEATURE_KIND === 'auto' && /\b(bug|broken|crash|fail|regression|error|panic)\b/i.test(REQUEST));
-if (!isBug) {
-  log(`Stage 4 skipped (feature_kind=${FEATURE_KIND}, no bug signals in request).`);
-  await updateTracking({ stage: 4, status: 'skipped', currentPhase: 'Stage 4 — Debug Analysis' });
-} else {
+
+// Pre-allocate doc names before parallel execution to maintain sequential numbering
+const debugName = isBug ? docName('debug-analysis.md') : null;
+const assessmentName = docName('code-assessment.md');
+let assessment = null;
+
+if (isBug) {
+  // Run Stage 4 (debug) and Stage 5 (assessment) in parallel — no mutual dependency
+  log('Stages 4+5: running debug analysis + code assessment in parallel (bug-type task)');
   await updateTracking({ stage: 4, status: 'in_progress', currentPhase: 'Stage 4 — Debug Analysis' });
-  log('Stage 4: initial triage to enumerate hypotheses');
-  const debugName = docName('debug-analysis.md');
-  const triage = await agentWithRetry(
-    `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
-    `Inputs to read yourself: ${req.doc_path}, ${bdd.doc_path}, ${researchReports[researchReports.length - 1].doc_path}.\n` +
-    `User report: ${JSON.stringify(REQUEST)}\n` +
-    `Evidence/logs/repro provided: ${JSON.stringify(BUG_EVIDENCE)}\n\n` +
-    `Produce ${shellQuote(SPEC_DIRECTORY + '/' + debugName)}. ` +
-    `Generate 3-5 ranked, FALSIFIABLE root-cause hypotheses, each with the evidence ` +
-    `you'd need to confirm/refute. Do NOT investigate code yet — that is a follow-up ` +
-    `pass. Mark every hypothesis status='untested' on this pass.`,
-    {
-      label: 'debug-analyzer:triage',
-      phase: 'Stage 4 — Debug Analysis',
-      agentType: 'super-dev:debug-analyzer',
-      schema: DEBUG_OUTPUT,
-    },
-  );
+  await updateTracking({ stage: 5, status: 'in_progress', currentPhase: 'Stage 5 — Code Assessment' });
 
-  // Multi-hypothesis parallel investigation when the top candidates are
-  // closely ranked. The trigger from team-lead.md is: 2+ hypotheses with
-  // similar evidence (no single one above ~60% confidence).
-  const top = [...triage.hypotheses].sort((a, b) => b.confidence - a.confidence);
-  const leader = top[0]?.confidence ?? 0;
-  const tied = top.filter(h => h.confidence >= Math.max(leader - 0.1, 0.4)).slice(0, 3);
-
-  if (tied.length >= 2 && leader < 0.6) {
-    log(`Stage 4: ${tied.length} tied hypotheses (leader ${leader.toFixed(2)} < 0.6) — fanning out parallel investigators`);
-    const investigations = await parallel(
-      tied.map((h, idx) => () => agentWithRetry(
-        `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
-        `Investigate ONLY this hypothesis from ${triage.doc_path}:\n  ${h.statement}\n\n` +
-        `Build a minimal reproduction, instrument the code, and confirm OR refute. ` +
-        `Append your findings to ${shellQuote(SPEC_DIRECTORY + '/' + debugName)} ` +
-        `under a new section "Hypothesis ${idx + 1}: ${h.statement.slice(0, 80)}". ` +
-        `Return a fresh DebugOutput reflecting ALL hypotheses with this one updated.`,
+  const [debugOut, assessmentOut] = await parallel([
+    () => {
+      // Stage 4 — Debug triage
+      return agentWithRetry(
+        `${STABLE_PREFIX}` +
+        `Inputs to read yourself: ${req.doc_path}, ${bdd.doc_path}, ${researchReports[researchReports.length - 1].doc_path}.\n` +
+        `User report: ${JSON.stringify(REQUEST)}\n` +
+        `Evidence/logs/repro provided: ${JSON.stringify(BUG_EVIDENCE)}\n\n` +
+        `Produce ${shellQuote(SPEC_DIRECTORY + '/' + debugName)}. ` +
+        `Generate 3-5 ranked, FALSIFIABLE root-cause hypotheses, each with the evidence ` +
+        `you'd need to confirm/refute. Do NOT investigate code yet — that is a follow-up ` +
+        `pass. Mark every hypothesis status='untested' on this pass.`,
         {
-          label: `debug-investigate:${idx + 1}`,
+          label: 'debug-analyzer:triage',
           phase: 'Stage 4 — Debug Analysis',
           agentType: 'super-dev:debug-analyzer',
           schema: DEBUG_OUTPUT,
         },
-      )),
-    );
-    // First confirmed hypothesis wins; otherwise keep the highest-confidence result.
-    const confirmed = investigations.filter(Boolean).find(d =>
-      d.hypotheses.some(h => h.status === 'confirmed'),
-    );
-    debugResult = confirmed ?? investigations.filter(Boolean).sort((a, b) => {
-      const max = (d) => Math.max(...d.hypotheses.map(h => h.confidence));
-      return max(b) - max(a);
-    })[0] ?? triage;
+      );
+    },
+    () => {
+      // Stage 5 — Code Assessment
+      return agentWithRetry(
+        `${STABLE_PREFIX}` +
+        `Inputs to read yourself: ${req.doc_path}, ${bdd.doc_path}, ${researchReports[researchReports.length - 1].doc_path}.\n\n` +
+        `This is the FIRST code-reading stage. Inspect the codebase rooted at ${WORKTREE_PATH} ` +
+        `and identify the patterns/idioms the new code MUST follow. Cite files and line numbers. ` +
+        `Produce ${shellQuote(SPEC_DIRECTORY + '/' + assessmentName)}.`,
+        {
+          label: 'code-assessor',
+          phase: 'Stage 5 — Code Assessment',
+          agentType: 'super-dev:code-assessor',
+          schema: ASSESSMENT_OUTPUT,
+        },
+      );
+    },
+  ]);
+
+  // Process Stage 4 result — multi-hypothesis parallel investigation if needed
+  const triage = debugOut;
+  if (triage) {
+    const top = [...triage.hypotheses].sort((a, b) => b.confidence - a.confidence);
+    const leader = top[0]?.confidence ?? 0;
+    const tied = top.filter(h => h.confidence >= Math.max(leader - 0.1, 0.4)).slice(0, 3);
+
+    if (tied.length >= 2 && leader < 0.6) {
+      log(`Stage 4: ${tied.length} tied hypotheses (leader ${leader.toFixed(2)} < 0.6) — fanning out parallel investigators`);
+      const investigations = await parallel(
+        tied.map((h, idx) => () => agentWithRetry(
+          `${STABLE_PREFIX}` +
+          `Investigate ONLY this hypothesis from ${triage.doc_path}:\n  ${h.statement}\n\n` +
+          `Build a minimal reproduction, instrument the code, and confirm OR refute. ` +
+          `Append your findings to ${shellQuote(SPEC_DIRECTORY + '/' + debugName)} ` +
+          `under a new section "Hypothesis ${idx + 1}: ${h.statement.slice(0, 80)}". ` +
+          `Return a fresh DebugOutput reflecting ALL hypotheses with this one updated.`,
+          {
+            label: `debug-investigate:${idx + 1}`,
+            phase: 'Stage 4 — Debug Analysis',
+            agentType: 'super-dev:debug-analyzer',
+            schema: DEBUG_OUTPUT,
+          },
+        )),
+      );
+      const confirmed = investigations.filter(Boolean).find(d =>
+        d.hypotheses.some(h => h.status === 'confirmed'),
+      );
+      debugResult = confirmed ?? investigations.filter(Boolean).sort((a, b) => {
+        const max = (d) => Math.max(...d.hypotheses.map(h => h.confidence));
+        return max(b) - max(a);
+      })[0] ?? triage;
+    } else {
+      debugResult = triage;
+    }
+    const rootCause = debugResult.root_cause || '(unresolved — escalate or pivot)';
+    log(`Stage 4 complete: root cause = ${rootCause}`);
+    await updateTracking({ stage: 4, status: 'complete', currentPhase: 'Stage 4 — Debug Analysis' });
   } else {
-    debugResult = triage;
+    log(`Stage 4: debug-analyzer returned null — skipping`);
+    await updateTracking({ stage: 4, status: 'skipped', currentPhase: 'Stage 4 — Debug Analysis' });
   }
-  const rootCause = debugResult.root_cause || '(unresolved — escalate or pivot)';
-  log(`Stage 4 complete: root cause = ${rootCause}`);
-  await updateTracking({ stage: 4, status: 'complete', currentPhase: 'Stage 4 — Debug Analysis' });
+
+  // Stage 5 result
+  assessment = assessmentOut;
+  if (assessment) {
+    log(`Stage 5 complete: ${assessment.files_assessed} files assessed, ${assessment.patterns.length} patterns to follow.`);
+  } else {
+    throw new Error('Stage 5: code-assessor returned null after retries — cannot proceed without codebase assessment.');
+  }
+  await updateTracking({ stage: 5, status: 'complete', currentPhase: 'Stage 5 — Code Assessment' });
+
+} else {
+  // Non-bug: skip Stage 4, run Stage 5 alone
+  log(`Stage 4 skipped (feature_kind=${FEATURE_KIND}, no bug signals in request).`);
+  await updateTracking({ stage: 4, status: 'skipped', currentPhase: 'Stage 4 — Debug Analysis' });
+
+  phase('Stage 5 — Code Assessment');
+  await updateTracking({ stage: 5, status: 'in_progress', currentPhase: 'Stage 5 — Code Assessment' });
+
+  log('Stage 5: code-assessor — first codebase exploration');
+  assessment = await agentWithRetry(
+    `${STABLE_PREFIX}` +
+    `Inputs to read yourself: ${req.doc_path}, ${bdd.doc_path}, ${researchReports[researchReports.length - 1].doc_path}.\n\n` +
+    `This is the FIRST code-reading stage. Inspect the codebase rooted at ${WORKTREE_PATH} ` +
+    `and identify the patterns/idioms the new code MUST follow. Cite files and line numbers. ` +
+    `Produce ${shellQuote(SPEC_DIRECTORY + '/' + assessmentName)}.`,
+    {
+      label: 'code-assessor',
+      phase: 'Stage 5 — Code Assessment',
+      agentType: 'super-dev:code-assessor',
+      schema: ASSESSMENT_OUTPUT,
+    },
+  );
+  if (!assessment) {
+    throw new Error('Stage 5: code-assessor returned null after retries — cannot proceed without codebase assessment.');
+  }
+  log(`Stage 5 complete: ${assessment.files_assessed} files assessed, ${assessment.patterns.length} patterns to follow.`);
+  await updateTracking({ stage: 5, status: 'complete', currentPhase: 'Stage 5 — Code Assessment' });
 }
-
-// ---------------------------------------------------------------------------
-// Stage 5 — Code Assessment (first code-reading stage)
-// ---------------------------------------------------------------------------
-phase('Stage 5 — Code Assessment');
-await updateTracking({ stage: 5, status: 'in_progress', currentPhase: 'Stage 5 — Code Assessment' });
-
-log('Stage 5: code-assessor — first codebase exploration');
-const assessmentName = docName('code-assessment.md');
-const assessment = await agentWithRetry(
-  `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
-  `Inputs to read yourself: ${req.doc_path}, ${bdd.doc_path}, ${researchReports[researchReports.length - 1].doc_path}` +
-    (debugResult ? `, ${debugResult.doc_path}` : '') + `.\n\n` +
-  `This is the FIRST code-reading stage. Inspect the codebase rooted at ${WORKTREE_PATH} ` +
-  `and identify the patterns/idioms the new code MUST follow. Cite files and line numbers. ` +
-  `Produce ${shellQuote(SPEC_DIRECTORY + '/' + assessmentName)}.`,
-  {
-    label: 'code-assessor',
-    phase: 'Stage 5 — Code Assessment',
-    agentType: 'super-dev:code-assessor',
-    schema: ASSESSMENT_OUTPUT,
-  },
-);
-log(`Stage 5 complete: ${assessment.files_assessed} files assessed, ${assessment.patterns.length} patterns to follow.`);
-await updateTracking({ stage: 5, status: 'complete', currentPhase: 'Stage 5 — Code Assessment' });
 
 // ---------------------------------------------------------------------------
 // Stage 6 — Design (routed by feature_kind + ui_scope)
@@ -2229,7 +2292,10 @@ while (reviewIter < MAX_REVIEW_ITERS) {
     (phaseResults.some(p => p.e2e_doc) ? `  - E2E reports: ${phaseResults.filter(p => p.e2e_doc).map(p => p.e2e_doc).join(', ')}\n` : '') +
     `Diff base_sha: ${overallBaseSha ?? '(none — no Stage 9 phases)'}\n` +
     `Diff head_sha: ${overallHeadSha ?? '(none)'}\n` +
-    `files_changed (${filesChanged.length}):\n${filesChanged.map(f => '  ' + f).join('\n')}`;
+    `files_changed (${filesChanged.length}):` +
+    (filesChanged.length <= 30
+      ? `\n${filesChanged.map(f => '  ' + f).join('\n')}`
+      : `\n${filesChanged.slice(0, 30).map(f => '  ' + f).join('\n')}\n  ... and ${filesChanged.length - 30} more (read impl summaries for full list)`);
 
   const [cr, ar, gateRevCode, gateRevAdv, gateImplComplete] = await parallel([
     () => agentWithRetry(
@@ -2584,11 +2650,16 @@ const cleanup = await agentWithRetry(
   },
 );
 if (cleanup.blocked) {
-  throw new Error(
-    `Stage 12: build-cleaner BLOCKED on sensitive-data findings (${cleanup.sensitive_data_findings.length} item(s)). ` +
-    `Review and remove these from history before merging — they will leak to the default branch otherwise.\n` +
-    cleanup.sensitive_data_findings.map(f => `  - ${f.kind} in ${f.file}${f.line ? ':' + f.line : ''}`).join('\n')
-  );
+  // Graceful degradation: log the findings as a prominent WARNING but don't
+  // kill the workflow. The final return includes the findings so the user can
+  // review before merging. Stage 13 merge (if do_merge=true) will still be
+  // gated on the user's explicit confirmation.
+  log(`⚠️  Stage 12 WARNING: sensitive-data findings (${cleanup.sensitive_data_findings.length} item(s)):`);
+  for (const f of cleanup.sensitive_data_findings) {
+    log(`  ⚠️  ${f.kind} in ${f.file}${f.line ? ':' + f.line : ''}`);
+  }
+  log(`  Review and remove these from history before merging — they will leak to the default branch otherwise.`);
+  log(`  Workflow continues but merge is NOT safe until these are resolved.`);
 }
 log(`Stage 12 complete: cleaned ${cleanup.directories_removed.length} dir(s); reclaimed ${cleanup.disk_reclaimed_bytes} bytes.`);
 await updateTracking({
@@ -2716,6 +2787,8 @@ return {
     languages: cleanup.languages_detected,
     directories_removed: cleanup.directories_removed ?? [],
     disk_reclaimed_bytes: cleanup.disk_reclaimed_bytes ?? 0,
+    sensitive_data_blocked: Boolean(cleanup.blocked),
+    sensitive_data_findings: cleanup.blocked ? cleanup.sensitive_data_findings : [],
   },
   trailing_commit: {
     new_sha: trailingCommit.new_sha,
