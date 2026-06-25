@@ -18,76 +18,26 @@ license: MIT
 
 <orchestration-model>
   **Dynamic Workflow REQUIRED** (Claude Code v2.1.178+ / `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`).
-  No fallback. No team-lead agent. The main loop invokes ONE `Workflow` tool call with
-  `scriptPath="${PLUGIN_ROOT}/workflows/super-dev.workflow.js"` and the args below.
+
+  The team-lead agent invokes ONE `Workflow` tool call with
+  `scriptPath="${PLUGIN_ROOT}/workflows/super-dev.workflow.js"` and the mode/parameter args.
   The workflow runtime executes the script in an isolated environment; all per-stage data stays
-  in script variables. Only the final compressed result returns. Progress via `/workflows`.
+  in script variables. Only the final compressed result returns to team-lead, which relays it
+  to the user. Progress via `/workflows`.
 
   Caps: 16 concurrent subagents / 1000 total agents per workflow run (harness-enforced).
-  Stage 1 runs `${PLUGIN_ROOT}/scripts/preflight-env.sh` to enforce env before any agent spawn.
 
-  **Invocation (MUST FOLLOW — do NOT spawn agents, do NOT implement stages manually):**
-  1. `ToolSearch({query: "select:Workflow", max_results: 1})` — abort if unavailable.
-  2. **Parse flags from user prompt** and build the args object. The user may pass flags
-     like `--skip-worktree` or `--no-spec-commit` in their message. Extract these BEFORE
-     building args — they map to boolean keys:
-
-     | User flag / phrase | args key | value |
-     |--------------------|----------|-------|
-     | `--skip-worktree`, "on current branch", "no worktree" | `skip_worktree` | `true` |
-     | `--no-spec-commit`, "don't commit spec", "exclude spec" | `commit_spec_dir` | `false` |
-     | `--do-merge`, "merge when done" | `do_merge` | `true` |
-     | `--skip-handoff` | `skip_handoff` | `true` |
-
-     After extracting flags, the remaining text becomes `request`.
-
-  3. **Resolve paths**:
-     - `plugin_root`: Run `dirname` on the path to this SKILL.md, then go up 2 levels
-       (skills/super-dev/SKILL.md → plugin root). Or use `${CLAUDE_PLUGIN_ROOT}`.
-     - `repo_path`: the user's current working directory (pwd — the project being developed).
-
-  4. **Detect project properties** (from repo_path):
-     - `feature_kind`: 'bug' if request mentions bug/fix/broken/crash/error, 'refactor' if refactor/restructure/improve, else 'auto'
-     - `language`: Cargo.toml→'rust', go.mod→'go', package.json→'frontend'/'backend', else 'mixed'
-     - `ui_scope`: 'ui-only' | 'ui+arch' | 'none'
-     - `is_web_ui`: true if Next.js/React/Vue/Svelte detected
-
-  5. **Call Workflow immediately** (no confirmation pause):
-     ```
-     Workflow({
-       scriptPath: "${plugin_root}/workflows/super-dev.workflow.js",
-       args: {
-         request: "<remaining text after flag extraction>",
-         plugin_root: "<absolute path to plugin root>",
-         repo_path: "<absolute path to user's project>",
-         feature_kind: "auto",
-         ui_scope: "none",
-         language: "mixed",
-         is_web_ui: false,
-         max_spec_iters: 3,
-         max_phase_iters: 3,
-         max_review_iters: 3,
-         skip_handoff: false,
-         do_merge: false,
-         commit_spec_dir: true,
-         skip_worktree: false
-       }
-     })
-     ```
-     CRITICAL: `args` MUST be a JSON object with all keys populated. NOT a string.
-     Override defaults with detected flags from step 2.
-
-  6. On completion: relay worktree path, phases completed, merge status. Point user to spec dir.
-
-  Args reference:
-  `request` (string, required), `plugin_root` (string, required), `repo_path` (string, required),
-  `feature_kind` ('feature'|'bug'|'refactor'|'auto'), `ui_scope` ('none'|'ui-only'|'ui+arch'),
-  `bug_evidence` (string), `input_samples` (string[]),
-  `language` ('rust'|'go'|'frontend'|'backend'|'ios'|'android'|'macos'|'windows'|'mixed'),
-  `is_web_ui` (boolean), `max_spec_iters` (int, 3), `max_phase_iters` (int, 3),
-  `max_review_iters` (int, 3), `skip_handoff` (boolean), `do_merge` (boolean, false),
-  `commit_spec_dir` (boolean, true — set false to exclude specification/ from commits),
-  `skip_worktree` (boolean, false — set true when already on a feature branch).
+  **Invocation (MUST FOLLOW):**
+  Spawn the team-lead agent. It handles arg construction + Workflow dispatch.
+  ```
+  Agent({
+    subagent_type: "super-dev:team-lead",
+    prompt: "<user's full message including any --flags>"
+  })
+  ```
+  Do NOT call Workflow directly. Do NOT construct args yourself. The team-lead agent
+  has tools (Bash, Read) to resolve paths, parse flags, detect language, and build
+  the correct JSON args object before invoking Workflow.
 </orchestration-model>
 
 <triggers>Triggers on: "implement", "build", "fix bug", "refactor", "add feature", "develop this", "help me build", "add functionality", "optimize performance", "resolve deprecation", "systematic development". Do NOT trigger on: simple questions, file searches, one-off commands, code explanations, quick edits, non-development tasks.</triggers>
