@@ -4,14 +4,18 @@ Super-dev uses `${PLUGIN_DATA}` for persistent state that survives plugin upgrad
 
 ## Platform Path Resolution
 
-| Concept | Claude Code / Codex CLI / Antigravity |
-|---------|---------------------------------------|
-| `PLUGIN_ROOT` | `${PLUGIN_ROOT}` (harness resolves from `${CLAUDE_PLUGIN_ROOT}`) |
-| `PLUGIN_DATA` | `${PLUGIN_DATA}` (harness resolves from `${CLAUDE_PLUGIN_DATA}`) |
+Two different resolution mechanisms exist — use the correct variable for each context:
+
+| Context | Variable | Resolved by |
+|---------|----------|-------------|
+| **hooks.json** (shell commands) | `${CLAUDE_PLUGIN_ROOT}` | Harness string substitution at hook load time |
+| **agents/*.md** (agent prompts) | `${PLUGIN_ROOT}` | Harness agent-context injection |
+| **skills/*/SKILL.md** (runtime) | `${PLUGIN_ROOT}` | Declared via `<platform-paths>` block |
+| **workflows/*.js** (script) | `PLUGIN_ROOT` (JS var) | Received from `args.plugin_root` |
 
 Shell scripts resolve via:
 ```bash
-PLUGIN_DATA="${PLUGIN_DATA:-/tmp/super-dev-data}"
+PLUGIN_DATA="${CLAUDE_PLUGIN_DATA:-/tmp/super-dev-data}"
 ```
 
 ## Storage Location
