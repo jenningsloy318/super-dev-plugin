@@ -593,8 +593,8 @@ if (!PLUGIN_ROOT || !REPO_PATH) {
   log(`[super-dev] Auto-discovering paths...`);
   const discovery = await agentWithRetry(
     `Run these two commands and return the results as JSON:\n` +
-    `1. Find the super-dev plugin root:\n` +
-    `   bash -c "find ~/.claude/plugins -name 'super-dev.workflow.js' -path '*/workflows/*' 2>/dev/null | head -1 | xargs dirname | xargs dirname"\n` +
+    `1. Find the super-dev plugin root (search common plugin locations):\n` +
+    `   bash -c "find ~/.claude/plugins ~/.claude/settings/plugins /home/*/.claude/plugins /home/*/.claude/settings/plugins -name 'super-dev.workflow.js' -path '*/workflows/*' 2>/dev/null | head -1 | xargs dirname | xargs dirname"\n` +
     `2. Get current working directory:\n` +
     `   pwd\n\n` +
     `Return JSON: {"plugin_root": "<result of command 1>", "repo_path": "<result of command 2>"}`,
@@ -626,7 +626,13 @@ if (!REQUEST) {
 if (!PLUGIN_ROOT || !REPO_PATH) {
   // Last resort: if auto-discovery agent also failed, try hardcoded common paths
   if (!PLUGIN_ROOT) {
-    PLUGIN_ROOT = '/home/' + (REPO_PATH.split('/')[2] || 'user') + '/.claude/plugins/marketplaces/super-dev';
+    const user = REPO_PATH.split('/')[2] || 'user';
+    const candidates = [
+      `/home/${user}/.claude/plugins/marketplaces/super-dev`,
+      `/home/${user}/.claude/settings/plugins/super-dev`,
+      `/Users/${user}/.claude/plugins/marketplaces/super-dev`,
+    ];
+    PLUGIN_ROOT = candidates[0]; // default
     log(`[super-dev] WARNING: plugin_root discovery failed — using best-guess: ${PLUGIN_ROOT}`);
   }
   if (!REPO_PATH) {
