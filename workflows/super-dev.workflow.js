@@ -1144,6 +1144,17 @@ const docName = (suffix) => {
   return `${idx}-${suffix}`;
 };
 
+// For iterating stages: allocate ONE index, return a function that appends -N suffix.
+// Usage: const reviewDoc = docNameIterating('code-review');
+//        reviewDoc(1) → '12-code-review.md'
+//        reviewDoc(2) → '12-code-review-2.md'
+//        reviewDoc(3) → '12-code-review-3.md'
+const docNameIterating = (baseName) => {
+  const idx = String(nextDocIndex).padStart(2, '0');
+  nextDocIndex += 1;
+  return (iter) => `${idx}-${baseName}${iter > 1 ? '-' + iter : ''}.md`;
+};
+
 // Mark Stage 1 complete, Stage 2 starting in tracking JSON.
 await updateTracking({ stage: 1, status: 'complete', currentPhase: 'Stage 1 — Setup' });
 
@@ -1230,6 +1241,9 @@ await updateTracking({ stage: 2, status: 'complete', docs: [requirementsName, bd
 phase('Stage 3 — Research');
 await updateTracking({ stage: 3, status: 'in_progress', currentPhase: 'Stage 3 — Research' });
 
+// Define doc filenames for this stage (single index, iteration suffix)
+const researchDoc = docNameIterating('research-report');
+
 const researchReports = [];
 let researchIteration = 0;
 let openIssues = [];
@@ -1238,9 +1252,7 @@ const MAX_RESEARCH = 3;
 while (researchIteration < MAX_RESEARCH) {
   researchIteration += 1;
   const isDeep = researchIteration > 1;
-  const outName = isDeep
-    ? docName(`deep-research-report-${researchIteration - 1}.md`)
-    : docName('research-report.md');
+  const outName = researchDoc(researchIteration);
   log(`Stage 3 iteration ${researchIteration} (${isDeep ? 'deep-research' : 'initial'})`);
 
   const report = await agentWithRetry(
@@ -1769,13 +1781,14 @@ await updateTracking({ stage: 7, status: 'complete', currentPhase: 'Stage 7 — 
 phase('Stage 8 — Spec Review');
 await updateTracking({ stage: 8, status: 'in_progress', currentPhase: 'Stage 8 — Spec Review' });
 
+// Define doc filenames for this stage (single index, iteration suffix)
+const specReviewDoc = docNameIterating('spec-review');
+
 let specReview = null;
 let specIter = 0;
 while (specIter < MAX_SPEC_ITERS) {
   specIter += 1;
-  const reviewName = specIter === 1
-    ? docName('spec-review.md')
-    : docName(`spec-review-${specIter}.md`);
+  const reviewName = specReviewDoc(specIter);
   log(`Stage 8 iteration ${specIter}/${MAX_SPEC_ITERS}: spec-reviewer + gate-spec-review`);
 
   const [review, reviewVerdict] = await parallel([
@@ -2328,6 +2341,11 @@ await updateTracking({
 // ---------------------------------------------------------------------------
 phase('Stage 10 — Code Review');
 await updateTracking({ stage: 10, status: 'in_progress', currentPhase: 'Stage 10 — Code Review' });
+
+// Define doc filenames for this stage (single index per type, iteration suffix)
+const codeReviewDoc = docNameIterating('code-review');
+const advReviewDoc  = docNameIterating('adversarial-review');
+
 const overallBaseSha = phaseResults[0]?.base_sha ?? null;
 const overallHeadSha = phaseResults[phaseResults.length - 1]?.head_sha ?? null;
 const filesChanged = Array.from(new Set(phaseResults.flatMap(p => [...p.impl_files, ...p.test_files])));
@@ -2339,8 +2357,8 @@ let priorFindingSignature = null;
 
 while (reviewIter < MAX_REVIEW_ITERS) {
   reviewIter += 1;
-  const codeReviewName = reviewIter === 1 ? docName('code-review.md') : docName(`code-review-${reviewIter}.md`);
-  const advReviewName  = reviewIter === 1 ? docName('adversarial-review.md') : docName(`adversarial-review-${reviewIter}.md`);
+  const codeReviewName = codeReviewDoc(reviewIter);
+  const advReviewName  = advReviewDoc(reviewIter);
   log(`Stage 10 iteration ${reviewIter}/${MAX_REVIEW_ITERS}: 5 reviewers in parallel`);
 
   const reviewerBase =
