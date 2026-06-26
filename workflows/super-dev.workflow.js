@@ -2321,17 +2321,23 @@ await updateTracking({
 //   Five agents in parallel per iteration:
 //     1. code-reviewer                              (Approved/AwC/Changes/Blocked)
 //     2. adversarial-reviewer                        (PASS/CONTEST/REJECT)
-//     3. doc-validator (gate-review on code-review.md)
-//     4. doc-validator (gate-review on adversarial-review.md)
+//     3. doc-validator (gate-review on code-review.md)   — structural validity only
+//     4. doc-validator (gate-review on adversarial-review.md) — structural validity only
 //     5. doc-validator (gate-implementation-complete on tracking JSON)
 //
+//   Gate role: validate document structure (file exists + parseable verdict).
+//   Gates do NOT enforce verdict favorability — that is handled by the
+//   semantic routing below (codePass/advPass checks).
+//
 //   Exit (Stage 10 PASS) iff:
-//     - code-reviewer.verdict === 'Approved' AND
+//     - code-reviewer.verdict in ['Approved', 'Approved with Comments'] AND
 //     - adversarial-reviewer.verdict === 'PASS' AND
-//     - ALL three gate verdicts pass
-//   Otherwise iterate: re-spawn tdd-guide (when reviewer findings indicate
-//   missing/incorrect tests) + domain specialist (for code fixes) + qa-agent,
-//   then re-run all 5 reviewers.
+//     - ALL three structural gate verdicts pass
+//   Otherwise:
+//     - Structural gate failure → re-run reviewers (continue)
+//     - REJECT → escalate (throw)
+//     - CONTEST / Changes Requested / Blocked → route to fix path
+//       (tdd-guide + domain specialist + qa-agent), then re-review
 //
 //   Pivot trigger (checked starting iteration 2):
 //     Same class of failure persists AND adversarial-reviewer set
@@ -2452,9 +2458,11 @@ while (reviewIter < MAX_REVIEW_ITERS) {
   codeReview = cr;
   advReview = ar;
 
-  // Gate failures: instead of throwing, feed errors back into the iteration
-  // loop so the reviewer/specialist can fix the issue. Only throw if we've
-  // exhausted all iterations with a persistent gate failure.
+  // Gate failures: structural problems (missing docs, unparseable verdicts,
+  // incomplete implementation). These are format/tooling issues — re-run
+  // reviewers so they produce well-formed output. Real findings with valid
+  // verdicts (CONTEST, Changes Requested) pass the gate and flow to the
+  // fix path below.
   const gateFailures = [gateRevCode, gateRevAdv, gateImplComplete]
     .filter(v => !v?.pass);
   if (gateFailures.length > 0) {
@@ -2468,14 +2476,13 @@ while (reviewIter < MAX_REVIEW_ITERS) {
     const gateGuidance = gateFailures
       .map(v => `Gate '${v?.gate ?? 'unknown'}' FAILED:\n  ${(v?.errors || []).join('\n  ')}`)
       .join('\n');
-    log(`Stage 10 iteration ${reviewIter}: gate failure(s) — feeding back to reviewers:\n${gateGuidance}`);
-    // Loop continues — next iteration re-spawns reviewers with the gate
-    // errors visible in the log, and the reviewer prompt naturally produces
-    // a corrected document on the next pass.
+    log(`Stage 10 iteration ${reviewIter}: structural gate failure(s) — re-running reviewers:\n${gateGuidance}`);
     continue;
   }
 
-  const codePass = cr?.verdict === 'Approved';
+  // All gates passed — review documents are structurally valid.
+  // Now check verdict semantics to decide: break (all clear) vs fix (findings exist).
+  const codePass = cr?.verdict === 'Approved' || cr?.verdict === 'Approved with Comments';
   const advPass  = ar?.verdict === 'PASS';
   if (codePass && advPass) {
     log(`Stage 10 PASS on iteration ${reviewIter}: code-review Approved, adversarial PASS, all gates pass.`);
