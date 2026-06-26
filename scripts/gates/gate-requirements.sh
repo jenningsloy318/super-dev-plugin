@@ -2,21 +2,20 @@
 # Gate: Requirements Completeness Check
 # Verifies requirements.md has minimum quality before proceeding to BDD scenarios
 #
-# Usage: gate-requirements.sh <spec-dir>
+# Usage: gate-requirements.sh <file-or-spec-dir>
 # Exit 0 = PASS, Exit 1 = FAIL
 
 set -euo pipefail
 
-SPEC_DIR="${1:?Usage: gate-requirements.sh <spec-dir>}"
+SPEC_DIR="${1:?Usage: gate-requirements.sh <file-or-spec-dir>}"
 source "$(dirname "$0")/gate-lib.sh"
 
-REQ_FILE=$(find_spec_file '*-requirements.md')
-if [ -z "$REQ_FILE" ]; then
-    echo "GATE FAIL: No *-requirements.md file found in: ${SPEC_DIR}"
+# Use exact file if passed, otherwise search
+REQ_FILE="${GATE_FILE:-$(find_spec_file '*-requirements.md')}"
+if [ -z "$REQ_FILE" ] || [ ! -f "$REQ_FILE" ]; then
+    echo "GATE FAIL: No requirements file found in: ${SPEC_DIR}"
     exit 1
 fi
-
-# File already confirmed to exist via dynamic discovery above
 
 # Check for acceptance criteria section
 has_ac=$(grep -ci "acceptance criteria" "$REQ_FILE" || true)

@@ -3,18 +3,18 @@
 # Validates implementation plan has Phase headings and structure.
 # Does NOT check companion files — they have their own gates.
 #
-# Usage: gate-implementation-plan.sh <spec-dir>
+# Usage: gate-implementation-plan.sh <file-or-spec-dir>
 # Exit 0 = PASS, Exit 1 = FAIL
 
 set -euo pipefail
 
-SPEC_DIR="${1:?Usage: gate-implementation-plan.sh <spec-dir>}"
+SPEC_DIR="${1:?Usage: gate-implementation-plan.sh <file-or-spec-dir>}"
 source "$(dirname "$0")/gate-lib.sh"
 
-PLAN_FILE=$(find_spec_file '*-implementation-plan.md')
+PLAN_FILE="${GATE_FILE:-$(find_spec_file '*-implementation-plan.md')}"
 
 if [ -z "$PLAN_FILE" ] || [ ! -f "$PLAN_FILE" ]; then
-    echo "GATE FAIL: No *-implementation-plan.md file found in: ${SPEC_DIR}"
+    echo "GATE FAIL: No implementation plan file found in: ${SPEC_DIR}"
     exit 1
 fi
 

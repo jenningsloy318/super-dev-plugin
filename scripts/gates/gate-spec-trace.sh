@@ -2,22 +2,23 @@
 # Gate: Spec-to-BDD Trace Coverage
 # Cross-references spec tasks with BDD scenarios to ensure full traceability
 #
-# Usage: gate-spec-trace.sh <spec-dir>
+# Usage: gate-spec-trace.sh <spec-dir-or-file>
 # Exit 0 = PASS, Exit 1 = FAIL
 
 set -euo pipefail
 
-SPEC_DIR="${1:?Usage: gate-spec-trace.sh <spec-dir>}"
+SPEC_DIR="${1:?Usage: gate-spec-trace.sh <spec-dir-or-file>}"
 source "$(dirname "$0")/gate-lib.sh"
 
-SPEC_FILE=$(find_spec_file '*-specification.md')
+# Primary file uses GATE_FILE if passed (the specification doc), otherwise search
+SPEC_FILE="${GATE_FILE:-$(find_spec_file '*-specification.md')}"
 BDD_FILE=$(find_spec_file '*-bdd-scenarios.md')
 TASK_FILE=$(find_spec_file '*-task-list.md')
 PLAN_FILE=$(find_spec_file '*-implementation-plan.md')
 
-# Check both files exist (dynamic discovery)
+# Check both files exist
 if [ -z "$SPEC_FILE" ] || [ ! -f "$SPEC_FILE" ]; then
-    echo "GATE FAIL: No *-specification.md file found in: ${SPEC_DIR}"
+    echo "GATE FAIL: No specification file found in: ${SPEC_DIR}"
     exit 1
 fi
 

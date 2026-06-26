@@ -2,17 +2,17 @@
 # Gate: Documentation Completeness Check
 # Verifies spec directory docs are complete (no placeholders/TODOs) and key artifacts exist
 #
-# Usage: gate-docs-drift.sh <spec-dir>
+# Usage: gate-docs-drift.sh <spec-dir-or-file>
 # Exit 0 = PASS, Exit 1 = FAIL
 
 set -euo pipefail
 
-SPEC_DIR="${1:?Usage: gate-docs-drift.sh <spec-dir>}"
+SPEC_DIR="${1:?Usage: gate-docs-drift.sh <spec-dir-or-file>}"
 source "$(dirname "$0")/gate-lib.sh"
 
 # Check key spec documents exist and are non-empty
-SPEC_FILE=$(find_spec_file "*-specification.md")
-check "Specification exists" "$([ -n "$SPEC_FILE" ] && [ -s "$SPEC_FILE" ] && echo true || echo false)"
+SPEC_FILE_DOC=$(find_spec_file "*-specification.md")
+check "Specification exists" "$([ -n "$SPEC_FILE_DOC" ] && [ -s "$SPEC_FILE_DOC" ] && echo true || echo false)"
 
 IMPL_PLAN=$(find_spec_file "*-implementation-plan.md")
 check "Implementation plan exists" "$([ -n "$IMPL_PLAN" ] && [ -s "$IMPL_PLAN" ] && echo true || echo false)"

@@ -2,18 +2,18 @@
 # Gate: Task List Quality
 # Validates task list exists and has meaningful content.
 #
-# Usage: gate-task-list.sh <spec-dir>
+# Usage: gate-task-list.sh <file-or-spec-dir>
 # Exit 0 = PASS, Exit 1 = FAIL
 
 set -euo pipefail
 
-SPEC_DIR="${1:?Usage: gate-task-list.sh <spec-dir>}"
+SPEC_DIR="${1:?Usage: gate-task-list.sh <file-or-spec-dir>}"
 source "$(dirname "$0")/gate-lib.sh"
 
-TASK_FILE=$(find_spec_file '*-task-list.md')
+TASK_FILE="${GATE_FILE:-$(find_spec_file '*-task-list.md')}"
 
 if [ -z "$TASK_FILE" ] || [ ! -f "$TASK_FILE" ]; then
-    echo "GATE FAIL: No *-task-list.md file found in: ${SPEC_DIR}"
+    echo "GATE FAIL: No task list file found in: ${SPEC_DIR}"
     exit 1
 fi
 

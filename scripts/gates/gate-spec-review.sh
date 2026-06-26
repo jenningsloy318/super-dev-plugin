@@ -2,19 +2,18 @@
 # Gate: Specification Review Quality
 # Validates spec-review output has required structure, dimensions, and verdict
 #
-# Usage: gate-spec-review.sh <spec-dir>
+# Usage: gate-spec-review.sh <file-or-spec-dir>
 # Exit 0 = PASS, Exit 1 = FAIL
 
 set -euo pipefail
 
-SPEC_DIR="${1:?Usage: gate-spec-review.sh <spec-dir>}"
+SPEC_DIR="${1:?Usage: gate-spec-review.sh <file-or-spec-dir>}"
 source "$(dirname "$0")/gate-lib.sh"
 
-REVIEW_FILE=$(find_spec_file '*-spec-review.md')
-
-# Check review file exists
+# Use exact file if passed, otherwise search
+REVIEW_FILE="${GATE_FILE:-$(find_spec_file '*spec-review*')}"
 if [ -z "$REVIEW_FILE" ] || [ ! -f "$REVIEW_FILE" ]; then
-    echo "GATE FAIL: No *-spec-review.md file found in: ${SPEC_DIR}"
+    echo "GATE FAIL: No spec-review file found in: ${SPEC_DIR}"
     exit 1
 fi
 
@@ -32,7 +31,6 @@ done
 check "SR2: All 8 review dimensions present (found: ${dim_count}/8)" "$([ "$dim_count" -ge 8 ] && echo true || echo false)"
 
 # SR3: No REJECTED in verdict line when intent is approval
-# Check for contradictory verdict (both APPROVED and REJECTED on same line)
 contradictory=$(grep -ci "APPROVED.*REJECTED\|REJECTED.*APPROVED" "$REVIEW_FILE" || true)
 check "SR3: No contradictory verdict text" "$([ "$contradictory" -eq 0 ] && echo true || echo false)"
 

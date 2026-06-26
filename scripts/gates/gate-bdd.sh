@@ -2,22 +2,23 @@
 # Gate: BDD Scenario Quality Check
 # Verifies behavior scenarios are complete and traceable to acceptance criteria
 #
-# Usage: gate-bdd.sh <spec-dir>
+# Usage: gate-bdd.sh <file-or-spec-dir>
 # Exit 0 = PASS, Exit 1 = FAIL
 
 set -euo pipefail
 
-SPEC_DIR="${1:?Usage: gate-bdd.sh <spec-dir>}"
+SPEC_DIR="${1:?Usage: gate-bdd.sh <file-or-spec-dir>}"
 source "$(dirname "$0")/gate-lib.sh"
 
-BDD_FILE=$(find_spec_file '*-bdd-scenarios.md')
-REQ_FILE=$(find_spec_file '*-requirements.md')
-
-# Check BDD file exists (dynamic discovery)
+# Use exact file if passed, otherwise search
+BDD_FILE="${GATE_FILE:-$(find_spec_file '*-bdd-scenarios.md')}"
 if [ -z "$BDD_FILE" ] || [ ! -f "$BDD_FILE" ]; then
-    echo "GATE FAIL: No *-bdd-scenarios.md file found in: ${SPEC_DIR}"
+    echo "GATE FAIL: No BDD scenarios file found in: ${SPEC_DIR}"
     exit 1
 fi
+
+# Requirements file is always found by search (cross-reference)
+REQ_FILE=$(find_spec_file '*-requirements.md')
 
 # Check for SCENARIO-XXX IDs
 scenario_count=$(grep -cE 'SCENARIO-[0-9]+' "$BDD_FILE" 2>/dev/null || true)
@@ -32,7 +33,7 @@ ac_refs=$(grep -cE 'AC-[0-9]+' "$BDD_FILE" 2>/dev/null || true)
 check "Has AC references for traceability (found: ${ac_refs})" "$([ "$ac_refs" -ge 1 ] && echo true || echo false)"
 
 # Check scenario count >= acceptance criteria count (if requirements exist)
-if [ -f "$REQ_FILE" ]; then
+if [ -n "$REQ_FILE" ] && [ -f "$REQ_FILE" ]; then
     ac_count=$(grep -cE 'AC-[0-9]+' "$REQ_FILE" 2>/dev/null || true)
     check "Scenarios (${scenario_count}) >= acceptance criteria (${ac_count})" "$([ "$scenario_count" -ge "$ac_count" ] && echo true || echo false)"
 fi

@@ -4,13 +4,13 @@
 # and a verdict consistent with its measured data. Pairs with
 # agents/prototype-runner.md (Stage 6.5).
 #
-# Usage: gate-prototype.sh <spec-dir>
+# Usage: gate-prototype.sh <spec-dir-or-file>
 # Exit 0 = PASS (report exists and is well-formed OR prototype-skipped marker present)
 # Exit 1 = FAIL (report missing, malformed, or verdict-data inconsistent)
 
 set -euo pipefail
 
-SPEC_DIR="${1:?Usage: gate-prototype.sh <spec-dir>}"
+SPEC_DIR="${1:?Usage: gate-prototype.sh <spec-dir-or-file>}"
 source "$(dirname "$0")/gate-lib.sh"
 
 if [ ! -d "$SPEC_DIR" ]; then
@@ -18,8 +18,8 @@ if [ ! -d "$SPEC_DIR" ]; then
     exit 1
 fi
 
-# P1: report file exists
-report_file=$(find "$SPEC_DIR" -maxdepth 1 -name '*-prototype-report.md' -type f 2>/dev/null | head -1 || true)
+# P1: report file — use GATE_FILE if passed, otherwise search
+report_file="${GATE_FILE:-$(find "$SPEC_DIR" -maxdepth 1 -name '*-prototype-report.md' -type f 2>/dev/null | head -1 || true)}"
 
 # Skip case: explicit "no constants" marker
 if [ -f "${SPEC_DIR}/.prototype-skipped" ]; then
@@ -67,8 +67,7 @@ else
 fi
 
 # P8: if verdict is FAIL, recommendation must mention pivot-protocol
-# Use word boundary (\b) to prevent "failures" from matching "FAIL" as a substring
-if grep -qiP '\bverdict\b.*\bFAIL\b' "$report_file" 2>/dev/null; then
+if grep -qiE 'verdict.*FAIL' "$report_file" 2>/dev/null; then
     has_pivot=$(grep -ciE 'pivot.protocol|pivot protocol|invoke pivot' "$report_file" 2>/dev/null || echo 0)
     check "FAIL verdict references pivot-protocol" \
           "$([ "$has_pivot" -gt 0 ] && echo true || echo false)"

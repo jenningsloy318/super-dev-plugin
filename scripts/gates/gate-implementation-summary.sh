@@ -2,18 +2,18 @@
 # Gate: Implementation Summary Quality
 # Validates implementation summary has required content and no excessive placeholders.
 #
-# Usage: gate-implementation-summary.sh <spec-dir>
+# Usage: gate-implementation-summary.sh <file-or-spec-dir>
 # Exit 0 = PASS, Exit 1 = FAIL
 
 set -euo pipefail
 
-SPEC_DIR="${1:?Usage: gate-implementation-summary.sh <spec-dir>}"
+SPEC_DIR="${1:?Usage: gate-implementation-summary.sh <file-or-spec-dir>}"
 source "$(dirname "$0")/gate-lib.sh"
 
-SUMMARY_FILE=$(find_spec_file '*-implementation-summary.md')
+SUMMARY_FILE="${GATE_FILE:-$(find_spec_file '*-implementation-summary.md')}"
 
 if [ -z "$SUMMARY_FILE" ] || [ ! -f "$SUMMARY_FILE" ]; then
-    echo "GATE FAIL: No *-implementation-summary.md file found in: ${SPEC_DIR}"
+    echo "GATE FAIL: No implementation summary file found in: ${SPEC_DIR}"
     exit 1
 fi
 

@@ -2,17 +2,17 @@
 # Gate: Implementation Completeness Verification
 # Verifies ALL implementation-plan phases are complete before proceeding to Stage 10
 #
-# Usage: gate-implementation-complete.sh <spec-dir>
+# Usage: gate-implementation-complete.sh <spec-dir-or-file>
 # Exit 0 = PASS, Exit 1 = FAIL
 
 set -euo pipefail
 
-SPEC_DIR="${1:?Usage: gate-implementation-complete.sh <spec-dir>}"
+SPEC_DIR="${1:?Usage: gate-implementation-complete.sh <spec-dir-or-file>}"
 source "$(dirname "$0")/gate-lib.sh"
 
-# Find implementation plan
-IMPL_PLAN=$(find_spec_file "*-implementation-plan.md")
-if [ -z "$IMPL_PLAN" ]; then
+# Find implementation plan — use GATE_FILE if it's the plan, otherwise search
+IMPL_PLAN="${GATE_FILE:-$(find_spec_file '*-implementation-plan.md')}"
+if [ -z "$IMPL_PLAN" ] || [ ! -f "$IMPL_PLAN" ]; then
     check "Implementation plan exists" "false"
     gate_report "Implementation Completeness"
 fi

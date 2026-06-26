@@ -1627,7 +1627,7 @@ if (!needPrototype) {
     ),
     spawnGate: () => agentWithRetry(
       `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + protoName)} to appear, then run ` +
-      `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-prototype.sh')} ${shellQuote(SPEC_DIRECTORY)}. ` +
+      `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-prototype.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + protoName)}. ` +
       `Return the gate verdict.`,
       {
         label: 'doc-validator:gate-prototype',
@@ -1726,7 +1726,7 @@ const spawnSpecWriter = async (extraGuidance = '', iter = 1) => {
 const spawnSpecTraceGate = () => agentWithRetry(
   `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + specName)}, ${shellQuote(SPEC_DIRECTORY + '/' + planName)}, ` +
   `and ${shellQuote(SPEC_DIRECTORY + '/' + tasksName)} to appear, then run ` +
-  `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-spec-trace.sh')} ${shellQuote(SPEC_DIRECTORY)}. ` +
+  `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-spec-trace.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + specName)}. ` +
   `Return the gate verdict.`,
   {
     label: 'doc-validator:gate-spec-trace',
@@ -1849,7 +1849,7 @@ while (specIter < MAX_SPEC_ITERS) {
     `Wait for the updated ${shellQuote(SPEC_DIRECTORY + '/' + specName)}, ` +
     `${shellQuote(SPEC_DIRECTORY + '/' + planName)}, and ${shellQuote(SPEC_DIRECTORY + '/' + tasksName)} ` +
     `to be stable, then run ` +
-    `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-spec-trace.sh')} ${shellQuote(SPEC_DIRECTORY)}. ` +
+    `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-spec-trace.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + specName)}. ` +
     `Return the gate verdict.`,
     {
       label: `doc-validator:gate-spec-trace:revise-${specIter}`,
@@ -2390,7 +2390,8 @@ while (reviewIter < MAX_REVIEW_ITERS) {
     ),
     () => agentWithRetry(
       `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + codeReviewName)} to appear, then run ` +
-      `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-review.sh')} ${shellQuote(SPEC_DIRECTORY)} --type code. ` +
+      `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-review.sh')} ${shellQuote(SPEC_DIRECTORY)} ` +
+      `--type code --file ${shellQuote(SPEC_DIRECTORY + '/' + codeReviewName)}. ` +
       `Return the gate verdict.`,
       {
         label: `doc-validator:gate-review:code:${reviewIter}`,
@@ -2401,7 +2402,8 @@ while (reviewIter < MAX_REVIEW_ITERS) {
     ),
     () => agentWithRetry(
       `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + advReviewName)} to appear, then run ` +
-      `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-review.sh')} ${shellQuote(SPEC_DIRECTORY)} --type adversarial. ` +
+      `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-review.sh')} ${shellQuote(SPEC_DIRECTORY)} ` +
+      `--type adversarial --file ${shellQuote(SPEC_DIRECTORY + '/' + advReviewName)}. ` +
       `Return the gate verdict.`,
       {
         label: `doc-validator:gate-review:adversarial:${reviewIter}`,

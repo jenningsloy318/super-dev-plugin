@@ -3,18 +3,18 @@
 # Validates specification has BDD scenario references and testing strategy.
 # Does NOT check companion files (plan, task-list) — they have their own gates.
 #
-# Usage: gate-specification.sh <spec-dir>
+# Usage: gate-specification.sh <file-or-spec-dir>
 # Exit 0 = PASS, Exit 1 = FAIL
 
 set -euo pipefail
 
-SPEC_DIR="${1:?Usage: gate-specification.sh <spec-dir>}"
+SPEC_DIR="${1:?Usage: gate-specification.sh <file-or-spec-dir>}"
 source "$(dirname "$0")/gate-lib.sh"
 
-SPEC_FILE=$(find_spec_file '*-specification.md')
+SPEC_FILE="${GATE_FILE:-$(find_spec_file '*-specification.md')}"
 
 if [ -z "$SPEC_FILE" ] || [ ! -f "$SPEC_FILE" ]; then
-    echo "GATE FAIL: No *-specification.md file found in: ${SPEC_DIR}"
+    echo "GATE FAIL: No specification file found in: ${SPEC_DIR}"
     exit 1
 fi
 

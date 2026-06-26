@@ -1,14 +1,32 @@
 #!/bin/bash
 # Shared gate utilities — sourced by all gate-*.sh scripts
+#
+# Input resolution (handled automatically):
+#   - If $1 is a file path: GATE_FILE = that file, SPEC_DIR = its parent
+#   - If $1 is a directory: SPEC_DIR = that directory, GATE_FILE = "" (legacy mode)
+#
+# Gate scripts should use GATE_FILE when set. Only fall back to
+# find_spec_file() when GATE_FILE is empty (directory-level gates
+# like gate-spec-trace, gate-docs-drift, gate-implementation-complete).
 
 PASS=0
 FAIL=0
 ERRORS=""
 
+# Resolve input: file vs directory
+if [ -f "$SPEC_DIR" ]; then
+    GATE_FILE="$SPEC_DIR"
+    SPEC_DIR="$(dirname "$SPEC_DIR")"
+elif [ -d "$SPEC_DIR" ]; then
+    GATE_FILE=""
+else
+    GATE_FILE=""
+fi
+
+# Fallback search — only used by directory-level gates that scan multiple files.
+# Picks the most recently modified match (handles multi-iteration naming).
 find_spec_file() {
     local pattern="$1"
-    # Pick the most recently modified file matching the pattern (latest iteration).
-    # Uses ls -t for portability (works on both macOS/BSD and Linux).
     local files
     files=$(find "$SPEC_DIR" -maxdepth 1 -name "$pattern" -type f 2>/dev/null)
     if [ -z "$files" ]; then return; fi
