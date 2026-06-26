@@ -593,8 +593,8 @@ if (!PLUGIN_ROOT || !REPO_PATH) {
   log(`[super-dev] Auto-discovering paths...`);
   const discovery = await agentWithRetry(
     `Run these two commands and return the results as JSON:\n` +
-    `1. Find the super-dev plugin root (search common plugin locations):\n` +
-    `   bash -c "find ~/.claude/plugins ~/.claude/settings/plugins /home/*/.claude/plugins /home/*/.claude/settings/plugins -name 'super-dev.workflow.js' -path '*/workflows/*' 2>/dev/null | head -1 | xargs dirname | xargs dirname"\n` +
+    `1. Find the super-dev plugin root (search user's plugin locations):\n` +
+    `   bash -c "find $HOME/.claude/plugins $HOME/.claude/settings/plugins -name 'super-dev.workflow.js' -path '*/workflows/*' 2>/dev/null | head -1 | xargs dirname | xargs dirname"\n` +
     `2. Get current working directory:\n` +
     `   pwd\n\n` +
     `Return JSON: {"plugin_root": "<result of command 1>", "repo_path": "<result of command 2>"}`,
