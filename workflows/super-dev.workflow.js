@@ -2390,7 +2390,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
     ),
     () => agentWithRetry(
       `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + codeReviewName)} to appear, then run ` +
-      `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-review.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + codeReviewName)}. ` +
+      `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-review.sh')} ${shellQuote(SPEC_DIRECTORY)} --type code. ` +
       `Return the gate verdict.`,
       {
         label: `doc-validator:gate-review:code:${reviewIter}`,
@@ -2401,7 +2401,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
     ),
     () => agentWithRetry(
       `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + advReviewName)} to appear, then run ` +
-      `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-review.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + advReviewName)}. ` +
+      `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-review.sh')} ${shellQuote(SPEC_DIRECTORY)} --type adversarial. ` +
       `Return the gate verdict.`,
       {
         label: `doc-validator:gate-review:adversarial:${reviewIter}`,

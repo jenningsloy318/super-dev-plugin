@@ -7,7 +7,12 @@ ERRORS=""
 
 find_spec_file() {
     local pattern="$1"
-    find "$SPEC_DIR" -maxdepth 1 -name "$pattern" -type f 2>/dev/null | head -1
+    # Pick the most recently modified file matching the pattern (latest iteration).
+    # Uses ls -t for portability (works on both macOS/BSD and Linux).
+    local files
+    files=$(find "$SPEC_DIR" -maxdepth 1 -name "$pattern" -type f 2>/dev/null)
+    if [ -z "$files" ]; then return; fi
+    echo "$files" | xargs ls -t 2>/dev/null | head -1
 }
 
 check() {
