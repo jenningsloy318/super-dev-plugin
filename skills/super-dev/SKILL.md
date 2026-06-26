@@ -19,7 +19,7 @@ license: MIT
 <orchestration-model>
   **Dynamic Workflows REQUIRED** (Claude Code v2.1.178+). There is no fallback path.
 
-  The team-lead agent invokes ONE `Workflow` tool call with `scriptPath="${PLUGIN_ROOT}/workflows/super-dev.workflow.js"` and the args. The workflow runtime executes the script in an isolated environment outside Claude's context window. Intermediate per-stage results stay in JavaScript variables inside the script — they NEVER enter the team-lead context window. Only the final compressed result returns to team-lead, which relays it to the user.
+  The team-lead agent invokes ONE `Workflow` tool call with `scriptPath="${CLAUDE_PLUGIN_ROOT}/workflows/super-dev.workflow.js"` and the args. The workflow runtime executes the script in an isolated environment outside Claude's context window. Intermediate per-stage results stay in JavaScript variables inside the script — they NEVER enter the team-lead context window. Only the final compressed result returns to team-lead, which relays it to the user.
 
   Caps: 16 concurrent subagents / 1000 total agents per workflow run (harness-enforced).
 
@@ -37,7 +37,7 @@ license: MIT
 - `--skip-worktree` → skip worktree/branch creation, work directly on current branch. Use when already on a feature branch.
 </triggers>
 
-<note>Detailed protocols live in `${PLUGIN_ROOT}/reference/workflow/*.md` — load each one lazily at its triggering stage. See `<protocols>` block below for the file-per-process map.</note>
+<note>Detailed protocols live in `${CLAUDE_PLUGIN_ROOT}/reference/workflow/*.md` — load each one lazily at its triggering stage. See `<protocols>` block below for the file-per-process map.</note>
 
 <pre-flight-checklist name="Visual / UI Feature">
   Before starting Stage 1 on a feature that touches rendering (UI, layout, custom-painted graphics, document layout, game UI), confirm — do not just nod past these questions:
@@ -98,7 +98,7 @@ license: MIT
 </protocols>
 
 <gate-map>
-  Gate scripts: `${PLUGIN_ROOT}/scripts/gates/<name>.sh <spec-dir>`. Exit 0 = PASS, 1 = FAIL. **NON-NEGOTIABLE — fail = loop and fix.** Detail: see `reference/workflow/verification-gates.md`.
+  Gate scripts: `${CLAUDE_PLUGIN_ROOT}/scripts/gates/<name>.sh <spec-dir>`. Exit 0 = PASS, 1 = FAIL. **NON-NEGOTIABLE — fail = loop and fix.** Detail: see `reference/workflow/verification-gates.md`.
 
   | After | Script | Run by | Checks |
   |---|---|---|---|
@@ -166,13 +166,13 @@ license: MIT
 
 <rules>
   <rule name="Workflow Required" mandatory="true">Claude Code v2.1.178+ and the `Workflow` tool MUST be available. The team-lead agent verifies Workflow availability before invoking; on absence it aborts with an upgrade recommendation.</rule>
-  <rule name="team-lead-delegation" mandatory="true">team-lead does ONE thing: invoke `Workflow({scriptPath: "${PLUGIN_ROOT}/workflows/super-dev.workflow.js", args})`. It does not spawn individual agents, does not run scripts, does not write tracking files. All stage logic lives in the workflow script.</rule>
+  <rule name="team-lead-delegation" mandatory="true">team-lead does ONE thing: invoke `Workflow({scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/super-dev.workflow.js", args})`. It does not spawn individual agents, does not run scripts, does not write tracking files. All stage logic lives in the workflow script.</rule>
   <rule name="no-pause" mandatory="true">team-lead never pauses to ask for confirmation. After parameter extraction, invoke the workflow immediately and run to completion.</rule>
 </rules>
 
 <references>
   <ref>Canonical workflow script: `workflows/super-dev.workflow.js` — all orchestration logic lives here</ref>
-  <ref>Plugin root: `${PLUGIN_ROOT}` — agents, scripts, skills, workflows</ref>
+  <ref>Plugin root: `${CLAUDE_PLUGIN_ROOT}` — agents, scripts, skills, workflows</ref>
   <ref>Plugin data: `${PLUGIN_DATA}` — global stats, learned patterns</ref>
-  <ref>Per-process protocols: `${PLUGIN_ROOT}/reference/workflow/*.md` — loaded lazily per-stage by the workflow</ref>
+  <ref>Per-process protocols: `${CLAUDE_PLUGIN_ROOT}/reference/workflow/*.md` — loaded lazily per-stage by the workflow</ref>
 </references>

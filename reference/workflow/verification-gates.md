@@ -2,7 +2,7 @@
 
 Loaded by: team-lead before/after each gate execution.
 
-Gate scripts live in `${PLUGIN_ROOT}/scripts/gates/`. Exit 0 = PASS, exit 1 = FAIL. **Gates are NON-NEGOTIABLE — fail = loop back and fix.**
+Gate scripts live in `${CLAUDE_PLUGIN_ROOT}/scripts/gates/`. Exit 0 = PASS, exit 1 = FAIL. **Gates are NON-NEGOTIABLE — fail = loop back and fix.**
 
 ## Execution
 
@@ -10,7 +10,7 @@ All gates are executed by **doc-validator** agents spawned by team-lead. Team-le
 
 ```bash
 # doc-validator runs this internally:
-bash ${PLUGIN_ROOT}/scripts/gates/<gate-name>.sh <argument>
+bash ${CLAUDE_PLUGIN_ROOT}/scripts/gates/<gate-name>.sh <argument>
 # argument = <spec-dir> for most gates, <worktree-path> for gate-build.sh
 ```
 

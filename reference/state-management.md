@@ -4,14 +4,14 @@ Super-dev uses `${PLUGIN_DATA}` for persistent state that survives plugin upgrad
 
 ## Platform Path Resolution
 
-Two different resolution mechanisms exist — use the correct variable for each context:
+Use `${CLAUDE_PLUGIN_ROOT}` everywhere — it is the only variable the harness resolves across all contexts (hooks, agents, skills, workflows).
 
 | Context | Variable | Resolved by |
 |---------|----------|-------------|
 | **hooks.json** (shell commands) | `${CLAUDE_PLUGIN_ROOT}` | Harness string substitution at hook load time |
-| **agents/*.md** (agent prompts) | `${PLUGIN_ROOT}` | Harness agent-context injection |
-| **skills/*/SKILL.md** (runtime) | `${PLUGIN_ROOT}` | Declared via `<platform-paths>` block |
-| **workflows/*.js** (script) | `PLUGIN_ROOT` (JS var) | Received from `args.plugin_root` |
+| **agents/*.md** (agent prompts) | `${CLAUDE_PLUGIN_ROOT}` | Harness agent-context injection |
+| **skills/*/SKILL.md** (runtime) | `${CLAUDE_PLUGIN_ROOT}` | Declared via `<platform-paths>` block |
+| **workflows/*.js** (script) | `PLUGIN_ROOT` (JS var) | Received from `args.plugin_root` (team-lead passes `${CLAUDE_PLUGIN_ROOT}`) |
 
 Shell scripts resolve via:
 ```bash

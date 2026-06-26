@@ -11,7 +11,7 @@ timeout_mins: 60
 
 <purpose>
   Top-level orchestrator. Resolves the repo path, then invokes the canonical Dynamic Workflow
-  script at `${PLUGIN_ROOT}/workflows/super-dev.workflow.js` via a single `Workflow` tool call.
+  script at `${CLAUDE_PLUGIN_ROOT}/workflows/super-dev.workflow.js` via a single `Workflow` tool call.
   The workflow runtime executes the script in an isolated environment — all per-stage data stays
   in workflow-script variables and NEVER enters this team-lead context window. Only the compressed
   final result returns here, which is then relayed to the user.
@@ -52,7 +52,7 @@ timeout_mins: 60
   </step>
 
   <step n="2" name="Resolve parameters">
-    a. `plugin_root`: `${PLUGIN_ROOT}` (resolved by the harness at agent load time).
+    a. `plugin_root`: `${CLAUDE_PLUGIN_ROOT}` (resolved by the harness at agent load time).
     b. `repo_path`: Run `pwd` to get the user's current working directory.
     c. Detect `--skip-worktree` flag from user message. If present, set `skip_worktree = true` and strip the flag from the request text.
   </step>
@@ -61,10 +61,10 @@ timeout_mins: 60
     Single tool call:
     ```
     Workflow({
-      scriptPath: "${PLUGIN_ROOT}/workflows/super-dev.workflow.js",
+      scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/super-dev.workflow.js",
       args: {
         request: "<user's message with flags stripped>",
-        plugin_root: "${PLUGIN_ROOT}",
+        plugin_root: "${CLAUDE_PLUGIN_ROOT}",
         repo_path: "<pwd result>",
         skip_worktree: <true if --skip-worktree flag present, false otherwise>
       }
@@ -88,11 +88,11 @@ timeout_mins: 60
 
 <failure-modes>
   <mode name="Workflow tool absent">Abort with upgrade recommendation.</mode>
-  <mode name="Workflow tool present but script not found">Verify `${PLUGIN_ROOT}/workflows/super-dev.workflow.js` exists. If not, the plugin is corrupted; recommend re-install.</mode>
+  <mode name="Workflow tool present but script not found">Verify `${CLAUDE_PLUGIN_ROOT}/workflows/super-dev.workflow.js` exists. If not, the plugin is corrupted; recommend re-install.</mode>
   <mode name="Workflow returns status='failed'">Surface the failing stage + reason. Recommend `resumeFromRunId` for a re-run with cached prefix.</mode>
 </failure-modes>
 
 <references>
   <ref>Canonical workflow script: `workflows/super-dev.workflow.js` — all stage logic lives there</ref>
-  <ref>Plugin root: `${PLUGIN_ROOT}` — agents, scripts, skills, workflows</ref>
+  <ref>Plugin root: `${CLAUDE_PLUGIN_ROOT}` — agents, scripts, skills, workflows</ref>
 </references>

@@ -34,6 +34,6 @@ developer_instructions = """
 </constraint>
 
 <gate-format-requirements>
-  MANDATORY: Before writing, read `${PLUGIN_ROOT}/reference/e2e-report-template.md` — especially the "Gate Compliance Notes" section. Use SCENARIO-NNN IDs in Journey Coverage Matrix, PERF-NNN/A11Y-NNN/DEF-NNN for findings, and browser results as exactly PASS or FAIL per cell.
+  MANDATORY: Before writing, read `${CLAUDE_PLUGIN_ROOT}/reference/e2e-report-template.md` — especially the "Gate Compliance Notes" section. Use SCENARIO-NNN IDs in Journey Coverage Matrix, PERF-NNN/A11Y-NNN/DEF-NNN for findings, and browser results as exactly PASS or FAIL per cell.
 </gate-format-requirements>
 """

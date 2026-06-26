@@ -155,7 +155,7 @@ Invoke the `super-dev` skill and describe your task:
 Invoke the super-dev skill and describe your task
 ```
 
-On Claude Code v2.1.178+ the skill triggers `Workflow(${PLUGIN_ROOT}/workflows/super-dev.workflow.js)` with the user's request as `args.request`.
+On Claude Code v2.1.178+ the skill triggers `Workflow(${CLAUDE_PLUGIN_ROOT}/workflows/super-dev.workflow.js)` with the user's request as `args.request`.
 
 ### Parameters
 
