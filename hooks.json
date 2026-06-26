@@ -6,7 +6,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "${CLAUDE_PLUGIN_ROOT}/scripts/usage-tracker.sh 2>/dev/null || true"
+          "command": "${PLUGIN_ROOT}/scripts/usage-tracker.sh 2>/dev/null || true"
         }
       ]
     },
@@ -15,11 +15,11 @@
       "hooks": [
         {
           "type": "command",
-          "command": "${CLAUDE_PLUGIN_ROOT}/hooks/block-dangerous.sh"
+          "command": "${PLUGIN_ROOT}/hooks/block-dangerous.sh"
         },
         {
           "type": "command",
-          "command": "${CLAUDE_PLUGIN_ROOT}/hooks/log-commands.sh"
+          "command": "${PLUGIN_ROOT}/hooks/log-commands.sh"
         }
       ]
     },
@@ -28,7 +28,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "${CLAUDE_PLUGIN_ROOT}/hooks/protect-files.sh"
+          "command": "${PLUGIN_ROOT}/hooks/protect-files.sh"
         }
       ]
     },
@@ -37,7 +37,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "${CLAUDE_PLUGIN_ROOT}/hooks/require-tests-pr.sh"
+          "command": "${PLUGIN_ROOT}/hooks/require-tests-pr.sh"
         }
       ]
     },
@@ -46,7 +46,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stage-gate.sh"
+          "command": "${PLUGIN_ROOT}/hooks/stage-gate.sh"
         }
       ]
     }
@@ -57,15 +57,15 @@
       "hooks": [
         {
           "type": "command",
-          "command": "${CLAUDE_PLUGIN_ROOT}/hooks/auto-format.sh"
+          "command": "${PLUGIN_ROOT}/hooks/auto-format.sh"
         },
         {
           "type": "command",
-          "command": "${CLAUDE_PLUGIN_ROOT}/hooks/auto-lint.sh"
+          "command": "${PLUGIN_ROOT}/hooks/auto-lint.sh"
         },
         {
           "type": "command",
-          "command": "${CLAUDE_PLUGIN_ROOT}/hooks/run-tests.sh"
+          "command": "${PLUGIN_ROOT}/hooks/run-tests.sh"
         }
       ]
     }
@@ -76,7 +76,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "${CLAUDE_PLUGIN_ROOT}/hooks/auto-checkpoint.sh"
+          "command": "${PLUGIN_ROOT}/hooks/auto-checkpoint.sh"
         }
       ]
     }

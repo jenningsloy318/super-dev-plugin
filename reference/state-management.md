@@ -6,12 +6,12 @@ Super-dev uses `${PLUGIN_DATA}` for persistent state that survives plugin upgrad
 
 | Concept | Claude Code / Codex CLI / Antigravity |
 |---------|---------------------------------------|
-| `PLUGIN_ROOT` | `${CLAUDE_PLUGIN_ROOT}` |
-| `PLUGIN_DATA` | `${CLAUDE_PLUGIN_DATA}` |
+| `PLUGIN_ROOT` | `${PLUGIN_ROOT}` (harness resolves from `${CLAUDE_PLUGIN_ROOT}`) |
+| `PLUGIN_DATA` | `${PLUGIN_DATA}` (harness resolves from `${CLAUDE_PLUGIN_DATA}`) |
 
 Shell scripts resolve via:
 ```bash
-PLUGIN_DATA="${CLAUDE_PLUGIN_DATA:-/tmp/super-dev-data}"
+PLUGIN_DATA="${PLUGIN_DATA:-/tmp/super-dev-data}"
 ```
 
 ## Storage Location
