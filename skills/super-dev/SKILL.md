@@ -16,6 +16,19 @@ license: MIT
 
 <purpose>13-stage development pipeline for features, bug fixes, and refactors. Runs as a Dynamic Workflow (deterministic JS orchestration) on Claude Code v2.1.178+. There is no fallback path — the Workflow tool MUST be available.</purpose>
 
+<dispatch mandatory="true">
+  **YOU MUST spawn the team-lead agent.** Do NOT call Workflow() directly.
+
+  ```
+  Agent({
+    subagent_type: "super-dev:team-lead",
+    prompt: "<the user's full message>"
+  })
+  ```
+
+  team-lead resolves `${CLAUDE_PLUGIN_ROOT}`, runs `pwd`, then calls Workflow with the correct structured args. Calling Workflow directly will fail because you cannot resolve the plugin_root path yourself.
+</dispatch>
+
 <orchestration-model>
   **Dynamic Workflows REQUIRED** (Claude Code v2.1.178+). There is no fallback path.
 
