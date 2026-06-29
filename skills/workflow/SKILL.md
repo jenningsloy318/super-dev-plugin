@@ -32,12 +32,12 @@ license: MIT
 <orchestration-model>
   **Dynamic Workflows REQUIRED** (Claude Code v2.1.178+). There is no fallback path.
 
-  The team-lead agent invokes ONE `Workflow` tool call with `scriptPath="${CLAUDE_PLUGIN_ROOT}/workflows/super-dev.workflow.js"` and the args. The workflow runtime executes the script in an isolated environment outside Claude's context window. Intermediate per-stage results stay in JavaScript variables inside the script — they NEVER enter the team-lead context window. Only the final compressed result returns to team-lead, which relays it to the user.
+  The team-lead-workflow agent invokes ONE `Workflow` tool call with `scriptPath="${CLAUDE_PLUGIN_ROOT}/workflows/super-dev.workflow.js"` and the args. The workflow runtime executes the script in an isolated environment outside Claude's context window. Intermediate per-stage results stay in JavaScript variables inside the script — they NEVER enter the team-lead-workflow context window. Only the final compressed result returns to team-lead-workflow, which relays it to the user.
 
   Caps: 16 concurrent subagents / 1000 total agents per workflow run (harness-enforced).
 
   Benefits:
-  1. Context isolation — team-lead sees only the final summary, not per-stage data.
+  1. Context isolation — team-lead-workflow sees only the final summary, not per-stage data.
   2. Cached resume — `Workflow({scriptPath, resumeFromRunId})` replays completed `agent()` calls instantly; only failed/new agents re-run live.
   3. Structured output — `schema:` forces validated JSON from each subagent.
   4. Built-in concurrency + token-budget management via `budget` global.
@@ -46,7 +46,7 @@ license: MIT
 
 <triggers>Triggers on: "implement", "build", "fix bug", "refactor", "add feature", "develop this", "help me build", "add functionality", "optimize performance", "resolve deprecation", "systematic development". Do NOT trigger on: simple questions, file searches, one-off commands, code explanations, quick edits, non-development tasks.
 
-**Flags** (optional, extracted by team-lead before workflow invocation):
+**Flags** (optional, extracted by team-lead-workflow before workflow invocation):
 - `--skip-worktree` → skip worktree/branch creation, work directly on current branch. Use when already on a feature branch.
 </triggers>
 
@@ -170,17 +170,17 @@ license: MIT
 </criteria>
 
 <constraints>
-  <constraint name="NEVER Analyze Directly">team-lead invokes the workflow and relays its result. ALL implementation, gate checks, and agent spawning happens inside `agent()` calls within the workflow script.</constraint>
-  <constraint name="Single Tool Call">A normal run should be 1 (ToolSearch verify) + 1 (Workflow invocation) + 1 (relay result) = ~3 turns total in team-lead context. Anything beyond that suggests team-lead is doing work that belongs in the script.</constraint>
+  <constraint name="NEVER Analyze Directly">team-lead-workflow invokes the workflow and relays its result. ALL implementation, gate checks, and agent spawning happens inside `agent()` calls within the workflow script.</constraint>
+  <constraint name="Single Tool Call">A normal run should be 1 (ToolSearch verify) + 1 (Workflow invocation) + 1 (relay result) = ~3 turns total in team-lead-workflow context. Anything beyond that suggests team-lead-workflow is doing work that belongs in the script.</constraint>
   <constraint name="No Pause for Confirmation">NEVER pause to ask the user for confirmation. After path resolution, invoke the workflow immediately. The workflow runs autonomously to completion.</constraint>
   <constraint name="Worktree-Only Modifications">The workflow creates a worktree. ALL file operations happen there. Only Stage 13 merges to main.</constraint>
   <constraint name="Resume on Failure">If the workflow returns status='failed', users can re-run with `Workflow({scriptPath, resumeFromRunId})` to replay cached agents and only re-run the failed stage onward.</constraint>
 </constraints>
 
 <rules>
-  <rule name="Workflow Required" mandatory="true">Claude Code v2.1.178+ and the `Workflow` tool MUST be available. The team-lead agent verifies Workflow availability before invoking; on absence it aborts with an upgrade recommendation.</rule>
-  <rule name="team-lead-delegation" mandatory="true">team-lead does ONE thing: invoke `Workflow({scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/super-dev.workflow.js", args})`. It does not spawn individual agents, does not run scripts, does not write tracking files. All stage logic lives in the workflow script.</rule>
-  <rule name="no-pause" mandatory="true">team-lead never pauses to ask for confirmation. After parameter extraction, invoke the workflow immediately and run to completion.</rule>
+  <rule name="Workflow Required" mandatory="true">Claude Code v2.1.178+ and the `Workflow` tool MUST be available. The team-lead-workflow agent verifies Workflow availability before invoking; on absence it aborts with an upgrade recommendation.</rule>
+  <rule name="team-lead-delegation" mandatory="true">team-lead-workflow does ONE thing: invoke `Workflow({scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/super-dev.workflow.js", args})`. It does not spawn individual agents, does not run scripts, does not write tracking files. All stage logic lives in the workflow script.</rule>
+  <rule name="no-pause" mandatory="true">team-lead-workflow never pauses to ask for confirmation. After parameter extraction, invoke the workflow immediately and run to completion.</rule>
 </rules>
 
 <references>
