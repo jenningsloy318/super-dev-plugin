@@ -70,12 +70,14 @@ timeout_mins: 120
 
 <parameters>
   <parameter name="skip_worktree" default="false">When true, skip worktree/branch creation and work directly on the current branch. Flag: `--skip-worktree`.</parameter>
+  <parameter name="skip_stages" default="">Comma-separated stage numbers to skip entirely (e.g., "2,3,4,5"). Skipped stages are marked 'skipped' in tracking JSON without spawning agents. Flag: `--skip=2,3,4,5`. Supports decimals (6.5).</parameter>
 
   <flag-dispatch>
     Extract CLI-style flags from the user's message. After extraction, remaining text = `request`.
     - `--skip-worktree` → skip_worktree = true
+    - `--skip=N,N,N` → skip_stages = Set of stage numbers to skip. Parse the comma-separated values. At each stage entry, check if the stage number is in skip_stages — if yes, mark 'skipped' in tracking JSON and proceed to the next stage without spawning any agents.
     - `--workflow` → REDIRECT: spawn `super-dev:team-lead-workflow` instead and exit immediately
-    The flag is removed from the request text before passing to agents.
+    The flags are removed from the request text before passing to agents.
   </flag-dispatch>
 </parameters>
 

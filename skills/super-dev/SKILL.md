@@ -33,6 +33,7 @@ license: MIT
 
 **Flags** (optional, extracted by team-lead):
 - `--skip-worktree` → skip worktree/branch creation, work directly on current branch. Use when already on a feature branch.
+- `--skip=N,N,N` → skip specified stages entirely (comma-separated numbers, supports decimals like 6.5). Skipped stages are marked 'skipped' in tracking JSON without spawning agents. Example: `--skip=2,3,4,5` to jump straight to design.
 - `--workflow` → redirect to `super-dev:workflow` skill (Dynamic Workflow variant) instead. Requires Claude Code v2.1.178+.
 </triggers>
 
