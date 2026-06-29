@@ -570,7 +570,7 @@ The `rules/` directory contains modular always-follow guidelines:
 
 ## Output Documents
 
-All documents are created in `specification/[index]-[name]/` directory:
+All documents are created in `docs/specifications/[index]-[name]/` directory:
 
 1. `[index]-requirements.md` - Clarified requirements
 2. `[index]-research-report.md` - Research findings with freshness scores

@@ -9,7 +9,7 @@
   "properties": {
     "doc_path": {
       "type": "string",
-      "description": "Absolute path to the produced requirements.md (e.g. .../specification/22-add-auth/01-requirements.md)."
+      "description": "Absolute path to the produced requirements.md (e.g. .../docs/specifications/22-add-auth/01-requirements.md)."
     },
     "feature_name": {
       "type": "string",

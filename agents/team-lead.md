@@ -226,7 +226,7 @@ timeout_mins: 120
     <field name="team_name" note="recommended for all agents">Read from workflow tracking JSON `team.name` (e.g., `super-dev-add-auth`). Pass as `team_name` argument to the Agent tool so teammates can address each other via `SendMessage`. As of Claude Code v2.1.178 this is informational — the harness auto-derives a session-level team name if `team_name` is omitted. Stage 1 sets `team.name` once for the audit trail; Stage 1 setup remains a prerequisite for the `preflight-env.sh` env-var check.</field>
     <field name="plugin_root" note="MANDATORY for all agents">Resolved from <platform-paths></field>
     <field name="worktree_path" note="MANDATORY for all agents">Absolute path to worktree root (from workflow tracking JSON `worktreePath`). Agent MUST `cd` to this path before any file operation.</field>
-    <field name="spec_directory" note="MANDATORY for agents needing spec docs">Absolute path: $WORKTREE_PATH/specification/[spec-id]/. Agents read their own input files from this directory — Team Lead does NOT paste document content into spawn prompts.</field>
+    <field name="spec_directory" note="MANDATORY for agents needing spec docs">Absolute path: $WORKTREE_PATH/docs/specifications/[spec-id]/. Agents read their own input files from this directory — Team Lead does NOT paste document content into spawn prompts.</field>
     <field name="output_filename">Pre-computed canonical [XX]-name.md</field>
   </common>
 

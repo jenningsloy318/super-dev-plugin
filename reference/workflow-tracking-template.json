@@ -1,6 +1,6 @@
 {
   "$schema": "Super Dev Workflow Tracking",
-  "$description": "Per-spec workflow state file. Created in Stage 1, updated every stage/task completion. Location: specification/[spec-index]-[spec-name]/[spec-index]-[spec-name]-workflow-tracking.json",
+  "$description": "Per-spec workflow state file. Created in Stage 1, updated every stage/task completion. Location: docs/specifications/[spec-index]-[spec-name]/[spec-index]-[spec-name]-workflow-tracking.json",
 
   "featureName": {
     "$type": "string",
@@ -11,7 +11,7 @@
   "specDirectory": {
     "$type": "string",
     "$description": "Relative path to the specification directory inside the worktree",
-    "$example": "specification/01-user-auth"
+    "$example": "docs/specifications/01-user-auth"
   },
 
   "worktreePath": {

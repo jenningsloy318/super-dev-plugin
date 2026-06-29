@@ -10,7 +10,7 @@ gate-profile: none
 <metadata>
   <field name="title">Handoff: [Feature/Fix Name]</field>
   <field name="date">[timestamp]</field>
-  <field name="spec">specification/[spec-index]-[spec-name]</field>
+  <field name="spec">docs/specifications/[spec-index]-[spec-name]</field>
   <field name="status">[Complete / Partial -- specify what is missing]</field>
   <field name="commits">[N] commits on branch [branch-name]</field>
 </metadata>

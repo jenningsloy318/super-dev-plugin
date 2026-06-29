@@ -810,7 +810,7 @@ if (SKIP_WORKTREE) {
 // Step 1.3 — Spec index, name, identifier.
 log('Stage 1.3 spec naming');
 const specMeta = await agentWithRetry(
-  `In the repo at ${shellQuote(REPO_PATH)}, look at the 'specification/' directory (it may not exist yet). ` +
+  `In the repo at ${shellQuote(REPO_PATH)}, look at the 'docs/specifications/' directory (it may not exist yet). ` +
   `Find the highest existing 2-digit numeric prefix (folders named NN-something). Compute next_index = max + 1, ` +
   `zero-padded to 2 digits (e.g. '07'). Derive spec_name from this user request as kebab-case lowercase: ` +
   `${JSON.stringify(REQUEST)}. Return JSON: {"next_index": "NN", "spec_name": "kebab-case", "spec_identifier": "NN-kebab-case"}.`,
@@ -859,7 +859,7 @@ if (SKIP_WORKTREE) {
   }
   WORKTREE_PATH = worktreeResult.worktree_path;
 }
-const SPEC_DIRECTORY = `${WORKTREE_PATH}/specification/${specMeta.spec_identifier}`;
+const SPEC_DIRECTORY = `${WORKTREE_PATH}/docs/specifications/${specMeta.spec_identifier}`;
 
 // ---------------------------------------------------------------------------
 // Bootstrap recipes — defined here so Step 1.6 (worktree bootstrap) and the
@@ -1652,7 +1652,7 @@ if (!needPrototype) {
       `  - samples: 5-10 strings (file paths absolute under worktree, OR inline ` +
       `             literal values like ID strings). Empty array iff nothing found.\n` +
       `  - source:  one-line description ("test fixtures under backend-service/testdata/", ` +
-      `             "redacted API captures in specification/<spec>/fixtures/", etc).\n` +
+      `             "redacted API captures in docs/specifications/<spec>/fixtures/", etc).\n` +
       `  - rationale: why these samples are representative (range coverage, edge cases ` +
       `               included, etc), OR the 'no_codebase_samples_found:...' marker.`,
       {
