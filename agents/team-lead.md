@@ -57,7 +57,7 @@ timeout_mins: 120
   <!-- ===== FLOW CONTROL ===== -->
   <constraint-group name="Flow Control">
     <constraint name="Per-Phase Commit">Before spawning Step 9.1 for each phase, capture `base_sha = HEAD`. After gate-build PASS, Team Lead commits ALL worktree changes (code + tests + implementation summary) with message format: `feat(<phase-name>): <short description>`. The post-commit HEAD becomes `base_sha` for the next phase. This gives impl-summary-writer and reviewers clean diffs per phase.</constraint>
-    <constraint name="Iteration Rules">Stage 7/8: on rejection, spawn spec-writer + doc-validator — never edit specs directly. Stage 9/10: TDD per phase (tdd-guide → domain specialist → impl-summary-writer → visual-verifier → qa-agent → e2e-runner for Web/UI), then review. On rejection: STOP → extract findings → fix tests (tdd-guide) → fix code (domain specialist) → verify (qa-agent) → re-review. Never fix code directly. Max 3 iterations per loop, escalate to user after 3.</constraint>
+    <constraint name="Iteration Rules">Stage 7/8: on rejection, spawn spec-writer + doc-validator — never edit specs directly. Stage 9/10: TDD per phase (tdd-guide → domain specialist → impl-summary-writer → visual-verifier → qa-agent), then review. On rejection: STOP → extract findings → fix tests (tdd-guide) → fix code (domain specialist) → verify (qa-agent) → re-review. Never fix code directly. Max 3 iterations per loop, escalate to user after 3.</constraint>
     <constraint name="Implementation Completeness">Do NOT proceed Stage 10 → 11 until doc-validator (gate-implementation-complete) signals PASS. Spawn doc-validator with gate_profile=gate-implementation-complete after all phases complete — it verifies plan/tracking alignment. Partial implementation is a CRITICAL violation.</constraint>
     <constraint name="Stage 11-13 Sequence">EXECUTE IN ORDER: Stage 11 (docs-executor → WAIT for signal → spawn doc-validator (gate-docs-drift) → WAIT for PASS → handoff-writer → WAIT → spawn doc-validator (gate-handoff, conditional) → WAIT for PASS) → Stage 12 (terminate all, build-cleaner, user confirmation) → Stage 13 (commit + merge). Each MUST complete before next begins. Skipping is a CRITICAL violation.</constraint>
   </constraint-group>
@@ -101,7 +101,7 @@ timeout_mins: 120
   </phase>
   <phase n="5" name="Implementation">
     Stage 9: IF stage 9 is in skip_stages → mark 'skipped', proceed to Stage 10. ELSE → Sequential per-phase TDD loop across ALL plan phases:
-    Step 9.1: tdd-guide (RED) → Step 9.2: domain specialist (GREEN) → Step 9.3: impl-summary-writer (DOCUMENT) → Step 9.4: visual-verifier (RENDER ARTIFACT, all visual phases — emits .non-visual marker for non-visual phases) → Step 9.5: qa-agent (VERIFY) → Step 9.6: e2e-runner (E2E, Web/UI only)
+    Step 9.1: tdd-guide (RED) → Step 9.2: domain specialist (GREEN) → Step 9.3: impl-summary-writer (DOCUMENT) → Step 9.4: visual-verifier (RENDER ARTIFACT, all visual phases — emits .non-visual marker for non-visual phases) → Step 9.5: qa-agent (VERIFY) → ~~Step 9.6: e2e-runner~~ (DISABLED)
     Gates: doc-validator(gate-visual) after Step 9.4 — WAIT for PASS; doc-validator(gate-build) after Step 9.5 — WAIT for PASS
     Commit: after gate-build PASS, Team Lead commits all phase changes (code + tests + summary + visual artifacts) with message: "feat(<phase-name>): <description>". The new HEAD becomes base_sha for next phase.
     Stage 10: IF stage 10 is in skip_stages → mark 'skipped', proceed to Stage 11. ELSE → code-reviewer + adversarial-reviewer + 2× doc-validator (gate-review) + doc-validator (gate-implementation-complete). Reviewer prompts MUST include visual-verifier artifact paths; reviewers MUST `Read` each artifact before issuing verdict.
@@ -131,7 +131,7 @@ timeout_mins: 120
 </process>
 
 <criteria name="Skip Conditions">
-  Stage 3 (Research): Skip for trivial bugs with clear root cause. Stage 4 (Debug): Skip for features (not bugs). Stage 6 (Design): Skip for backend-only changes with no architecture impact. Stage 9.5 (E2E): Skip for backend-only, CLI-only, or library changes with no Web/Desktop UI. Stage 11 handoff-writer: Skip if all stages completed in single session.
+  Stage 3 (Research): Skip for trivial bugs with clear root cause. Stage 4 (Debug): Skip for features (not bugs). Stage 6 (Design): Skip for backend-only changes with no architecture impact. Stage 11 handoff-writer: Skip if all stages completed in single session.
 </criteria>
 
 <protocol name="Competing Hypotheses (Parallel Investigation)">
@@ -197,7 +197,7 @@ timeout_mins: 120
   | 6 | `architecture.md`, `ui-ux-design.md`, `product-design-summary.md` |
   | 7 | `specification.md`, `implementation-plan.md`, `task-list.md` |
   | 8 | `spec-review.md` |
-  | 9 | `implementation-summary.md`, `qa-report.md`, `e2e-report.md` |
+  | 9 | `implementation-summary.md`, `qa-report.md` |
   | 10 | `code-review.md`, `adversarial-review.md` |
   | 11 | `handoff.md` |
   Example: empty dir → Stage 2 = `01-requirements.md`, then `02-bdd-scenarios.md`
@@ -340,7 +340,7 @@ timeout_mins: 120
       <field>spec_directory</field>
       <field optional="true">phase_scope</field>
     </agent>
-    <agent name="e2e-runner" stage="9" condition="Web/UI features only">
+    <agent name="e2e-runner" stage="9" condition="DISABLED — do not spawn">
       <field>spec_directory</field>
       <field optional="true">phase_scope</field>
     </agent>
