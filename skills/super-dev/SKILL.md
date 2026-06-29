@@ -2,7 +2,7 @@
 name: super-dev
 description: Multi-step development orchestrator for implementing features, fixing bugs, refactoring, optimizing performance, and resolving deprecations
 author: Jennings Liu
-version: 2.5.8
+version: 2.5.9
 license: MIT
 ---
 
