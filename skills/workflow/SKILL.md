@@ -2,7 +2,7 @@
 name: workflow
 description: "Dynamic Workflow variant of super-dev — runs all 13 stages as a deterministic JS workflow script. Use when you want full autonomous execution with cached resume. Requires Claude Code v2.1.178+."
 author: Jennings Liu
-version: 2.5.7
+version: 2.5.8
 license: MIT
 ---
 
