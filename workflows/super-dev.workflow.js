@@ -47,9 +47,9 @@
 // first statement in the file.
 // ---------------------------------------------------------------------------
 export const meta = {
-  name: 'super-dev',
-  description: 'Team-lead orchestrated 13-stage feature/bug/refactor workflow with per-stage gates, structured-output verdicts, and capped iteration loops.',
-  whenToUse: 'New features, bug fixes, or refactors that need the full Stage 1-13 super-dev pipeline (requirements → BDD → research → assessment → design → spec → review → TDD implementation → code review → docs → handoff → cleanup → merge).',
+  name: 'super-dev-workflow',
+  description: 'Dynamic Workflow variant: 13-stage feature/bug/refactor pipeline with per-stage gates, structured-output verdicts, and capped iteration loops. Invoked by super-dev:team-lead-workflow.',
+  whenToUse: 'Explicitly requested via super-dev:workflow skill or --workflow flag. Runs the full Stage 1-13 super-dev pipeline autonomously (requirements → BDD → research → assessment → design → spec → review → TDD implementation → code review → docs → handoff → cleanup → merge).',
   phases: [
     { title: 'Stage 1 — Setup' },
     { title: 'Stage 2 — Requirements + BDD' },
