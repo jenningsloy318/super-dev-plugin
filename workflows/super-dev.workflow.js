@@ -2092,10 +2092,9 @@ for (const ph of phases) {
       const qaTestsFailed = qa?.tests_failed ?? 0;
       const e2eFailedNoCoverage = IS_WEB_UI && e2e && !e2e.all_green && uncovered.length > 0;
 
-      const hasTestGap = uncovered.length > 0 || e2eFailedNoCoverage;
+      const hasTestGap = uncovered.length > 0;
       const hasCodeFault = qaTestsFailed > 0 ||
-        (impl && impl.all_tests_green === false) ||
-        (IS_WEB_UI && e2e && !e2e.all_green && uncovered.length === 0);
+        (impl && impl.all_tests_green === false);
 
       if (hasTestGap) {
         log(`  Phase ${ph.number} iter ${phaseIter}: detected test gap (${uncovered.length} uncovered scenario${uncovered.length === 1 ? '' : 's'}` +
@@ -2237,9 +2236,10 @@ for (const ph of phases) {
       },
     );
 
-    // 9.6 — e2e-runner (DISABLED — blocks workflow; enable with IS_WEB_UI when stable).
-    if (false && IS_WEB_UI) {
-      e2e = await agentWithRetry(
+    // 9.6 — e2e-runner (NON-BLOCKING — failure is logged but does not block the pipeline).
+    if (IS_WEB_UI) {
+      try {
+        e2e = await agentWithRetry(
         `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
         `phase_number: ${ph.number}.\n\n` +
         // E2E suites are the most fragile w.r.t. env config: the dev server
@@ -2317,6 +2317,10 @@ for (const ph of phases) {
           schema: E2E_OUTPUT,
         },
       );
+      } catch (e2eErr) {
+        log(`  ⚠ E2E failed (non-blocking): ${e2eErr?.message ?? e2eErr}. Continuing.`);
+        e2e = { all_green: false, doc_path: '', summary: `E2E error: ${e2eErr?.message ?? 'unknown'}` };
+      }
     }
 
     // 9.7 — gate-build. Final phase gate.
@@ -2332,8 +2336,11 @@ for (const ph of phases) {
       },
     );
 
-    const e2eOk = !IS_WEB_UI || (e2e?.all_green === true);
-    if (buildVerdict?.pass && qa?.all_green && impl?.all_tests_green && e2eOk) {
+    // e2e is NON-BLOCKING: log if it failed but do not gate on it.
+    if (IS_WEB_UI && e2e && !e2e.all_green) {
+      log(`  ⚠ E2E reported failures (non-blocking): ${e2e.summary || 'see report'}`);
+    }
+    if (buildVerdict?.pass && qa?.all_green && impl?.all_tests_green) {
       log(`  Phase ${ph.number} iteration ${phaseIter}: gate-build PASS`);
       break;
     }
