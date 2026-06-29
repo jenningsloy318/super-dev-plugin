@@ -83,36 +83,51 @@ timeout_mins: 120
 
 <process name="Stage Flow">
   <phase n="1" name="Setup">
-    Stage 1: Create worktree, spec dir, JSON tracking, agent team
+    Stage 1: Create worktree, spec dir, JSON tracking, agent team. NEVER skippable — always runs.
   </phase>
   <phase n="2" name="Requirements & Research">
-    Stage 2: spawn requirements-clarifier + doc-validator (gate-requirements) in parallel → WAIT for doc-validator to signal PASS → then spawn bdd-scenario-writer + doc-validator (gate-bdd) in parallel → WAIT for doc-validator to signal PASS
-    Stage 3: research-agent (Firecrawl first; deep-research iterations if issues flagged)
+    Stage 2: IF stage 2 is in skip_stages → mark 'skipped' in tracking JSON, do NOT spawn requirements-clarifier or bdd-scenario-writer, proceed to Stage 3. ELSE → spawn requirements-clarifier + doc-validator (gate-requirements) in parallel → WAIT for doc-validator to signal PASS → then spawn bdd-scenario-writer + doc-validator (gate-bdd) in parallel → WAIT for doc-validator to signal PASS.
+    Stage 3: IF stage 3 is in skip_stages → mark 'skipped' in tracking JSON, proceed to Stage 4. ELSE → research-agent (Firecrawl first; deep-research iterations if issues flagged).
   </phase>
   <phase n="3" name="Analysis & Design">
-    Stage 4: debug-analyzer (bug fixes only)
-    Stage 5: code-assessor (FIRST codebase exploration)
-    Stage 6: architecture-designer (new) / architecture-improver (refactor) / product-designer (UI+arch) / ui-ux-designer (UI only)
-    Stage 6.5 (CONDITIONAL): If 05-architecture.md or pre-spec design contains numeric design constants (thresholds, ratios, percentages, alphas, sizes), spawn prototype-runner + doc-validator(gate-prototype) to empirically validate constants against representative real input BEFORE Stage 7 spec writing. On PROTOTYPE_FAILED, invoke pivot-protocol before proceeding. On no-constants detected, mark Stage 6.5 `skipped` and proceed.
+    Stage 4: IF stage 4 is in skip_stages → mark 'skipped', proceed to Stage 5. ELSE → debug-analyzer (bug fixes only; already skipped for features).
+    Stage 5: IF stage 5 is in skip_stages → mark 'skipped', proceed to Stage 6. ELSE → code-assessor (FIRST codebase exploration).
+    Stage 6: IF stage 6 is in skip_stages → mark 'skipped', proceed to Stage 6.5/7. ELSE → architecture-designer (new) / architecture-improver (refactor) / product-designer (UI+arch) / ui-ux-designer (UI only).
+    Stage 6.5 (CONDITIONAL): IF stage 6.5 is in skip_stages → mark 'skipped'. ELSE → If design output contains numeric design constants, spawn prototype-runner + doc-validator(gate-prototype). On no-constants detected, mark 'skipped' and proceed.
   </phase>
   <phase n="4" name="Specification">
-    Stage 7: spec-writer + doc-validator → specification, plan, tasks (gate-spec-trace)
-    Stage 8: spec-reviewer + doc-validator → review (gate-spec-review)
-    On failure: Spec Iteration Loop (max 3, escalate after 3)
+    Stage 7: IF stage 7 is in skip_stages → mark 'skipped', proceed to Stage 8. ELSE → spec-writer + doc-validator → specification, plan, tasks (gate-spec-trace).
+    Stage 8: IF stage 8 is in skip_stages → mark 'skipped', proceed to Stage 9. ELSE → spec-reviewer + doc-validator → review (gate-spec-review). On failure: Spec Iteration Loop (max 3, escalate after 3).
   </phase>
   <phase n="5" name="Implementation">
-    Stage 9: Sequential per-phase TDD loop across ALL plan phases:
+    Stage 9: IF stage 9 is in skip_stages → mark 'skipped', proceed to Stage 10. ELSE → Sequential per-phase TDD loop across ALL plan phases:
     Step 9.1: tdd-guide (RED) → Step 9.2: domain specialist (GREEN) → Step 9.3: impl-summary-writer (DOCUMENT) → Step 9.4: visual-verifier (RENDER ARTIFACT, all visual phases — emits .non-visual marker for non-visual phases) → Step 9.5: qa-agent (VERIFY) → Step 9.6: e2e-runner (E2E, Web/UI only)
     Gates: doc-validator(gate-visual) after Step 9.4 — WAIT for PASS; doc-validator(gate-build) after Step 9.5 — WAIT for PASS
     Commit: after gate-build PASS, Team Lead commits all phase changes (code + tests + summary + visual artifacts) with message: "feat(<phase-name>): <description>". The new HEAD becomes base_sha for next phase.
-    Stage 10: code-reviewer + adversarial-reviewer + 2× doc-validator (gate-review) + doc-validator (gate-implementation-complete). Reviewer prompts MUST include visual-verifier artifact paths; reviewers MUST `Read` each artifact before issuing verdict.
+    Stage 10: IF stage 10 is in skip_stages → mark 'skipped', proceed to Stage 11. ELSE → code-reviewer + adversarial-reviewer + 2× doc-validator (gate-review) + doc-validator (gate-implementation-complete). Reviewer prompts MUST include visual-verifier artifact paths; reviewers MUST `Read` each artifact before issuing verdict.
     On failure: Implementation Iteration Loop (max 3 per phase)
   </phase>
   <phase n="6" name="Finalization">
-    Stage 11: docs-executor → spawn doc-validator (gate-docs-drift) → WAIT for PASS → handoff-writer → spawn doc-validator (gate-handoff, conditional) → WAIT for PASS (skip handoff if single session)
-    Stage 12: terminate all, build-cleaner, user confirmation
-    Stage 13: commit any remaining uncommitted changes (docs, handoff), merge worktree branch to main
+    Stage 11: IF stage 11 is in skip_stages → mark 'skipped', proceed to Stage 12. ELSE → docs-executor → spawn doc-validator (gate-docs-drift) → WAIT for PASS → handoff-writer → spawn doc-validator (gate-handoff, conditional) → WAIT for PASS (skip handoff if single session).
+    Stage 12: IF stage 12 is in skip_stages → mark 'skipped', proceed to Stage 13. ELSE → terminate all, build-cleaner, user confirmation.
+    Stage 13: IF stage 13 is in skip_stages → mark 'skipped'. ELSE → commit any remaining uncommitted changes (docs, handoff), merge worktree branch to main.
   </phase>
+</process>
+
+<process name="--skip Flag Processing (MANDATORY)">
+  When `--skip=N,N,N` is present in the user's message:
+
+  <step n="1" name="Parse">Extract comma-separated numbers from --skip value. Store as a set of stage numbers (integers and decimals like 6.5). Strip the flag from the request text.</step>
+  <step n="2" name="Gate at each stage">At the START of each stage, BEFORE any action or agent spawn, check: is this stage number in the skip set?</step>
+  <step n="3" name="If YES (skip)">
+    - Log: "Stage N SKIPPED (--skip)"
+    - Update tracking JSON: set stage status to "skipped", set completedAt to current timestamp
+    - Do NOT spawn any agents for this stage
+    - Proceed immediately to the next stage
+  </step>
+  <step n="4" name="If NO (run normally)">Execute the stage as described in the Stage Flow process above.</step>
+  <step n="5" name="Stage 1 exception">Stage 1 (Setup) is NEVER skippable — it creates the worktree and tracking infrastructure. If 1 appears in --skip, ignore it and run Stage 1 normally.</step>
+  <step n="6" name="Downstream safety">When a stage is skipped, downstream stages that reference its outputs (doc paths, assessments, etc.) must handle the absence gracefully. If a downstream stage REQUIRES a skipped stage's output and cannot proceed without it (e.g., Stage 9 requires Stage 7 spec), throw an error: "Stage N requires Stage M output which was skipped — cannot proceed."</step>
 </process>
 
 <criteria name="Skip Conditions">
