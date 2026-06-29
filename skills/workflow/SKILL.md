@@ -1,6 +1,6 @@
 ---
-name: super-dev
-description: Multi-step development orchestrator for implementing features, fixing bugs, refactoring, optimizing performance, and resolving deprecations
+name: workflow
+description: "Dynamic Workflow variant of super-dev — runs all 13 stages as a deterministic JS workflow script. Use when you want full autonomous execution with cached resume. Requires Claude Code v2.1.178+."
 author: Jennings Liu
 version: 2.5.7
 license: MIT
@@ -14,29 +14,43 @@ license: MIT
   Use whichever value resolved to an actual path (not a literal variable name).
 </platform-paths>
 
-<purpose>Team Lead agent team workflow. The Team Lead orchestrates specialized agent teammates — it NEVER implements directly, only spawns, coordinates, and verifies. Agents execute research, architecture, coding, QA, code review, and documentation stages in parallel where possible.</purpose>
+<purpose>13-stage development pipeline for features, bug fixes, and refactors. Runs as a Dynamic Workflow (deterministic JS orchestration) on Claude Code v2.1.178+. There is no fallback path — the Workflow tool MUST be available.</purpose>
 
 <dispatch mandatory="true">
-  **YOU MUST spawn the team-lead agent.** Do NOT implement directly.
+  **YOU MUST spawn the team-lead-workflow agent.** Do NOT call Workflow() directly.
 
   ```
   Agent({
-    subagent_type: "super-dev:team-lead",
+    subagent_type: "super-dev:team-lead-workflow",
     prompt: "<the user's full message>"
   })
   ```
 
-  team-lead resolves `${CLAUDE_PLUGIN_ROOT}`, creates worktree, then walks stages 1–13 by spawning specialist agents sequentially. It NEVER implements directly.
+  team-lead-workflow resolves `${CLAUDE_PLUGIN_ROOT}`, runs `pwd`, then calls Workflow with the correct structured args. Calling Workflow directly will fail because you cannot resolve the plugin_root path yourself.
 </dispatch>
+
+<orchestration-model>
+  **Dynamic Workflows REQUIRED** (Claude Code v2.1.178+). There is no fallback path.
+
+  The team-lead agent invokes ONE `Workflow` tool call with `scriptPath="${CLAUDE_PLUGIN_ROOT}/workflows/super-dev.workflow.js"` and the args. The workflow runtime executes the script in an isolated environment outside Claude's context window. Intermediate per-stage results stay in JavaScript variables inside the script — they NEVER enter the team-lead context window. Only the final compressed result returns to team-lead, which relays it to the user.
+
+  Caps: 16 concurrent subagents / 1000 total agents per workflow run (harness-enforced).
+
+  Benefits:
+  1. Context isolation — team-lead sees only the final summary, not per-stage data.
+  2. Cached resume — `Workflow({scriptPath, resumeFromRunId})` replays completed `agent()` calls instantly; only failed/new agents re-run live.
+  3. Structured output — `schema:` forces validated JSON from each subagent.
+  4. Built-in concurrency + token-budget management via `budget` global.
+  5. Progress streaming via `/workflows` view + `log()` + `phase()` markers.
+</orchestration-model>
 
 <triggers>Triggers on: "implement", "build", "fix bug", "refactor", "add feature", "develop this", "help me build", "add functionality", "optimize performance", "resolve deprecation", "systematic development". Do NOT trigger on: simple questions, file searches, one-off commands, code explanations, quick edits, non-development tasks.
 
-**Flags** (optional, extracted by team-lead):
+**Flags** (optional, extracted by team-lead before workflow invocation):
 - `--skip-worktree` → skip worktree/branch creation, work directly on current branch. Use when already on a feature branch.
-- `--workflow` → redirect to `super-dev:workflow` skill (Dynamic Workflow variant) instead. Requires Claude Code v2.1.178+.
 </triggers>
 
-<note>Detailed protocols live in `${PLUGIN_ROOT}/reference/workflow/*.md` — load each one lazily at its triggering stage. See `<protocols>` block below for the file-per-process map.</note>
+<note>Detailed protocols live in `${CLAUDE_PLUGIN_ROOT}/reference/workflow/*.md` — load each one lazily at its triggering stage. See `<protocols>` block below for the file-per-process map.</note>
 
 <pre-flight-checklist name="Visual / UI Feature">
   Before starting Stage 1 on a feature that touches rendering (UI, layout, custom-painted graphics, document layout, game UI), confirm — do not just nod past these questions:
@@ -52,6 +66,14 @@ license: MIT
 </pre-flight-checklist>
 
 <workflow>
+  <!--
+    This 13-stage contract is the source of truth for BOTH execution modes.
+    Workflow mode: every stage maps to a phase() block in workflows/super-dev.workflow.js.
+    Narrated mode: Team Lead walks the stages here turn-by-turn.
+    Renumbering or adding stages requires updating BOTH the workflow script
+    (meta.phases + phase()/agent() calls) AND the protocol files under
+    reference/workflow/.
+  -->
   <stage n="1" name="Specification Setup">Create worktree, spec dir, workflow JSON, agent team. MUST complete before any codebase exploration or agent spawning.</stage>
   <stage n="2" name="Requirements + BDD">Sequential pairs: spawn requirements-clarifier + doc-validator (gate-requirements) in parallel → WAIT for doc-validator PASS signal (do NOT read the doc or run the gate yourself) → spawn bdd-scenario-writer + doc-validator (gate-bdd) in parallel → WAIT for doc-validator PASS signal. Interview pattern with ambiguity detection (Scope/Behavior/Data/Integration/Performance categories), codebase-grounded context retrieval, edge case generation (null/empty/boundary/concurrent/timeout/overflow), and quality self-scoring. Gates: gate-requirements.sh, gate-bdd.sh (both run by doc-validator, NEVER by team-lead).</stage>
   <stage n="3" name="Research">Spawn research-agent. Firecrawl MCP first, then supplementary scripts. Parallel community discovery (Reddit, HN, GitHub Discussions, Dev.to, X) and AI documentation traversal (Anthropic, OpenAI, Google, framework docs) with momentum scoring. Innovation discovery for technologies less than 12 months old. If report identifies issues/flaws/ambiguities, re-spawn research-agent in deep-research mode targeting specific issues (max 3 iterations). For complex/contentious topics, use competing hypotheses pattern (2-3 agents with different angles). Present 3-5 options with momentum-scored comparison matrix to user.</stage>
@@ -89,7 +111,7 @@ license: MIT
 </protocols>
 
 <gate-map>
-  Gate scripts: `${PLUGIN_ROOT}/scripts/gates/<name>.sh <spec-dir>`. Exit 0 = PASS, 1 = FAIL. **NON-NEGOTIABLE — fail = loop and fix.** Detail: see `reference/workflow/verification-gates.md`.
+  Gate scripts: `${CLAUDE_PLUGIN_ROOT}/scripts/gates/<name>.sh <spec-dir>`. Exit 0 = PASS, 1 = FAIL. **NON-NEGOTIABLE — fail = loop and fix.** Detail: see `reference/workflow/verification-gates.md`.
 
   | After | Script | Run by | Checks |
   |---|---|---|---|
@@ -148,30 +170,22 @@ license: MIT
 </criteria>
 
 <constraints>
-  <constraint name="NEVER Run Gate Scripts">Team Lead NEVER executes gate scripts (gate-*.sh) via Bash. ALL gate verification is delegated to doc-validator. Spawn doc-validator with gate_profile, WAIT for VALIDATED: PASS signal. Running a gate directly — even "just to check" — is a CRITICAL violation.</constraint>
-  <constraint name="NEVER Read Document Outputs">Team Lead NEVER reads documents produced by writer agents for quality verification or to copy content into spawn prompts. Pass spec_directory to downstream agents — they read their own inputs. Exception: extracting a structural count (e.g., number of phases via grep) for loop initialization is acceptable — but never read full documents or paste their content.</constraint>
-  <constraint name="Worktree-Only Modifications">NEVER modify files in the main repo. ALL file operations MUST use absolute paths starting with WORKTREE_PATH. Only exception: Stage 1 scanning main repo's specification/ for next index (read-only). Stage 13 merges to main.</constraint>
-  <constraint name="Iteration Rules">Stage 7/8: follow `spec-iteration-loop.md`. Stage 9/10: follow `implementation-completeness-loop.md` + `implementation-iteration-loop.md`. Both: max 3 iterations, spawn sub-agents for fixes, escalate after 3.</constraint>
-  <constraint name="Version Bump">Every modification to super-dev-plugin files requires patch version bump in plugin.json and marketplace.json.</constraint>
-  <constraint name="Stage 1 Gate">Stage 1 MUST complete before ANY exploration, code reading, grep, glob, research, or agent spawning.</constraint>
-  <constraint name="Pull Latest Before Worktree">Stage 1 MUST `git fetch origin` and fast-forward the default branch to `origin/<default-branch>` BEFORE the `git worktree add` step. Detect the default branch dynamically via `git symbolic-ref refs/remotes/origin/HEAD` — never hard-code `main`. `pull --ff-only` failure (local divergence, detached HEAD, dirty tree) MUST abort the workflow and surface git's output to the user; auto-rebase/force-pull/stash are forbidden. Branching from a stale tip silently breaks Stage 10 review base_sha and `gate-implementation-complete`.</constraint>
-  <constraint name="No Early Code Analysis">Do NOT read code or explore the codebase before Stage 5. Stages 1-4 work from requirements and research only.</constraint>
-  <constraint name="Parallel Doc-validator Rule">EVERY writer/reviewer spawn MUST have a doc-validator spawned IN THE SAME MESSAGE (parallel). Pre-spawn self-check: "Is this agent producing a document? Am I also spawning its paired doc-validator?" If not → STOP and add doc-validator. Spawning a writer WITHOUT its paired doc-validator is a CRITICAL violation — the gate will never be checked. Applies to: Stage 2 (×2), Stage 7, Stage 8, Stage 9 (gate-build after qa), Stage 10 (×3), Stage 11 (gate-docs-drift after docs-executor).</constraint>
-  <constraint name="MANDATORY Stage 11-13 Transition">Execute in strict order: Stage 11 (docs-executor → doc-validator (gate-docs-drift) → handoff-writer) → Stage 12 (cleanup + user confirmation) → Stage 13 (commit + merge). Skipping is a CRITICAL violation.</constraint>
-  <ref>Team Lead operational constraints (worktree paths in spawn prompts, cd-prefix, delegation mode, implementation completeness, teammate termination) live in `agents/team-lead.md` — not duplicated here.</ref>
+  <constraint name="NEVER Analyze Directly">team-lead invokes the workflow and relays its result. ALL implementation, gate checks, and agent spawning happens inside `agent()` calls within the workflow script.</constraint>
+  <constraint name="Single Tool Call">A normal run should be 1 (ToolSearch verify) + 1 (Workflow invocation) + 1 (relay result) = ~3 turns total in team-lead context. Anything beyond that suggests team-lead is doing work that belongs in the script.</constraint>
+  <constraint name="No Pause for Confirmation">NEVER pause to ask the user for confirmation. After path resolution, invoke the workflow immediately. The workflow runs autonomously to completion.</constraint>
+  <constraint name="Worktree-Only Modifications">The workflow creates a worktree. ALL file operations happen there. Only Stage 13 merges to main.</constraint>
+  <constraint name="Resume on Failure">If the workflow returns status='failed', users can re-run with `Workflow({scriptPath, resumeFromRunId})` to replay cached agents and only re-run the failed stage onward.</constraint>
 </constraints>
 
 <rules>
-  <rule name="agent-team-preflight" mandatory="true">Stage 1 MUST run `${PLUGIN_ROOT}/scripts/preflight-env.sh` before any Agent spawn. The script verifies `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` and Claude Code ≥ v2.1.178. Non-zero exit → ABORT, surface the script's remediation instructions to the user, do NOT spawn anything. As of v2.1.178 there is no `TeamCreate` step: the team is created automatically on the first Agent spawn once the env var is set.</rule>
-  <rule name="team-name-on-spawn">Pass `team_name` (matching `team.name` in the workflow tracking JSON) on every Agent spawn so teammates can address each other via `SendMessage`. As of v2.1.178 the harness derives the team name from the session if omitted, so a missing `team_name` is no longer fatal — but pairing every spawn with the same team_name keeps the audit trail consistent.</rule>
-  <rule name="team-lead-delegation" mandatory="true">Team Lead NEVER implements directly. Only assigns tasks, spawns agents, coordinates, and verifies output.</rule>
-  <ref>Generic dev rules (git-workflow, coding-style, testing, security, agents, patterns, performance, rust-project) live in `${PLUGIN_ROOT}/rules/*.md` and are loaded automatically.</ref>
+  <rule name="Workflow Required" mandatory="true">Claude Code v2.1.178+ and the `Workflow` tool MUST be available. The team-lead agent verifies Workflow availability before invoking; on absence it aborts with an upgrade recommendation.</rule>
+  <rule name="team-lead-delegation" mandatory="true">team-lead does ONE thing: invoke `Workflow({scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/super-dev.workflow.js", args})`. It does not spawn individual agents, does not run scripts, does not write tracking files. All stage logic lives in the workflow script.</rule>
+  <rule name="no-pause" mandatory="true">team-lead never pauses to ask for confirmation. After parameter extraction, invoke the workflow immediately and run to completion.</rule>
 </rules>
 
 <references>
-  <ref>Plugin root: `${PLUGIN_ROOT}` — agents, commands, rules, skills, templates, scripts</ref>
-  <ref>Plugin data: `${PLUGIN_DATA}` — global stats, learned patterns, autoresearch results</ref>
-  <ref>Per-process protocols: `${PLUGIN_ROOT}/reference/workflow/*.md` — see `<protocols>` block above</ref>
-  <ref>Compatibility: Claude Code CLI, Codex CLI, or Antigravity IDE/CLI. Git required for worktree management.</ref>
-  <ref>Workflow variant: For autonomous Dynamic Workflow execution, use `super-dev:workflow` instead.</ref>
+  <ref>Canonical workflow script: `workflows/super-dev.workflow.js` — all orchestration logic lives here</ref>
+  <ref>Plugin root: `${CLAUDE_PLUGIN_ROOT}` — agents, scripts, skills, workflows</ref>
+  <ref>Plugin data: `${PLUGIN_DATA}` — global stats, learned patterns</ref>
+  <ref>Per-process protocols: `${CLAUDE_PLUGIN_ROOT}/reference/workflow/*.md` — loaded lazily per-stage by the workflow</ref>
 </references>
