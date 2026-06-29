@@ -37,11 +37,13 @@ timeout_mins: 60
 
 <parameters>
   <parameter name="skip_worktree" default="false">When true, skip worktree/branch creation and work directly on the current branch. Flag: `--skip-worktree`.</parameter>
+  <parameter name="skip_stages" default="">Comma-separated stage numbers to skip entirely (e.g., "1,2,3,4,5"). Skipped stages are marked 'skipped' in tracking JSON without spawning agents. Flag: `--skip=1,2,3`.</parameter>
 
   <flag-dispatch>
     Extract CLI-style flags from the user's message. After extraction, remaining text = `request`.
     - `--skip-worktree` → skip_worktree = true
-    The flag is removed from the request text before passing to the workflow.
+    - `--skip=N,N,N` → skip_stages = "N,N,N" (comma-separated stage numbers, supports decimals like 6.5)
+    The flags are removed from the request text before passing to the workflow.
   </flag-dispatch>
 </parameters>
 
@@ -55,6 +57,7 @@ timeout_mins: 60
     a. `plugin_root`: `${CLAUDE_PLUGIN_ROOT}` (resolved by the harness at agent load time).
     b. `repo_path`: Run `pwd` to get the user's current working directory.
     c. Detect `--skip-worktree` flag from user message. If present, set `skip_worktree = true` and strip the flag from the request text.
+    d. Detect `--skip=N,N,N` flag from user message. If present, extract the comma-separated numbers as `skip_stages` string and strip the flag from the request text.
   </step>
 
   <step n="3" name="Invoke Workflow">
@@ -66,7 +69,8 @@ timeout_mins: 60
         request: "<user's message with flags stripped>",
         plugin_root: "${CLAUDE_PLUGIN_ROOT}",
         repo_path: "<pwd result>",
-        skip_worktree: <true if --skip-worktree flag present, false otherwise>
+        skip_worktree: <true if --skip-worktree flag present, false otherwise>,
+        skip_stages: "<comma-separated stage numbers, e.g. '2,3,4,5' or '' if not specified>"
       }
     })
     ```

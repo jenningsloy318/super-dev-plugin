@@ -575,6 +575,22 @@ if (/--skip-worktree/i.test(REQUEST)) {
   REQUEST = REQUEST.replace(/--skip-worktree/gi, '').trim();
 }
 
+// Parse --skip=1,2,3 (comma-separated stage numbers to skip entirely).
+// Supports integers and decimals (e.g., 6.5). Stages in this set are marked
+// 'skipped' without spawning any agents.
+const SKIP_STAGES_RAW = _args.skip_stages
+  ?? (REQUEST.match(/--skip[= ]([0-9.,]+)/i) || [])[1]
+  ?? '';
+const SKIP_STAGES = new Set(
+  SKIP_STAGES_RAW.toString().split(',').map(s => s.trim()).filter(Boolean).map(Number)
+);
+if (/--skip[= ][0-9.,]+/i.test(REQUEST)) {
+  REQUEST = REQUEST.replace(/--skip[= ][0-9.,]+/gi, '').trim();
+}
+if (SKIP_STAGES.size > 0) {
+  log(`[super-dev] Stages to skip: ${[...SKIP_STAGES].join(', ')}`);
+}
+
 // Auto-detect feature_kind from request text
 const FEATURE_KIND = /\b(bug|fix|broken|crash|error|panic|fail|regression)\b/i.test(REQUEST) ? 'bug'
   : /\b(refactor|restructure|improve|cleanup|clean up)\b/i.test(REQUEST) ? 'refactor'
@@ -1124,6 +1140,17 @@ async function updateTracking(opts) {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
+// shouldSkip(stageNum) — returns true if this stage is in the --skip set.
+// Logs and marks tracking as 'skipped' so downstream stages see consistent state.
+// ---------------------------------------------------------------------------
+async function shouldSkip(stageNum, phaseName) {
+  if (!SKIP_STAGES.has(stageNum)) return false;
+  log(`Stage ${stageNum} SKIPPED (--skip=${[...SKIP_STAGES].join(',')})`);
+  await updateTracking({ stage: stageNum, status: 'skipped', currentPhase: phaseName });
+  return true;
+}
+
+// ---------------------------------------------------------------------------
 // Stable prompt prefix — front-loaded so downstream agent() prompts benefit
 // from the Workflow runtime's prompt caching (prefix matching). Varying
 // context (iteration guidance, gate errors) goes AFTER this block.
@@ -1163,6 +1190,14 @@ await updateTracking({ stage: 1, status: 'complete', currentPhase: 'Stage 1 — 
 //   Two sequential writer+validator pairs, each pair runs in parallel.
 // ---------------------------------------------------------------------------
 phase('Stage 2 — Requirements + BDD');
+let req = null, bdd = null;
+
+if (SKIP_STAGES.has(2)) {
+  log(`Stage 2 SKIPPED (--skip includes 2)`);
+  await updateTracking({ stage: 2, status: 'skipped', currentPhase: 'Stage 2 — Requirements + BDD' });
+  req = { doc_path: SPEC_DIRECTORY + '/01-requirements.md', acceptance_criteria: [], ac_count: 0, feature_name: REQUEST.slice(0, 60) };
+  bdd = { doc_path: SPEC_DIRECTORY + '/02-bdd-scenarios.md', scenario_count: 0, coverage_score: 0 };
+} else {
 await updateTracking({ stage: 2, status: 'in_progress', currentPhase: 'Stage 2 — Requirements + BDD' });
 
 // 2A — Requirements + gate-requirements (with format-fix loop)
@@ -1196,7 +1231,7 @@ const reqLoop = await gatedStage2WriterLoop({
     },
   ),
 });
-const req = reqLoop.writer;
+req = reqLoop.writer;
 log(`Requirements: ${req.ac_count} ACs captured (${reqLoop.iterations} iteration${reqLoop.iterations === 1 ? '' : 's'}).`);
 
 // 2B — BDD scenarios + gate-bdd (with format-fix loop)
@@ -1229,9 +1264,10 @@ const bddLoop = await gatedStage2WriterLoop({
     },
   ),
 });
-const bdd = bddLoop.writer;
+bdd = bddLoop.writer;
 log(`BDD: ${bdd.scenario_count} scenarios (coverage ${Math.round((bdd.coverage_score ?? 0) * 100)}%, ${bddLoop.iterations} iteration${bddLoop.iterations === 1 ? '' : 's'}).`);
 await updateTracking({ stage: 2, status: 'complete', docs: [requirementsName, bddName], currentPhase: 'Stage 2 — Requirements + BDD' });
+} // end Stage 2
 
 // ---------------------------------------------------------------------------
 // Stage 3 — Research
@@ -1239,12 +1275,18 @@ await updateTracking({ stage: 2, status: 'complete', docs: [requirementsName, bd
 //   surface. Capped at 3 total iterations (the project rule).
 // ---------------------------------------------------------------------------
 phase('Stage 3 — Research');
+const researchReports = [];
+
+if (SKIP_STAGES.has(3)) {
+  log(`Stage 3 SKIPPED (--skip includes 3)`);
+  await updateTracking({ stage: 3, status: 'skipped', currentPhase: 'Stage 3 — Research' });
+  researchReports.push({ doc_path: SPEC_DIRECTORY + '/03-research-report.md', options: [], open_issues: [] });
+} else {
 await updateTracking({ stage: 3, status: 'in_progress', currentPhase: 'Stage 3 — Research' });
 
 // Define doc filenames for this stage (single index, iteration suffix)
 const researchDoc = docNameIterating('research-report');
 
-const researchReports = [];
 let researchIteration = 0;
 let openIssues = [];
 const MAX_RESEARCH = 3;
@@ -1282,6 +1324,7 @@ while (researchIteration < MAX_RESEARCH) {
       `${MAX_RESEARCH - researchIteration} iteration(s) remaining.`);
 }
 await updateTracking({ stage: 3, status: 'complete', currentPhase: 'Stage 3 — Research' });
+} // end Stage 3
 
 // ---------------------------------------------------------------------------
 // Stages 4 + 5 — Debug Analysis (bugs only) + Code Assessment
@@ -1295,12 +1338,46 @@ await updateTracking({ stage: 3, status: 'complete', currentPhase: 'Stage 3 — 
 phase('Stage 4 — Debug Analysis');
 
 let debugResult = null;
+let assessment = null;
+
+if (SKIP_STAGES.has(4) && SKIP_STAGES.has(5)) {
+  log(`Stages 4+5 SKIPPED (--skip includes 4,5)`);
+  await updateTracking({ stage: 4, status: 'skipped', currentPhase: 'Stage 4 — Debug Analysis' });
+  await updateTracking({ stage: 5, status: 'skipped', currentPhase: 'Stage 5 — Code Assessment' });
+  assessment = { files_assessed: 0, patterns: [], doc_path: SPEC_DIRECTORY + '/04-code-assessment.md' };
+} else if (SKIP_STAGES.has(4)) {
+  log(`Stage 4 SKIPPED (--skip includes 4)`);
+  await updateTracking({ stage: 4, status: 'skipped', currentPhase: 'Stage 4 — Debug Analysis' });
+  // Still run Stage 5 below in the non-bug path
+  const assessmentName = docName('code-assessment.md');
+  phase('Stage 5 — Code Assessment');
+  await updateTracking({ stage: 5, status: 'in_progress', currentPhase: 'Stage 5 — Code Assessment' });
+  log('Stage 5: code-assessor — first codebase exploration');
+  assessment = await agentWithRetry(
+    `${STABLE_PREFIX}` +
+    `Inputs to read yourself: ${req?.doc_path ?? '(skipped)'}, ${bdd?.doc_path ?? '(skipped)'}, ${researchReports[researchReports.length - 1]?.doc_path ?? '(skipped)'}.\n\n` +
+    `This is the FIRST code-reading stage. Inspect the codebase rooted at ${WORKTREE_PATH} ` +
+    `and identify the patterns/idioms the new code MUST follow. Cite files and line numbers. ` +
+    `Produce ${shellQuote(SPEC_DIRECTORY + '/' + assessmentName)}.`,
+    {
+      label: 'code-assessor',
+      phase: 'Stage 5 — Code Assessment',
+      agentType: 'super-dev:code-assessor',
+      schema: ASSESSMENT_OUTPUT,
+    },
+  );
+  if (!assessment) {
+    throw new Error('Stage 5: code-assessor returned null after retries — cannot proceed without codebase assessment.');
+  }
+  log(`Stage 5 complete: ${assessment.files_assessed} files assessed, ${assessment.patterns.length} patterns to follow.`);
+  await updateTracking({ stage: 5, status: 'complete', currentPhase: 'Stage 5 — Code Assessment' });
+} else {
+
 const isBug = FEATURE_KIND === 'bug' || (FEATURE_KIND === 'auto' && /\b(bug|broken|crash|fail|regression|error|panic)\b/i.test(REQUEST));
 
 // Pre-allocate doc names before parallel execution to maintain sequential numbering
 const debugName = isBug ? docName('debug-analysis.md') : null;
 const assessmentName = docName('code-assessment.md');
-let assessment = null;
 
 if (isBug) {
   // Run Stage 4 (debug) and Stage 5 (assessment) in parallel — no mutual dependency
@@ -1426,6 +1503,7 @@ if (isBug) {
   log(`Stage 5 complete: ${assessment.files_assessed} files assessed, ${assessment.patterns.length} patterns to follow.`);
   await updateTracking({ stage: 5, status: 'complete', currentPhase: 'Stage 5 — Code Assessment' });
 }
+} // end Stages 4+5 skip guard
 
 // ---------------------------------------------------------------------------
 // Stage 6 — Design (routed by feature_kind + ui_scope)
@@ -1436,10 +1514,16 @@ if (isBug) {
 //   bug      + 'none'   → SKIP (design changes only on confirmed pivot)
 // ---------------------------------------------------------------------------
 phase('Stage 6 — Design');
-await updateTracking({ stage: 6, status: 'in_progress', currentPhase: 'Stage 6 — Design' });
 
 let design = null;
 let designerType = null;
+
+if (SKIP_STAGES.has(6)) {
+  log(`Stage 6 SKIPPED (--skip includes 6)`);
+  await updateTracking({ stage: 6, status: 'skipped', currentPhase: 'Stage 6 — Design' });
+} else {
+await updateTracking({ stage: 6, status: 'in_progress', currentPhase: 'Stage 6 — Design' });
+
 if (UI_SCOPE === 'ui+arch') {
   designerType = 'product-designer';
 } else if (UI_SCOPE === 'ui-only') {
@@ -1492,6 +1576,7 @@ if (designerType) {
   log(`Stage 6 complete: ${design.docs.length} doc(s) written; numeric constants present: ${design.has_numeric_constants ?? false}`);
   await updateTracking({ stage: 6, status: 'complete', currentPhase: 'Stage 6 — Design' });
 }
+} // end Stage 6 skip guard
 
 // ---------------------------------------------------------------------------
 // Stage 6.5 — Prototype (CONDITIONAL)

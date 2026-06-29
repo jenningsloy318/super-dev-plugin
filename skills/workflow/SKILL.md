@@ -48,6 +48,7 @@ license: MIT
 
 **Flags** (optional, extracted by team-lead-workflow before workflow invocation):
 - `--skip-worktree` → skip worktree/branch creation, work directly on current branch. Use when already on a feature branch.
+- `--skip=N,N,N` → skip specified stages entirely (comma-separated numbers, supports decimals like 6.5). Skipped stages are marked 'skipped' in tracking JSON without spawning agents. Example: `--skip=2,3,4,5` to jump straight to design.
 </triggers>
 
 <note>Detailed protocols live in `${CLAUDE_PLUGIN_ROOT}/reference/workflow/*.md` — load each one lazily at its triggering stage. See `<protocols>` block below for the file-per-process map.</note>
