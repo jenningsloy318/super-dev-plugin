@@ -25,12 +25,23 @@ model: inherit
 </principles>
 
 <input>
+  <field name="plugin_root" required="true">Absolute path to the plugin root directory (passed by Team Lead)</field>
   <field name="spec_directory" required="true">Path to specification directory inside worktree</field>
   <field name="output_filename" required="true">Exact output filename (e.g., `[XX]-code-assessment.md` where XX is computed index)</field>
   <field name="scope" required="true">Area to assess (folders/files)</field>
   <field name="focus" required="true">Architecture/standards/dependencies/patterns</field>
   <field name="research_findings" required="false">Optional prior research to consider</field>
 </input>
+
+<mandatory-rules>
+  For Rust projects, READ and assess code against these rule files from `${plugin_root}/rules/`:
+  <rule-file name="rust-project.md">Workspace structure, build commands, crate conventions</rule-file>
+  <rule-file name="rust-async-correctness.md">CancellationToken hierarchy, TaskPool, periodic tasks, channel selection, adaptive polling</rule-file>
+  <rule-file name="rust-gpui-patterns.md" condition="GPUI project">State management, platform dispatch, events, window lifecycle</rule-file>
+  <rule-file name="rust-performance-desktop.md" condition="desktop app">Generation counters, pre-created windows, lock-free fast paths</rule-file>
+  <rule-file name="rust-security-hardening.md" condition="network service">SecurityGate, rate limiting, RAII permits, fuzz targets</rule-file>
+  Report violations of these rules as findings in the assessment.
+</mandatory-rules>
 
 <search-strategy>
   Text Pattern Search: Function definitions (`function\s+\w+`), class definitions (`class\s+\w+`), imports (`^import\s+`), errors (`throw|Error|panic`), config values (`process\.env\.\w+`), TODO/FIXME, console logs, type definitions.

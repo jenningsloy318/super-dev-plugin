@@ -64,6 +64,16 @@ stream.for_each_concurrent(10, process).await;
   <field name="plugin_root" required="true">Absolute path to the plugin root directory (passed by Team Lead)</field>
 </input>
 
+<mandatory-rules>
+  Before implementing, READ and enforce these rule files from `${plugin_root}/rules/`:
+  <rule-file name="rust-project.md">Workspace structure, build commands, crate conventions</rule-file>
+  <rule-file name="rust-async-correctness.md">Blocking I/O detection, CancellationToken hierarchy, TaskPool, periodic tasks, channel selection, adaptive polling, DegradationFlags</rule-file>
+  <rule-file name="rust-gpui-patterns.md" condition="project uses GPUI">GPUI state management, cx.notify(), platform cfg-dispatch, dialogs, window lifecycle, FocusHandle</rule-file>
+  <rule-file name="rust-performance-desktop.md" condition="desktop app">Pre-created windows, FIFO IPC, generation counters, lock-free fast paths, release profiles</rule-file>
+  <rule-file name="rust-security-hardening.md" condition="network service">SecurityGate cascade, rate limiting, RAII permits, hot-reload, fuzz infrastructure</rule-file>
+  <rule-file name="llm-integration-patterns.md" condition="integrates LLM APIs">Parallel LLM calls, robust response parsing, tag preservation, caching, retry</rule-file>
+</mandatory-rules>
+
 <collaboration>
   Runs as Step 9.2 in the sequential TDD workflow: tdd-guide (9.1) → rust-developer (9.2) → impl-summary-writer (9.3) → qa-agent (9.4). Receives test files from Step 9.1 and makes them pass.
 </collaboration>

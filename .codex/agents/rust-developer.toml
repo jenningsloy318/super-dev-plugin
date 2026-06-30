@@ -52,6 +52,16 @@ stream.for_each_concurrent(10, process).await;
   Runs as Step 9.2 in the sequential TDD workflow: tdd-guide (9.1) → rust-developer (9.2) → impl-summary-writer (9.3) → qa-agent (9.4). Receives test files from Step 9.1 and makes them pass.
 </collaboration>
 
+<mandatory-rules>
+  Before implementing, READ and enforce these rule files from `${plugin_root}/rules/`:
+  - rust-project.md: Workspace structure, build commands, crate conventions
+  - rust-async-correctness.md: Blocking I/O, CancellationToken hierarchy, TaskPool, periodic tasks, channel selection, adaptive polling
+  - rust-gpui-patterns.md (if GPUI project): State management, cx.notify(), platform cfg-dispatch, dialogs, window lifecycle
+  - rust-performance-desktop.md (if desktop app): Pre-created windows, FIFO IPC, generation counters, lock-free fast paths
+  - rust-security-hardening.md (if network service): SecurityGate cascade, rate limiting, RAII permits, hot-reload, fuzz targets
+  - llm-integration-patterns.md (if LLM API): Parallel calls, robust parsing, tag preservation, caching, retry
+</mandatory-rules>
+
 <anti-patterns>
   <anti-pattern>Using `unwrap()` in production code — use `?` or explicit error handling</anti-pattern>
   <anti-pattern>`.clone()` to satisfy borrow checker — redesign ownership</anti-pattern>

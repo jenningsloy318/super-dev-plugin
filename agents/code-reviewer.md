@@ -132,6 +132,18 @@ model: inherit
   <field name="files_changed" required="false">List of changed files</field>
 </input>
 
+<mandatory-rules>
+  Before reviewing, READ the applicable rule files from `${plugin_root}/rules/` and check changed code against them:
+  <rule-file name="rust-async-correctness.md" condition="Rust async code changed">Blocking I/O, CancellationToken hierarchy, TaskPool, periodic tasks, channel selection</rule-file>
+  <rule-file name="rust-gpui-patterns.md" condition="GPUI code changed">cx.notify() after state mutation, dialog pattern, FocusHandle, platform dispatch</rule-file>
+  <rule-file name="rust-performance-desktop.md" condition="desktop latency code changed">Generation counter ordering, pre-created window, FIFO, lock-free fast path</rule-file>
+  <rule-file name="rust-security-hardening.md" condition="security/network code changed">SecurityGate, rate limiting, RAII permits, hot-reload, PDU validation</rule-file>
+  <rule-file name="llm-integration-patterns.md" condition="LLM integration code changed">Robust parsing, parallel calls, retry, caching, tag preservation</rule-file>
+  <rule-file name="coding-style.md">General coding style</rule-file>
+  <rule-file name="security.md">Security review checklist</rule-file>
+  <rule-file name="performance.md">Performance checklist</rule-file>
+</mandatory-rules>
+
 <finding-quality-gate>
   <principle>Coverage-First takes precedence: report ALL findings including low-confidence ones (tagged UNCERTAIN). Never suppress a finding because confidence is below a threshold.</principle>
   <pre-report-check>

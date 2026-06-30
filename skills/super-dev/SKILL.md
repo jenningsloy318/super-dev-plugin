@@ -166,7 +166,7 @@ license: MIT
   <rule name="agent-team-preflight" mandatory="true">Stage 1 MUST run `${PLUGIN_ROOT}/scripts/preflight-env.sh` before any Agent spawn. The script verifies `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` and Claude Code ≥ v2.1.178. Non-zero exit → ABORT, surface the script's remediation instructions to the user, do NOT spawn anything. As of v2.1.178 there is no `TeamCreate` step: the team is created automatically on the first Agent spawn once the env var is set.</rule>
   <rule name="team-name-on-spawn">Pass `team_name` (matching `team.name` in the tracking JSON) on every Agent spawn so teammates can address each other via `SendMessage`. As of v2.1.178 the harness derives the team name from the session if omitted, so a missing `team_name` is no longer fatal — but pairing every spawn with the same team_name keeps the audit trail consistent.</rule>
   <rule name="team-lead-delegation" mandatory="true">Team Lead NEVER implements directly. Only assigns tasks, spawns agents, coordinates, and verifies output.</rule>
-  <ref>Generic dev rules (git-workflow, coding-style, testing, security, agents, patterns, performance, rust-project) live in `${PLUGIN_ROOT}/rules/*.md` and are loaded automatically.</ref>
+  <ref>Generic dev rules (git-workflow, coding-style, testing, security, agents, patterns, performance, rust-project, rust-async-correctness, rust-gpui-patterns, rust-performance-desktop, rust-security-hardening, llm-integration-patterns) live in `${PLUGIN_ROOT}/rules/*.md` and are loaded automatically.</ref>
 </rules>
 
 <references>
