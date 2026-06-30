@@ -84,6 +84,25 @@ timeout_mins: 120
 <process name="Stage Flow">
   <phase n="1" name="Setup">
     Stage 1: Create worktree, spec dir, JSON tracking, agent team. NEVER skippable — always runs.
+
+    Step 1.1: Run `${PLUGIN_ROOT}/scripts/preflight-env.sh` to verify environment.
+    Step 1.2: Pull latest (see "Pull Latest Before Worktree" constraint).
+    Step 1.3 — Spec Naming (MANDATORY): Derive spec_identifier from the user's request:
+      1. Look at `docs/specifications/` directory in the repo
+      2. Find the highest existing 2-digit numeric prefix (e.g., folders `01-something`, `02-another`)
+      3. Compute `next_index` = max + 1, zero-padded to 2 digits (e.g., "03")
+      4. Derive `spec_name` from the user's request as kebab-case lowercase (e.g., "add-auth-flow", "fix-pagination-bug", "refactor-handler-pattern")
+      5. `spec_identifier` = `{next_index}-{spec_name}` (e.g., "03-add-auth-flow")
+      If `docs/specifications/` doesn't exist, start at "01".
+    Step 1.4 — Create Worktree (unless --skip-worktree):
+      - Branch name: `{spec_identifier}` (e.g., "03-add-auth-flow")
+      - Worktree path: `.worktree/{spec_identifier}` (relative to repo root)
+      - Command: `git worktree add .worktree/{spec_identifier} -b {spec_identifier}`
+      - Capture absolute worktree path via `cd .worktree/{spec_identifier} && pwd`
+      - Store as WORKTREE_PATH in tracking JSON
+    Step 1.5 — Create Spec Directory: `mkdir -p $WORKTREE_PATH/docs/specifications/{spec_identifier}/`
+    Step 1.6 — Initialize Tracking JSON: Copy template from `${PLUGIN_ROOT}/reference/workflow-tracking-template.json` to `{spec_directory}/{spec_identifier}-workflow-tracking.json`. Populate: specId, specName, worktreePath, team.name, startedAt.
+    Step 1.7 — Copy .env files from main repo to worktree (recursive, skip *.example).
   </phase>
   <phase n="2" name="Requirements & Research">
     Stage 2: IF stage 2 is in skip_stages → mark 'skipped' in tracking JSON, do NOT spawn requirements-clarifier or bdd-scenario-writer, proceed to Stage 3. ELSE → spawn requirements-clarifier + doc-validator (gate-requirements) in parallel → WAIT for doc-validator to signal PASS → then spawn bdd-scenario-writer + doc-validator (gate-bdd) in parallel → WAIT for doc-validator to signal PASS.
