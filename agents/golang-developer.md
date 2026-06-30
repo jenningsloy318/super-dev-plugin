@@ -89,3 +89,11 @@ mux.HandleFunc("POST /api/v1/users", createUser)
   <anti-pattern>Panic for expected errors — return errors</anti-pattern>
 </anti-patterns>
 
+<mandatory-rules>
+  Before implementing, READ the applicable rule files from `${plugin_root}/rules/` and check implementation against them:
+  <rule-file name="error-classification.md">Retriable vs terminal errors, backoff with jitter, error persistence, timeout budgets, batch isolation</rule-file>
+  <rule-file name="enterprise-handler-patterns.md" condition="HTTP handler code">Upload-enrich-list, async enrichment, rate limiting, router wiring, upsert patterns</rule-file>
+  <rule-file name="multi-file-sync.md" condition="RBAC or router changes">Coupled files updated atomically (handler + router + permission middleware)</rule-file>
+  <rule-file name="config-design.md" condition="config struct changes">Nest under domain, condense enable+interval, per-entity tracking</rule-file>
+</mandatory-rules>
+

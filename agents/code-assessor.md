@@ -34,12 +34,25 @@ model: inherit
 </input>
 
 <mandatory-rules>
-  For Rust projects, READ and assess code against these rule files from `${plugin_root}/rules/`:
+  READ and assess code against applicable rule files from `${plugin_root}/rules/`:
+
+  For ALL projects:
+  <rule-file name="error-classification.md" condition="code with external calls (HTTP, DB, queue)">Retriable vs terminal errors, backoff, error persistence, timeout budget</rule-file>
+  <rule-file name="multi-file-sync.md">Detect coupled file groups that must be updated atomically (RBAC, i18n, schema+types, migration+model)</rule-file>
+
+  For Rust projects:
   <rule-file name="rust-project.md">Workspace structure, build commands, crate conventions</rule-file>
   <rule-file name="rust-async-correctness.md">CancellationToken hierarchy, TaskPool, periodic tasks, channel selection, adaptive polling</rule-file>
   <rule-file name="rust-gpui-patterns.md" condition="GPUI project">State management, platform dispatch, events, window lifecycle</rule-file>
   <rule-file name="rust-performance-desktop.md" condition="desktop app">Generation counters, pre-created windows, lock-free fast paths</rule-file>
   <rule-file name="rust-security-hardening.md" condition="network service">SecurityGate, rate limiting, RAII permits, fuzz targets</rule-file>
+
+  For TypeScript/frontend projects:
+  <rule-file name="frontend-data-patterns.md" condition="React/Next.js">Convention detection, data-fetching patterns, filtering architecture</rule-file>
+
+  For backend/API projects:
+  <rule-file name="enterprise-handler-patterns.md" condition="CRUD+enrichment endpoints">Handler anatomy, async enrichment, SSE, router wiring</rule-file>
+
   Report violations of these rules as findings in the assessment.
 </mandatory-rules>
 

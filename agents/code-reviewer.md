@@ -134,11 +134,17 @@ model: inherit
 
 <mandatory-rules>
   Before reviewing, READ the applicable rule files from `${plugin_root}/rules/` and check changed code against them:
+  <rule-file name="error-classification.md" condition="code with external calls">Retriable vs terminal errors, backoff jitter, timeout budgets, error persistence, batch isolation</rule-file>
+  <rule-file name="multi-file-sync.md" condition="RBAC/i18n/schema/migration changes">All coupled files updated atomically? Missing sync-point file?</rule-file>
+  <rule-file name="enterprise-handler-patterns.md" condition="backend handler code changed">Upload-enrich-list pattern, async enrichment, rate limiting, router wiring completeness</rule-file>
+  <rule-file name="frontend-data-patterns.md" condition="React data fetching changed">Convention match, chained filtering, pagination reset, debounced search</rule-file>
   <rule-file name="rust-async-correctness.md" condition="Rust async code changed">Blocking I/O, CancellationToken hierarchy, TaskPool, periodic tasks, channel selection</rule-file>
   <rule-file name="rust-gpui-patterns.md" condition="GPUI code changed">cx.notify() after state mutation, dialog pattern, FocusHandle, platform dispatch</rule-file>
   <rule-file name="rust-performance-desktop.md" condition="desktop latency code changed">Generation counter ordering, pre-created window, FIFO, lock-free fast path</rule-file>
   <rule-file name="rust-security-hardening.md" condition="security/network code changed">SecurityGate, rate limiting, RAII permits, hot-reload, PDU validation</rule-file>
   <rule-file name="llm-integration-patterns.md" condition="LLM integration code changed">Robust parsing, parallel calls, retry, caching, tag preservation</rule-file>
+  <rule-file name="test-quality.md" condition="test code changed">Observable outcomes, no compiler tests, assert error content, no duplicates</rule-file>
+  <rule-file name="pr-review-readiness.md">Prerequisites identified, design matches domain, behavior configurable, error isolation</rule-file>
   <rule-file name="coding-style.md">General coding style</rule-file>
   <rule-file name="security.md">Security review checklist</rule-file>
   <rule-file name="performance.md">Performance checklist</rule-file>

@@ -102,3 +102,9 @@ function List({ items }: Props) {
   <anti-pattern>Interpolating user input in CSS — XSS risk</anti-pattern>
 </anti-patterns>
 
+<mandatory-rules>
+  Before implementing, READ the applicable rule files from `${plugin_root}/rules/` and check implementation against them:
+  <rule-file name="frontend-data-patterns.md">Convention detection (useEffect+fetch vs SWR), chained filtering, pagination reset, debounced search, multi-select patterns</rule-file>
+  <rule-file name="multi-file-sync.md" condition="i18n, permission guards, or API type changes">Coupled files that MUST be updated atomically</rule-file>
+</mandatory-rules>
+

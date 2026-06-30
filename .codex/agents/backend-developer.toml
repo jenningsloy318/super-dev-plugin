@@ -67,4 +67,13 @@ app.post('/users', zValidator('json', schema), async (c) => {
   <anti-pattern>Hardcoded secrets</anti-pattern>
   <anti-pattern>Unbounded query results (missing pagination)</anti-pattern>
 </anti-patterns>
+
+<mandatory-rules>
+  Before implementing, READ the applicable rule files from `${plugin_root}/rules/` and check implementation against them:
+  <rule-file name="error-classification.md">Retriable vs terminal errors, backoff with jitter, error persistence, timeout budgeting, batch error isolation</rule-file>
+  <rule-file name="enterprise-handler-patterns.md" condition="CRUD+enrichment endpoints">Upload-enrich-list pattern, async enrichment with SSE, rate-limited iteration, router wiring completeness, upsert with latest-wins</rule-file>
+  <rule-file name="multi-file-sync.md" condition="RBAC, i18n, or schema changes">Coupled files that MUST be updated atomically — permission constants + roles + middleware + frontend guards</rule-file>
+  <rule-file name="api-design-heuristics.md">Semantic type correctness, constructor delegation, reduce function arguments, extract deep nesting</rule-file>
+  <rule-file name="config-design.md" condition="configuration schema changes">Nest under domain, condense enable+interval, per-entity tracking, human-readable defaults</rule-file>
+</mandatory-rules>
 """
