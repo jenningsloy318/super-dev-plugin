@@ -104,13 +104,14 @@ timeout_mins: 120
     Step 9.1: tdd-guide (RED) → Step 9.2: domain specialist (GREEN) → Step 9.3: impl-summary-writer (DOCUMENT) → Step 9.4: visual-verifier (RENDER ARTIFACT, all visual phases — emits .non-visual marker for non-visual phases) → Step 9.5: qa-agent (VERIFY) → Step 9.6: e2e-runner (NON-BLOCKING — Web/UI only; failure logged as warning, does NOT block or trigger re-iteration)
     Gates: doc-validator(gate-visual) after Step 9.4 — WAIT for PASS; doc-validator(gate-build) after Step 9.5 — WAIT for PASS
     Commit: after gate-build PASS, Team Lead commits all phase changes (code + tests + summary + visual artifacts) with message: "feat(<phase-name>): <description>". The new HEAD becomes base_sha for next phase.
-    Stage 10: IF stage 10 is in skip_stages → mark 'skipped', proceed to Stage 11. ELSE → code-reviewer + adversarial-reviewer + 2× doc-validator (gate-review) + doc-validator (gate-implementation-complete). Reviewer prompts MUST include visual-verifier artifact paths; reviewers MUST `Read` each artifact before issuing verdict.
+    Stage 10: IF stage 10 is in skip_stages → mark 'skipped', proceed to Stage 10.5. ELSE → code-reviewer + adversarial-reviewer + 2× doc-validator (gate-review) + doc-validator (gate-implementation-complete). Reviewer prompts MUST include visual-verifier artifact paths; reviewers MUST `Read` each artifact before issuing verdict.
     On failure: Implementation Iteration Loop (max 3 per phase)
+    Stage 10.5 (CONDITIONAL — Rule Evolution): IF stage 10.5 is in skip_stages → mark 'skipped'. ELSE → Analyze Stage 10 review findings for recurring patterns. IF ≥3 findings share the same category/pattern (e.g., "missing error handling", "no pagination reset", "blocking I/O in async") AND no existing rule in `${PLUGIN_ROOT}/rules/` covers it → create ONE new rule file following the existing XML format. Update `reference/review-pattern-tracker.json` with the pattern occurrence. Cap: max 1 new rule per run. If no recurring pattern detected → mark 'skipped'.
   </phase>
   <phase n="6" name="Finalization">
     Stage 11: IF stage 11 is in skip_stages → mark 'skipped', proceed to Stage 12. ELSE → docs-executor → spawn doc-validator (gate-docs-drift) → WAIT for PASS → handoff-writer → spawn doc-validator (gate-handoff, conditional) → WAIT for PASS (skip handoff if single session).
     Stage 12: IF stage 12 is in skip_stages → mark 'skipped', proceed to Stage 13. ELSE → terminate all, build-cleaner, user confirmation.
-    Stage 13: IF stage 13 is in skip_stages → mark 'skipped'. ELSE → commit any remaining uncommitted changes (docs, handoff), merge worktree branch to main.
+    Stage 13: IF stage 13 is in skip_stages → mark 'skipped'. ELSE → commit any remaining uncommitted changes (docs, handoff), merge worktree branch to main. Post-merge: run `${PLUGIN_ROOT}/scripts/persist-workflow-memory.sh {spec_directory} {worktree_path}` to extract key decisions. If output is non-empty, display to user: "📝 Workflow decisions extracted. Save to project memory? (y/n)". On "y", write output to project's `.claude/projects/*/memory/` as a dated memory file.
   </phase>
 </process>
 
@@ -131,8 +132,51 @@ timeout_mins: 120
 </process>
 
 <criteria name="Skip Conditions">
-  Stage 3 (Research): Skip for trivial bugs with clear root cause. Stage 4 (Debug): Skip for features (not bugs). Stage 6 (Design): Skip for backend-only changes with no architecture impact. Stage 9.6 (E2E): Skip for backend-only, CLI-only, or library changes with no Web/Desktop UI; when it runs, it is NON-BLOCKING (failure does not stop the pipeline). Stage 11 handoff-writer: Skip if all stages completed in single session.
+  Stage 3 (Research): Skip for trivial bugs with clear root cause. Stage 4 (Debug): Skip for features (not bugs). Stage 6 (Design): Skip for backend-only changes with no architecture impact. Stage 9.6 (E2E): Skip for backend-only, CLI-only, or library changes with no Web/Desktop UI; when it runs, it is NON-BLOCKING (failure does not stop the pipeline). Stage 10.5 (Rule Evolution): Skip if Stage 10 findings have no recurring pattern (≥3 same-category). Stage 11 handoff-writer: Skip if all stages completed in single session.
 </criteria>
+
+<protocol name="Phase-Orchestrator Pattern (Context Isolation)">
+  For features with ≥4 implementation phases AND the implementation plan's dependency DAG shows ≥2 parallelizable phase groups, use context-isolated parallel execution instead of sequential single-specialist spawning.
+
+  WHEN to apply:
+  - Implementation plan has ≥4 phases
+  - The "Parallelizable With" fields in the plan identify ≥2 phases that can run concurrently
+  - Phase file sets are DISJOINT (verified from task-list "Files:" entries)
+
+  HOW:
+  1. Parse the implementation plan's "Depends On" and "Parallelizable With" fields to build the execution DAG
+  2. Group phases into waves: Wave 1 = phases with no dependencies, Wave 2 = phases depending only on Wave 1, etc.
+  3. Within each wave, spawn phase-specialists SIMULTANEOUSLY (up to 3 concurrent)
+  4. Each phase-specialist gets a CLEAN context containing ONLY:
+     - The specification (relevant sections)
+     - The task-list (only that phase's tasks)
+     - Previous wave's implementation summaries (compressed, 1-page each)
+     - Test files from tdd-guide for this phase
+  5. After each wave completes, commit all wave changes, then proceed to next wave
+
+  CONSTRAINTS:
+  - Before spawning parallel phase-specialists, VERIFY from the task-list that their "Files:" entries are disjoint. If ANY file appears in multiple parallel phases, those phases MUST be sequential.
+  - For Rust and Go: only ONE build/compile at a time within a wave. Queue builds between parallel specialists.
+  - Each parallel specialist still follows the TDD loop: tdd-guide → domain-specialist → qa-agent
+  - If a parallel phase fails, other phases in the same wave continue. Failed phase retries after the wave.
+
+  FALLBACK: If the implementation plan has NO parallelizable phases (all sequential), proceed with the standard sequential loop. Log: "All phases are sequential — no parallelization possible."
+</protocol>
+
+<protocol name="Bug Fix Verification Pause">
+  For bug-fix workflows (detected by keywords "fix", "bug", "error", "issue", "broken", "crash", "regression" in the original user request), insert a MANDATORY verification pause after Stage 9 completes and before Stage 10 begins.
+
+  Display to user: "🔍 Implementation complete. Please verify the fix works before I proceed to review & merge."
+
+  WAIT for explicit user confirmation before continuing. Acceptable confirmations: "works", "confirmed", "verified", "lgtm", "proceed", "yes", "good", "correct".
+
+  Rationale: Automated tests may pass while actual user-facing behavior remains broken. A real reviewer committed an insufficient fix that tests passed but the user-visible issue persisted.
+
+  EXCEPTIONS — skip this pause when:
+  - User explicitly says "skip verification" or uses --skip for stages 10+
+  - The workflow is a feature implementation (not a bug fix)
+  - The fix is purely internal (refactor, dependency update) with no user-facing behavior change
+</protocol>
 
 <protocol name="Competing Hypotheses (Parallel Investigation)">
   When initial Stage 3 research surfaces multiple conflicting approaches/recommendations, OR Stage 4 debug yields multiple hypotheses with similar probability (no single hypothesis above ~60% confidence), spawn 2-3 parallel agents — each investigating one angle — instead of one sequential agent.

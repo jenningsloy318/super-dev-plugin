@@ -169,6 +169,7 @@ model: inherit
 
 <process>
   <step n="0" name="Read Format Template">Read `{plugin_root}/templates/code-review.md.j2` to understand the expected review output structure and gate requirements BEFORE starting analysis.</step>
+  <step n="0.5" name="Quality Score Baseline">If `gate-quality-score.sh` output is available (passed via spawn prompt as `quality_score_json`), read the JSON and note the baseline score. Use it as context for the review — a low score (< 70) suggests likely issues in TODO density, file size, or test coverage. Adjust the final quality assessment ±10 from the baseline with cited evidence. Include both the script score and your adjusted score in the review output.</step>
   <step n="1" name="Validate Context">Verify spec path readable, implementation summary present, diff or file list available.</step>
   <step n="2" name="Parse Specification">Extract acceptance criteria, non-goals, API contracts, data models, validation rules, error handling expectations. Build AC checklist.</step>
   <step n="3" name="Static Analysis">Detect linters/SAST via config files (ESLint, Biome, Ruff, Clippy, golangci-lint). Run on scoped files. Parse output into findings.</step>

@@ -1,0 +1,10 @@
+{
+  "description": "Tracks recurring review patterns across workflow runs to trigger rule creation (Stage 10.5)",
+  "patterns": [],
+  "metadata": {
+    "max_patterns": 50,
+    "rule_creation_threshold": 3,
+    "max_rules_per_run": 1,
+    "last_updated": null
+  }
+}
