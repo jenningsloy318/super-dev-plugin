@@ -4,7 +4,7 @@ Loaded by: team-lead at Stage 1 entry.
 
 ## Steps
 
-1. **Preflight** — Run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/preflight-env.sh`. The script verifies `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` and Claude Code ≥ v2.1.178. Non-zero exit → ABORT and surface the script's remediation message to the user. No Agent spawns until this passes.
+1. **Preflight** — Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/utils/preflight-env.mjs`. The script verifies `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` and Claude Code ≥ v2.1.178. Non-zero exit → ABORT and surface the script's remediation message to the user. No Agent spawns until this passes.
 2. **Pull Latest Main** — In the main repo (NOT a worktree), run `git fetch origin && git checkout <default-branch> && git pull --ff-only origin <default-branch>`. The `<default-branch>` is whichever the repo treats as its trunk (`main`, `master`, `trunk`, …) — detect with `git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'`. If `pull --ff-only` fails (local commits / detached HEAD / dirty tree), ABORT and surface the actual git output to the user — do NOT auto-rebase, force-pull, or stash unilaterally. The worktree created in Step 6 must branch from a known-clean tip, otherwise downstream gates compare against stale references.
 3. **Spec Index** — Scan main repo's `docs/specifications/` for highest `[XX]` prefix. Next index = max + 1, zero-padded to 2 digits.
 4. **Spec Name** — Derive from user request, kebab-case lowercase (e.g., "add auth" → `add-auth`).

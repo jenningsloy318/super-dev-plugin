@@ -112,7 +112,7 @@ license: MIT
 </protocols>
 
 <gate-map>
-  Gate scripts: `${CLAUDE_PLUGIN_ROOT}/scripts/gates/<name>.sh <spec-dir>`. Exit 0 = PASS, 1 = FAIL. **NON-NEGOTIABLE — fail = loop and fix.** Detail: see `reference/workflow/verification-gates.md`.
+  Gate scripts: `node ${CLAUDE_PLUGIN_ROOT}/scripts/gates/runner.mjs <gate-name> <spec-dir>`. Exit 0 = PASS, 1 = FAIL. **NON-NEGOTIABLE — fail = loop and fix.** Detail: see `reference/workflow/verification-gates.md`.
 
   | After | Script | Run by | Checks |
   |---|---|---|---|

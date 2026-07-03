@@ -70,10 +70,10 @@ Alternatively, install agents manually:
 
 ```bash
 # Global install (available in all Codex sessions)
-./scripts/setup-codex-agents.sh --global
+node ./scripts/utils/setup-codex.mjs --global
 
 # Project-level install
-./scripts/setup-codex-agents.sh --project
+node ./scripts/utils/setup-codex.mjs --project
 ```
 
 ### Antigravity IDE/CLI
@@ -331,7 +331,7 @@ super-dev-plugin/
 │
 └── scripts/                    # Utility scripts
     ├── gates/                     # Per-document gate validation scripts
-    ├── preflight-env.sh           # Environment preflight check
+    ├── preflight-env.mjs         # Environment preflight check
     └── (other scripts)
 ```
 

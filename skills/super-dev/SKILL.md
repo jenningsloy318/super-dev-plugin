@@ -58,7 +58,7 @@ license: MIT
 
 <stages>
   <stage n="1" name="Specification Setup">Create worktree, spec dir, tracking JSON, agent team. MUST complete before any codebase exploration or agent spawning.</stage>
-  <stage n="2" name="Requirements + BDD">Sequential pairs: spawn requirements-clarifier + doc-validator (gate-requirements) in parallel → WAIT for doc-validator PASS signal (do NOT read the doc or run the gate yourself) → spawn bdd-scenario-writer + doc-validator (gate-bdd) in parallel → WAIT for doc-validator PASS signal. Interview pattern with ambiguity detection (Scope/Behavior/Data/Integration/Performance categories), codebase-grounded context retrieval, edge case generation (null/empty/boundary/concurrent/timeout/overflow), and quality self-scoring. Gates: gate-requirements.sh, gate-bdd.sh (both run by doc-validator, NEVER by team-lead).</stage>
+  <stage n="2" name="Requirements + BDD">Sequential pairs: spawn requirements-clarifier + doc-validator (gate-requirements) in parallel → WAIT for doc-validator PASS signal (do NOT read the doc or run the gate yourself) → spawn bdd-scenario-writer + doc-validator (gate-bdd) in parallel → WAIT for doc-validator PASS signal. Interview pattern with ambiguity detection (Scope/Behavior/Data/Integration/Performance categories), codebase-grounded context retrieval, edge case generation (null/empty/boundary/concurrent/timeout/overflow), and quality self-scoring. Gates: gate: requirements, gate: bdd (both run by doc-validator, NEVER by team-lead).</stage>
   <stage n="3" name="Research">Spawn research-agent. Firecrawl MCP first, then supplementary scripts. Parallel community discovery (Reddit, HN, GitHub Discussions, Dev.to, X) and AI documentation traversal (Anthropic, OpenAI, Google, framework docs) with momentum scoring. Innovation discovery for technologies less than 12 months old. If report identifies issues/flaws/ambiguities, re-spawn research-agent in deep-research mode targeting specific issues (max 3 iterations). For complex/contentious topics, use competing hypotheses pattern (2-3 agents with different angles). Present 3-5 options with momentum-scored comparison matrix to user.</stage>
   <stage n="4" name="Debug Analysis">Spawn debug-analyzer. Hypothesis trees with probability estimates, chain-of-thought traces, automated reproduction scripts. Community search for identical error messages. Only for bug fixes — skip otherwise.</stage>
   <stage n="5" name="Code Assessment">Spawn code-assessor. Architecture smell detection (God Class, Feature Envy, Shotgun Surgery), dependency health scoring (Healthy/Warning/Critical), technical debt quantification with severity/effort/blast-radius, pattern library extraction. FIRST stage allowed to read/grep/explore the codebase.</stage>
@@ -71,10 +71,10 @@ license: MIT
     Task Graph Thinking: structure as DAGs with parallelism annotations ([PARALLEL: A, B, C] vs [SERIAL: D → E → F]). Selection signal: requirements doc mentions "refactor", "improve", "testability", "restructure" → architecture-improver. Otherwise → architecture-designer. Skip entirely for backend-only changes with no architecture impact.
   </stage>
   <stage n="6.5" name="Empirical Prototype (CONDITIONAL)">When the design output (`05-architecture.md` and/or pre-spec design) contains numeric design constants (thresholds, ratios, percentages, alphas, sizes), spawn prototype-runner + doc-validator (gate-prototype) BEFORE Stage 7. The prototype tests those constants against 5-10 representative real inputs and reports measured-vs-spec deltas. On `PROTOTYPE_FAILED`, invoke pivot-protocol before spec writing — the spec is built on wrong constants. On no-constants detected, mark Stage 6.5 `skipped`. See `reference/lessons-learned/spec-29-visual-verification.md#three-disciplines` Discipline A.</stage>
-  <stage n="7" name="Specification Writing">Spawn spec-writer + doc-validator (parallel). Produces specification, implementation plan (DAG format with depends_on and parallelizable_with fields), task list. Agent-friendly decomposition with complexity-adaptive granularity. Contract-first: every module interface has explicit I/O type signatures. Gate: gate-spec-trace.sh.</stage>
-  <stage n="8" name="Specification Review">Spawn spec-reviewer + doc-validator (parallel). Reviewer MUST verify spec covers ALL requirements ACs (100% coverage required — <100% = automatic rejection), ALL BDD scenarios, and aligns with design decisions. Grounding scores (verified_references/total >= 90%), anti-pattern verification (YAGNI, premature optimization, untestable requirements, missing error paths). Gate: gate-spec-review.sh. On failure: follow Spec Iteration Loop.</stage>
+  <stage n="7" name="Specification Writing">Spawn spec-writer + doc-validator (parallel). Produces specification, implementation plan (DAG format with depends_on and parallelizable_with fields), task list. Agent-friendly decomposition with complexity-adaptive granularity. Contract-first: every module interface has explicit I/O type signatures. Gate: gate: spec-trace.</stage>
+  <stage n="8" name="Specification Review">Spawn spec-reviewer + doc-validator (parallel). Reviewer MUST verify spec covers ALL requirements ACs (100% coverage required — <100% = automatic rejection), ALL BDD scenarios, and aligns with design decisions. Grounding scores (verified_references/total >= 90%), anti-pattern verification (YAGNI, premature optimization, untestable requirements, missing error paths). Gate: gate: spec-review. On failure: follow Spec Iteration Loop.</stage>
   <stage n="9" name="Implementation">Sequential TDD sequence per phase: Step 9.1 spawn tdd-guide (write failing tests from req/bdd/spec/plan/tasks, anti-hardcoding enforced) → Step 9.2 spawn domain specialist (make tests pass) → Step 9.3 spawn impl-summary-writer (DOCUMENT) → **Step 9.4 spawn visual-verifier (RENDER ARTIFACT — picks Tier 1 pixel/DOM assertions / Tier 2 render harness / Tier 3 headless screenshot per project type; non-visual phases drop `.non-visual` marker and skip cleanly)** → Step 9.5 spawn qa-agent (run tests, feature-by-feature verification, verify coverage, report) → Step 9.6 spawn e2e-runner (NON-BLOCKING — Web/UI only; failure is logged as a warning but does NOT block the pipeline or trigger iteration). Incremental verification with feature-by-feature commits. Each step MUST complete before the next begins. Gates: doc-validator(gate-visual) after Step 9.4 + doc-validator(gate-build) after Step 9.5 — WAIT for PASS. Loops through ALL implementation-plan phases via Implementation Completeness Loop. See `reference/lessons-learned/spec-29-visual-verification.md#three-disciplines` Discipline B.</stage>
-  <stage n="10" name="Code Review">Spawn code-reviewer + adversarial-reviewer + 2x doc-validator (gate-review) + doc-validator (gate-implementation-complete) — 5 parallel. **Reviewer prompts MUST include visual-verifier artifact paths; reviewers MUST `Read` each artifact via the Read tool before issuing verdict — verdicts without artifact inspection are invalid.** Coverage-first review (report EVERY issue including uncertain/low-severity), CONTEST verdict format, community-informed patterns, fresh context mandate (writer/reviewer separation). Gate: gate-review.sh, gate-implementation-complete.sh. On failure: follow Implementation Iteration Loop. **Pivot branch:** if iteration ≥ 2 reveals the spec design is wrong (not the implementation), invoke `reference/workflow/pivot-protocol.md` instead of continuing to iterate.</stage>
+  <stage n="10" name="Code Review">Spawn code-reviewer + adversarial-reviewer + 2x doc-validator (gate-review) + doc-validator (gate-implementation-complete) — 5 parallel. **Reviewer prompts MUST include visual-verifier artifact paths; reviewers MUST `Read` each artifact via the Read tool before issuing verdict — verdicts without artifact inspection are invalid.** Coverage-first review (report EVERY issue including uncertain/low-severity), CONTEST verdict format, community-informed patterns, fresh context mandate (writer/reviewer separation). Gate: gate: review, gate: implementation-complete. On failure: follow Implementation Iteration Loop. **Pivot branch:** if iteration ≥ 2 reveals the spec design is wrong (not the implementation), invoke `reference/workflow/pivot-protocol.md` instead of continuing to iterate.</stage>
   <stage n="11" name="Documentation">Sequential: spawn docs-executor → WAIT for `DOCS_COMPLETE` signal or agent termination → spawn doc-validator (gate-docs-drift) → WAIT for PASS → spawn handoff-writer → WAIT for completion → spawn doc-validator (gate-handoff, conditional — when iteration.loops > 0 OR implementationPhases > 1 OR pivot artifacts present, requires `## AC Coverage Assessment` section listing ACs met as planned / met by alternative mechanism / superseded). Docs-with-code pattern (same commit as code changes), changelog automation from git history, AI-optimized documentation (structured for human + agent consumption). Skip handoff-writer ONLY if all stages completed in a single session (no continuation needed). MANDATORY — do not skip docs-executor. See `reference/lessons-learned/spec-29-visual-verification.md#three-disciplines` Discipline C.</stage>
   <stage n="12" name="Cleanup & Confirmation">Verify all teammates terminated. Spawn build-cleaner agent: intelligent artifact detection based on project type, sensitive data scan (secrets/credentials/API keys — BLOCKING if found), project-type-specific cleanup patterns. Worktree preserved. Then present summary to user for confirmation before merge.</stage>
   <stage n="13" name="Commit and Merge">Git operations: semantic commit format (conventional commits with scope, breaking change markers, AC-ID traceability), PR description auto-generation from specification, pre-merge CI-equivalent checks. Commit spec directory + code, merge to main. Verify completion; worktree preserved for reference.</stage>
@@ -87,25 +87,25 @@ license: MIT
   <protocol stage="1" file="reference/workflow/first-run-config.md">Project stack auto-detect and config write. Read once on first run per project.</protocol>
   <protocol stage="2,3,4,5,6,7,8,9,10,11" file="reference/workflow/document-naming.md">Pre-compute exact filenames before spawning writers. Canonical suffix table. Read before any document-producing spawn.</protocol>
   <protocol stage="2,3,7,8,9,10,11" file="reference/workflow/verification-gates.md">Gate execution and failure handling. Read before first gate of the pipeline.</protocol>
-  <protocol stage="7,8" file="reference/workflow/spec-iteration-loop.md">Read ONLY when spec-reviewer rejects or gate-spec-review.sh fails.</protocol>
+  <protocol stage="7,8" file="reference/workflow/spec-iteration-loop.md">Read ONLY when spec-reviewer rejects or gate: spec-review fails.</protocol>
   <protocol stage="9" file="reference/workflow/implementation-completeness-loop.md">Per-phase TDD sequence and completeness enforcement. Read at Stage 9 entry.</protocol>
   <protocol stage="9,10" file="reference/workflow/implementation-iteration-loop.md">Read ONLY when code-reviewer ≠ "Approved" or adversarial-reviewer returns REJECT.</protocol>
   <protocol stage="3" file="reference/workflow/research-deep-dive-loop.md">Read ONLY when Stage 3 research flags issues/flaws/ambiguities.</protocol>
 </protocols>
 
 <gate-map>
-  Gate scripts: `${PLUGIN_ROOT}/scripts/gates/<name>.sh <spec-dir>`. Exit 0 = PASS, 1 = FAIL. **NON-NEGOTIABLE — fail = loop and fix.** Detail: see `reference/workflow/verification-gates.md`.
+  Gate scripts: `node ${PLUGIN_ROOT}/scripts/gates/runner.mjs <gate-name> <spec-dir>`. Exit 0 = PASS, 1 = FAIL. **NON-NEGOTIABLE — fail = loop and fix.** Detail: see `reference/workflow/verification-gates.md`.
 
   | After | Script | Run by | Checks |
   |---|---|---|---|
-  | 2 (req → bdd) | `gate-requirements.sh` | doc-validator | ACs, NFRs, summary |
-  | 2 → 3 | `gate-bdd.sh` | doc-validator | SCENARIO-IDs, Given/When/Then, AC traceability |
-  | 7 → 8 | `gate-spec-trace.sh` | doc-validator | Spec refs BDD scenarios, testing strategy |
-  | 8 → 9 | `gate-spec-review.sh` | doc-validator | Review verdict, 8 dimensions, grounding |
-  | 9 (per phase) | `gate-build.sh` | doc-validator | Build, tests, type checks |
-  | 10 → 11 | `gate-review.sh` | doc-validator | Code review approved, adversarial PASS |
-  | 10 → 11 | `gate-implementation-complete.sh` | doc-validator | ALL implementation-plan phases complete |
-  | 11 (docs → handoff) | `gate-docs-drift.sh` | doc-validator | Docs exist, no excessive TODOs |
+  | 2 (req → bdd) | `gate: requirements` | doc-validator | ACs, NFRs, summary |
+  | 2 → 3 | `gate: bdd` | doc-validator | SCENARIO-IDs, Given/When/Then, AC traceability |
+  | 7 → 8 | `gate: spec-trace` | doc-validator | Spec refs BDD scenarios, testing strategy |
+  | 8 → 9 | `gate: spec-review` | doc-validator | Review verdict, 8 dimensions, grounding |
+  | 9 (per phase) | `gate: build` | doc-validator | Build, tests, type checks |
+  | 10 → 11 | `gate: review` | doc-validator | Code review approved, adversarial PASS |
+  | 10 → 11 | `gate: implementation-complete` | doc-validator | ALL implementation-plan phases complete |
+  | 11 (docs → handoff) | `gate: docs-drift` | doc-validator | Docs exist, no excessive TODOs |
 </gate-map>
 
 <parameters>
@@ -125,7 +125,7 @@ license: MIT
   <phase n="1" name="Setup">
     Stage 1: Create worktree, spec dir, JSON tracking, agent team. NEVER skippable — always runs.
 
-    Step 1.1: Run `${PLUGIN_ROOT}/scripts/preflight-env.sh` to verify environment.
+    Step 1.1: Run `node ${PLUGIN_ROOT}/scripts/utils/preflight-env.mjs` to verify environment.
     Step 1.2: Pull latest (see "Pull Latest Before Worktree" constraint).
     Step 1.3 — Spec Naming (MANDATORY): Derive spec_identifier from the user's request:
       1. Look at `docs/specifications/` directory in the repo
@@ -169,7 +169,7 @@ license: MIT
   <phase n="6" name="Finalization">
     Stage 11: IF stage 11 is in skip_stages → mark 'skipped', proceed to Stage 12. ELSE → docs-executor → spawn doc-validator (gate-docs-drift) → WAIT for PASS → handoff-writer → spawn doc-validator (gate-handoff, conditional) → WAIT for PASS (skip handoff if single session).
     Stage 12: IF stage 12 is in skip_stages → mark 'skipped', proceed to Stage 13. ELSE → terminate all, build-cleaner, user confirmation.
-    Stage 13: IF stage 13 is in skip_stages → mark 'skipped'. ELSE → commit any remaining uncommitted changes (docs, handoff), merge worktree branch to main. Post-merge: run `${PLUGIN_ROOT}/scripts/persist-workflow-memory.sh {spec_directory} {worktree_path}` to extract key decisions.
+    Stage 13: IF stage 13 is in skip_stages → mark 'skipped'. ELSE → commit any remaining uncommitted changes (docs, handoff), merge worktree branch to main. Post-merge: run `${PLUGIN_ROOT}/scripts/utils/persist-memory.mjs {spec_directory} {worktree_path}` to extract key decisions.
   </phase>
 </process>
 
@@ -496,7 +496,7 @@ license: MIT
 <constraints>
   <!-- ===== DELEGATION ===== -->
   <constraint name="PRIME DIRECTIVE">You (the team-lead) spawn teammates for ALL implementation work. NEVER write code, specs, reviews, or docs directly. NEVER run gate scripts directly. NEVER read documents to verify quality.</constraint>
-  <constraint name="NEVER Run Gate Scripts">NEVER execute gate scripts (gate-*.sh) via Bash. ALL gate verification is delegated to doc-validator agents. Spawn doc-validator with gate_profile, WAIT for VALIDATED: PASS signal. Running a gate directly — even "just to check" — is a CRITICAL violation.</constraint>
+  <constraint name="NEVER Run Gate Scripts">NEVER execute gate scripts (gate scripts) via Bash. ALL gate verification is delegated to doc-validator agents. Spawn doc-validator with gate_profile, WAIT for VALIDATED: PASS signal. Running a gate directly — even "just to check" — is a CRITICAL violation.</constraint>
   <constraint name="NEVER Read Document Outputs">NEVER read documents produced by writer agents for quality verification or to copy content into spawn prompts. Pass spec_directory to downstream agents — they read their own inputs. Exception: extracting a structural count (e.g., number of phases via grep) for loop initialization is acceptable — but never read full documents or paste their content.</constraint>
   <constraint name="Self-Check Before Fixing">After Stage 10 reports issues, BEFORE any action ask: "Am I about to Edit, Write, or Bash to fix code myself?" If YES → STOP. Only spawn sub-agents with findings. NO exceptions for "small fixes" or "one-liners".</constraint>
 
@@ -523,7 +523,7 @@ license: MIT
 </constraints>
 
 <rules>
-  <rule name="agent-team-preflight" mandatory="true">Stage 1 MUST run `${PLUGIN_ROOT}/scripts/preflight-env.sh` before any Agent spawn. The script verifies `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` and Claude Code ≥ v2.1.178. Non-zero exit → ABORT, surface the script's remediation instructions to the user, do NOT spawn anything. As of v2.1.178 there is no `TeamCreate` step: the team is created automatically on the first Agent spawn once the env var is set.</rule>
+  <rule name="agent-team-preflight" mandatory="true">Stage 1 MUST run `${PLUGIN_ROOT}/scripts/utils/preflight-env.mjs` before any Agent spawn. The script verifies `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` and Claude Code ≥ v2.1.178. Non-zero exit → ABORT, surface the script's remediation instructions to the user, do NOT spawn anything. As of v2.1.178 there is no `TeamCreate` step: the team is created automatically on the first Agent spawn once the env var is set.</rule>
   <rule name="team-name-on-spawn">Pass `team_name` (matching `team.name` in the tracking JSON) on every Agent spawn so teammates can address each other via `SendMessage`. As of v2.1.178 the harness derives the team name from the session if omitted, so a missing `team_name` is no longer fatal — but pairing every spawn with the same team_name keeps the audit trail consistent.</rule>
   <rule name="team-lead-delegation" mandatory="true">You (the team-lead reading this skill) NEVER implement directly. Only assign tasks, spawn agents, coordinate, and verify output.</rule>
   <rule name="no-separate-team-lead" mandatory="true">Do NOT spawn a separate `super-dev:team-lead` agent. YOU are the team-lead. Spawn specialist agents directly (e.g., `super-dev:requirements-clarifier`, `super-dev:code-assessor`, `super-dev:rust-developer`).</rule>

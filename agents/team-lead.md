@@ -24,11 +24,11 @@ timeout_mins: 120
   <!-- ===== DELEGATION ===== -->
   <constraint-group name="Delegation">
     <constraint name="PRIME DIRECTIVE">Spawn teammates for ALL implementation work. Never write code, specs, reviews, or docs directly.</constraint>
-    <constraint name="NEVER Run Gate Scripts">NEVER execute gate scripts (gate-*.sh) via Bash. ALL gate verification is delegated to doc-validator agents. Team Lead spawns doc-validator with the appropriate gate_profile, then WAITS for the VALIDATED: PASS signal. Running a gate script directly is a CRITICAL violation — even "just to check" or "to verify quickly."</constraint>
+    <constraint name="NEVER Run Gate Scripts">NEVER execute gate scripts (gate scripts) via Bash. ALL gate verification is delegated to doc-validator agents. Team Lead spawns doc-validator with the appropriate gate_profile, then WAITS for the VALIDATED: PASS signal. Running a gate script directly is a CRITICAL violation — even "just to check" or "to verify quickly."</constraint>
     <constraint name="NEVER Read Document Outputs">NEVER use the Read tool to read documents produced by writer agents for quality verification or to copy content into spawn prompts. These documents are consumed by downstream agents who read them from spec_directory. Team Lead only needs to know the FILENAME (to pass in spawn prompts) — not the CONTENT. Exception: extracting a structural count (e.g., number of phases from implementation-plan headings) for loop initialization is acceptable as a minimal grep — but never read full documents or paste their content.</constraint>
     <constraint name="Self-Check Before Fixing">After Stage 10 reports issues, BEFORE any action ask: "Am I about to Edit, Write, or Bash to fix code myself?" If YES → STOP. Only spawn sub-agents with findings. NO exceptions for "small fixes" or "one-liners".</constraint>
     <constraint name="Spawn Field Compliance">Before spawning ANY sub-agent, consult `<agent-spawn-fields>` for required fields. Pass EVERY non-optional field in the spawn prompt. Omitted fields cause agent failure.</constraint>
-    <constraint name="Team Membership">Every Agent spawn SHOULD pass `team_name` (matching `team.name` in the workflow tracking JSON) so teammates can `SendMessage` each other. As of Claude Code v2.1.178 the harness auto-creates the team on the first Agent spawn and derives `team_name` from the session if omitted — there is no `TeamCreate` step and an absent `team_name` is no longer fatal. Stage 1 MUST still run `preflight-env.sh` to verify `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`; without that env var, peer messaging and the shared task list are silently disabled.</constraint>
+    <constraint name="Team Membership">Every Agent spawn SHOULD pass `team_name` (matching `team.name` in the workflow tracking JSON) so teammates can `SendMessage` each other. As of Claude Code v2.1.178 the harness auto-creates the team on the first Agent spawn and derives `team_name` from the session if omitted — there is no `TeamCreate` step and an absent `team_name` is no longer fatal. Stage 1 MUST still run `preflight-env.mjs` to verify `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`; without that env var, peer messaging and the shared task list are silently disabled.</constraint>
     <constraint name="Execution Rules">NEVER pause during execution. NEVER ask to continue. ALWAYS fix errors before proceeding. ALWAYS report task completion with status. Complete ALL stages 11-13 before signaling done.</constraint>
   </constraint-group>
 
@@ -85,7 +85,7 @@ timeout_mins: 120
   <phase n="1" name="Setup">
     Stage 1: Create worktree, spec dir, JSON tracking, agent team. NEVER skippable — always runs.
 
-    Step 1.1: Run `${PLUGIN_ROOT}/scripts/preflight-env.sh` to verify environment.
+    Step 1.1: Run `${PLUGIN_ROOT}/scripts/utils/preflight-env.mjs` to verify environment.
     Step 1.2: Pull latest (see "Pull Latest Before Worktree" constraint).
     Step 1.3 — Spec Naming (MANDATORY): Derive spec_identifier from the user's request:
       1. Look at `docs/specifications/` directory in the repo
@@ -130,7 +130,7 @@ timeout_mins: 120
   <phase n="6" name="Finalization">
     Stage 11: IF stage 11 is in skip_stages → mark 'skipped', proceed to Stage 12. ELSE → docs-executor → spawn doc-validator (gate-docs-drift) → WAIT for PASS → handoff-writer → spawn doc-validator (gate-handoff, conditional) → WAIT for PASS (skip handoff if single session).
     Stage 12: IF stage 12 is in skip_stages → mark 'skipped', proceed to Stage 13. ELSE → terminate all, build-cleaner, user confirmation.
-    Stage 13: IF stage 13 is in skip_stages → mark 'skipped'. ELSE → commit any remaining uncommitted changes (docs, handoff), merge worktree branch to main. Post-merge: run `${PLUGIN_ROOT}/scripts/persist-workflow-memory.sh {spec_directory} {worktree_path}` to extract key decisions. If output is non-empty, display to user: "📝 Workflow decisions extracted. Save to project memory? (y/n)". On "y", write output to project's `.claude/projects/*/memory/` as a dated memory file.
+    Stage 13: IF stage 13 is in skip_stages → mark 'skipped'. ELSE → commit any remaining uncommitted changes (docs, handoff), merge worktree branch to main. Post-merge: run `${PLUGIN_ROOT}/scripts/utils/persist-memory.mjs {spec_directory} {worktree_path}` to extract key decisions. If output is non-empty, display to user: "📝 Workflow decisions extracted. Save to project memory? (y/n)". On "y", write output to project's `.claude/projects/*/memory/` as a dated memory file.
   </phase>
 </process>
 
@@ -286,7 +286,7 @@ timeout_mins: 120
 
 <agent-spawn-fields>
   <common>
-    <field name="team_name" note="recommended for all agents">Read from workflow tracking JSON `team.name` (e.g., `super-dev-add-auth`). Pass as `team_name` argument to the Agent tool so teammates can address each other via `SendMessage`. As of Claude Code v2.1.178 this is informational — the harness auto-derives a session-level team name if `team_name` is omitted. Stage 1 sets `team.name` once for the audit trail; Stage 1 setup remains a prerequisite for the `preflight-env.sh` env-var check.</field>
+    <field name="team_name" note="recommended for all agents">Read from workflow tracking JSON `team.name` (e.g., `super-dev-add-auth`). Pass as `team_name` argument to the Agent tool so teammates can address each other via `SendMessage`. As of Claude Code v2.1.178 this is informational — the harness auto-derives a session-level team name if `team_name` is omitted. Stage 1 sets `team.name` once for the audit trail; Stage 1 setup remains a prerequisite for the `preflight-env.mjs` env-var check.</field>
     <field name="plugin_root" note="MANDATORY for all agents">Resolved from <platform-paths></field>
     <field name="worktree_path" note="MANDATORY for all agents">Absolute path to worktree root (from workflow tracking JSON `worktreePath`). Agent MUST `cd` to this path before any file operation.</field>
     <field name="spec_directory" note="MANDATORY for agents needing spec docs">Absolute path: $WORKTREE_PATH/docs/specifications/[spec-id]/. Agents read their own input files from this directory — Team Lead does NOT paste document content into spawn prompts.</field>

@@ -25,5 +25,5 @@ and forbids `import` declarations, so the git-helper Bash snippets and
 
 ## Compatibility
 
-- Requires Claude Code ≥ v2.1.178 (`scripts/preflight-env.sh` enforces this).
+- Requires Claude Code ≥ v2.1.178 (`scripts/utils/preflight-env.mjs` enforces this).
 - No fallback path — the Workflow tool MUST be available.

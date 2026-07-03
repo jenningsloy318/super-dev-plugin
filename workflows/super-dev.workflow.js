@@ -23,7 +23,7 @@
 //   Stage 13  — Trailing commit + manual merge instructions
 //
 // Phase A constraints honored:
-//   - preflight-env.sh runs FIRST (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 +
+//   - preflight-env.mjs runs FIRST (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 +
 //     Claude Code >= 2.1.178)
 //   - main repo is fetched and fast-forwarded to origin/<default-branch>
 //     before the worktree is created (no hard-coded "main")
@@ -709,7 +709,7 @@ const preflight = await agentWithRetry(
   `    final error line on failure)\n` +
   `  - the plugin_version (extracted from the success line: the value after 'plugin ').\n` +
   `    On failure, set plugin_version to 'unknown'.\n\n` +
-  `  bash ${shellQuote(PLUGIN_ROOT + '/scripts/preflight-env.sh')}\n\n` +
+  `  node ${shellQuote(PLUGIN_ROOT + '/scripts/utils/preflight-env.mjs')}\n\n` +
   `Return JSON: {"exit_code": int, "tail": string, "plugin_version": string}. Do not retry on failure.`,
   {
     label: 'preflight',
@@ -1221,7 +1221,7 @@ const reqLoop = await gatedStage2WriterLoop({
   ),
   spawnGate: () => agentWithRetry(
     `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + requirementsName)} to appear, then run ` +
-    `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-requirements.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + requirementsName)}. ` +
+    `node ${shellQuote(PLUGIN_ROOT + '/scripts/gates/runner.mjs')} requirements ${shellQuote(SPEC_DIRECTORY + '/' + requirementsName)}. ` +
     `Return the gate verdict.`,
     {
       label: 'doc-validator:gate-requirements',
@@ -1254,7 +1254,7 @@ const bddLoop = await gatedStage2WriterLoop({
   ),
   spawnGate: () => agentWithRetry(
     `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + bddName)} to appear, then run ` +
-    `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-bdd.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + bddName)}. ` +
+    `node ${shellQuote(PLUGIN_ROOT + '/scripts/gates/runner.mjs')} bdd ${shellQuote(SPEC_DIRECTORY + '/' + bddName)}. ` +
     `Return the gate verdict.`,
     {
       label: 'doc-validator:gate-bdd',
@@ -1730,7 +1730,7 @@ if (!needPrototype) {
     ),
     spawnGate: () => agentWithRetry(
       `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + protoName)} to appear, then run ` +
-      `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-prototype.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + protoName)}. ` +
+      `node ${shellQuote(PLUGIN_ROOT + '/scripts/gates/runner.mjs')} prototype ${shellQuote(SPEC_DIRECTORY + '/' + protoName)}. ` +
       `Return the gate verdict.`,
       {
         label: 'doc-validator:gate-prototype',
@@ -1829,7 +1829,7 @@ const spawnSpecWriter = async (extraGuidance = '', iter = 1) => {
 const spawnSpecTraceGate = () => agentWithRetry(
   `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + specName)}, ${shellQuote(SPEC_DIRECTORY + '/' + planName)}, ` +
   `and ${shellQuote(SPEC_DIRECTORY + '/' + tasksName)} to appear, then run ` +
-  `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-spec-trace.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + specName)}. ` +
+  `node ${shellQuote(PLUGIN_ROOT + '/scripts/gates/runner.mjs')} spec-trace ${shellQuote(SPEC_DIRECTORY + '/' + specName)}. ` +
   `Return the gate verdict.`,
   {
     label: 'doc-validator:gate-spec-trace',
@@ -1894,7 +1894,7 @@ while (specIter < MAX_SPEC_ITERS) {
     ),
     () => agentWithRetry(
       `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + reviewName)} to appear, then run ` +
-      `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-spec-review.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + reviewName)}. ` +
+      `node ${shellQuote(PLUGIN_ROOT + '/scripts/gates/runner.mjs')} spec-review ${shellQuote(SPEC_DIRECTORY + '/' + reviewName)}. ` +
       `Return the gate verdict.`,
       {
         label: `doc-validator:gate-spec-review:${specIter}`,
@@ -1953,7 +1953,7 @@ while (specIter < MAX_SPEC_ITERS) {
     `Wait for the updated ${shellQuote(SPEC_DIRECTORY + '/' + specName)}, ` +
     `${shellQuote(SPEC_DIRECTORY + '/' + planName)}, and ${shellQuote(SPEC_DIRECTORY + '/' + tasksName)} ` +
     `to be stable, then run ` +
-    `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-spec-trace.sh')} ${shellQuote(SPEC_DIRECTORY + '/' + specName)}. ` +
+    `node ${shellQuote(PLUGIN_ROOT + '/scripts/gates/runner.mjs')} spec-trace ${shellQuote(SPEC_DIRECTORY + '/' + specName)}. ` +
     `Return the gate verdict.`,
     {
       label: `doc-validator:gate-spec-trace:revise-${specIter}`,
@@ -2326,7 +2326,7 @@ for (const ph of phases) {
     // 9.7 — gate-build. Final phase gate.
     buildVerdict = await agentWithRetry(
       `Wait for the build to settle, then run ` +
-      `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-build.sh')} ${shellQuote(WORKTREE_PATH)}. ` +
+      `node ${shellQuote(PLUGIN_ROOT + '/scripts/utils/gate-build.mjs')} ${shellQuote(WORKTREE_PATH)}. ` +
       `Return the gate verdict.`,
       {
         label: `phase-${ph.number}:gate-build:${phaseIter}`,
@@ -2512,7 +2512,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
     ),
     () => agentWithRetry(
       `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + codeReviewName)} to appear, then run ` +
-      `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-review.sh')} ${shellQuote(SPEC_DIRECTORY)} ` +
+      `node ${shellQuote(PLUGIN_ROOT + '/scripts/gates/runner.mjs')} review ${shellQuote(SPEC_DIRECTORY)} ` +
       `--type code --file ${shellQuote(SPEC_DIRECTORY + '/' + codeReviewName)}. ` +
       `Return the gate verdict.`,
       {
@@ -2524,7 +2524,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
     ),
     () => agentWithRetry(
       `Wait for ${shellQuote(SPEC_DIRECTORY + '/' + advReviewName)} to appear, then run ` +
-      `${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-review.sh')} ${shellQuote(SPEC_DIRECTORY)} ` +
+      `node ${shellQuote(PLUGIN_ROOT + '/scripts/gates/runner.mjs')} review ${shellQuote(SPEC_DIRECTORY)} ` +
       `--type adversarial --file ${shellQuote(SPEC_DIRECTORY + '/' + advReviewName)}. ` +
       `Return the gate verdict.`,
       {
@@ -2535,7 +2535,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
       },
     ),
     () => agentWithRetry(
-      `Run ${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-implementation-complete.sh')} ` +
+      `Run node ${shellQuote(PLUGIN_ROOT + '/scripts/gates/runner.mjs')} implementation-complete ` +
       `${shellQuote(SPEC_DIRECTORY)}. This gate verifies all implementation-plan phases ` +
       `show status='complete' in the tracking JSON. Return the gate verdict.`,
       {
@@ -2768,7 +2768,7 @@ const docsGateLoop = await _gatedLoop({
     },
   ),
   spawnGate: () => agentWithRetry(
-    `Run ${shellQuote(PLUGIN_ROOT + '/scripts/gates/gate-docs-drift.sh')} ${shellQuote(SPEC_DIRECTORY)}. ` +
+    `Run node ${shellQuote(PLUGIN_ROOT + '/scripts/gates/runner.mjs')} docs-drift ${shellQuote(SPEC_DIRECTORY)}. ` +
     `This gate verifies docs do not lag behind the implementation diff. Return the gate verdict.`,
     {
       label: 'doc-validator:gate-docs-drift',

@@ -10,8 +10,8 @@ All gates are executed by **doc-validator** agents spawned by team-lead. Team-le
 
 ```bash
 # doc-validator runs this internally:
-bash ${CLAUDE_PLUGIN_ROOT}/scripts/gates/<gate-name>.sh <argument>
-# argument = <spec-dir> for most gates, <worktree-path> for gate-build.sh
+node ${CLAUDE_PLUGIN_ROOT}/scripts/gates/runner.mjs <gate-name> <spec-dir>
+# For build gate: node ${CLAUDE_PLUGIN_ROOT}/scripts/utils/gate-build.mjs <worktree-path>
 ```
 
 ## Failure handling
@@ -26,13 +26,13 @@ bash ${CLAUDE_PLUGIN_ROOT}/scripts/gates/<gate-name>.sh <argument>
 
 This table is duplicated in SKILL.md for inline reference — keep both in sync.
 
-| After transition | Script | Run by | Checks |
+| After transition | Gate name | Run by | Checks |
 |---|---|---|---|
-| 2 (req → bdd) | `gate-requirements.sh` | doc-validator | Acceptance criteria, NFRs, summary |
-| 2 → 3 | `gate-bdd.sh` | doc-validator | SCENARIO-IDs, Given/When/Then, AC traceability |
-| 7 → 8 | `gate-spec-trace.sh` | doc-validator | Spec refs BDD scenarios, testing strategy |
-| 8 → 9 | `gate-spec-review.sh` | doc-validator | Review verdict, 8 dimensions, grounding |
-| 9 (per phase) | `gate-build.sh` | doc-validator | Build succeeds, tests pass, type checks |
-| 10 → 11 | `gate-review.sh` | doc-validator | Code review approved, adversarial PASS |
-| 10 → 11 | `gate-implementation-complete.sh` | doc-validator | ALL implementation-plan phases complete in tracking JSON |
-| 11 (docs → handoff) | `gate-docs-drift.sh` | doc-validator | Docs exist, no excessive TODOs |
+| 2 (req → bdd) | `requirements` | doc-validator | Acceptance criteria, NFRs, summary |
+| 2 → 3 | `bdd` | doc-validator | SCENARIO-IDs, Given/When/Then, AC traceability |
+| 7 → 8 | `spec-trace` | doc-validator | Spec refs BDD scenarios, testing strategy |
+| 8 → 9 | `spec-review` | doc-validator | Review verdict, 8 dimensions, grounding |
+| 9 (per phase) | `build` (standalone) | doc-validator | Build succeeds, tests pass, type checks |
+| 10 → 11 | `review` | doc-validator | Code review approved, adversarial PASS |
+| 10 → 11 | `implementation-complete` | doc-validator | ALL implementation-plan phases complete in tracking JSON |
+| 11 (docs → handoff) | `docs-drift` | doc-validator | Docs exist, no excessive TODOs |
