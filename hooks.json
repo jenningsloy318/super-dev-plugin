@@ -6,7 +6,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "${CLAUDE_PLUGIN_ROOT}/scripts/usage-tracker.sh 2>/dev/null || true"
+          "command": ["node", "${CLAUDE_PLUGIN_ROOT}/scripts/utils/usage-tracker.mjs"]
         }
       ]
     },
@@ -15,11 +15,11 @@
       "hooks": [
         {
           "type": "command",
-          "command": "${CLAUDE_PLUGIN_ROOT}/hooks/block-dangerous.sh"
+          "command": ["node", "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/block-dangerous.mjs"]
         },
         {
           "type": "command",
-          "command": "${CLAUDE_PLUGIN_ROOT}/hooks/log-commands.sh"
+          "command": ["node", "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/log-commands.mjs"]
         }
       ]
     },
@@ -28,7 +28,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "${CLAUDE_PLUGIN_ROOT}/hooks/protect-files.sh"
+          "command": ["node", "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/protect-files.mjs"]
         }
       ]
     },
@@ -37,7 +37,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "${CLAUDE_PLUGIN_ROOT}/hooks/require-tests-pr.sh"
+          "command": ["node", "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/require-tests-pr.mjs"]
         }
       ]
     },
@@ -46,7 +46,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stage-gate.sh"
+          "command": ["node", "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/stage-gate.mjs"]
         }
       ]
     }
@@ -57,15 +57,11 @@
       "hooks": [
         {
           "type": "command",
-          "command": "${CLAUDE_PLUGIN_ROOT}/hooks/auto-format.sh"
+          "command": ["node", "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/auto-fix.mjs"]
         },
         {
           "type": "command",
-          "command": "${CLAUDE_PLUGIN_ROOT}/hooks/auto-lint.sh"
-        },
-        {
-          "type": "command",
-          "command": "${CLAUDE_PLUGIN_ROOT}/hooks/run-tests.sh"
+          "command": ["node", "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/run-tests.mjs"]
         }
       ]
     }
@@ -76,7 +72,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "${CLAUDE_PLUGIN_ROOT}/hooks/auto-checkpoint.sh"
+          "command": ["node", "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/auto-checkpoint.mjs"]
         }
       ]
     }

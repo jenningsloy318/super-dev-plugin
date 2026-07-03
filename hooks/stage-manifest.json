@@ -107,7 +107,7 @@
       "previousStages": [8],
       "requires": ["[doc-index]-specification.md", "[doc-index]-implementation-plan.md", "[doc-index]-implementation-summary.md"],
       "sections": {},
-      "gate": "gate-visual.sh"
+      "gate": "visual"
     },
     "super-dev:prototype-runner": {
       "stage": "6.5",
@@ -115,7 +115,7 @@
       "previousStages": [6],
       "requires": ["[doc-index]-specification.md"],
       "sections": {},
-      "gate": "gate-prototype.sh"
+      "gate": "prototype"
     },
     "super-dev:docs-executor": {
       "stage": "11",
@@ -123,7 +123,7 @@
       "previousStages": [10],
       "requires": ["[doc-index]-specification.md", "[doc-index]-workflow-tracking.json"],
       "sections": {},
-      "gate": "gate-implementation-complete.sh"
+      "gate": "implementation-complete"
     },
     "super-dev:handoff-writer": {
       "stage": "11",
@@ -131,7 +131,7 @@
       "previousStages": [10],
       "requires": ["[doc-index]-specification.md"],
       "sections": {},
-      "gate": "gate-handoff.sh"
+      "gate": "handoff"
     }
   }
 }
