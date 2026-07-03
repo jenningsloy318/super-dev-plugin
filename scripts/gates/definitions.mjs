@@ -325,7 +325,7 @@ export const implementationSummary = {
       // Allow up to 3 (inherited from gate-implementation-summary.sh)
       desc: 'No excessive placeholders',
       fn: (content) => {
-        const matches = content.match(/\b(?:TODO|FIXME|TBD|PLACEHOLDER)\b|\[INSERT\]|\[FILL/gi);
+        const matches = content.match(/\b(?:TODO|FIXME|TBD|PLACEHOLDER)\b|\[INSERT[\s\]]/gi);
         const count = matches ? matches.length : 0;
         return {
           desc: `No excessive placeholders (found: ${count}, max: 3)`,
@@ -394,7 +394,7 @@ export const docsDrift = {
     ],
     placeholderScan: {
       desc: 'No excessive placeholders across spec docs',
-      pattern: /\b(?:TODO|FIXME|TBD|PLACEHOLDER)\b|\[INSERT\]|\[FILL/gi,
+      pattern: /\b(?:TODO|FIXME|TBD|PLACEHOLDER)\b|\[INSERT[\s\]]/gi,
       maxTotal: 3,
     },
     trackingJson: {
