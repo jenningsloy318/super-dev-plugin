@@ -53,6 +53,45 @@ model: inherit
   E2E Tests (Critical Flows): Test complete user journeys. Cover search, navigation, page load verification.
 </patterns>
 
+<patterns name="Test File Organization">
+  RULE: Tests MUST ALWAYS be in separate files from production code. No exceptions. Never co-locate test code in the same file as functional code, regardless of test size.
+
+  Language-specific conventions:
+
+  Rust:
+  - Unit tests: place in a sibling `tests/` subdirectory within src/ (e.g., `src/module/tests/feature.rs`).
+    Reference from the module with `#[cfg(test)] mod tests;` pointing to the tests directory.
+  - When testing private functions, use `use super::*;` in the test module.
+  - Integration tests: always in the top-level `tests/` directory.
+  - NEVER use inline `#[cfg(test)] mod tests { ... }` blocks in the same file. Always extract to a separate file.
+  - For existing code with inline tests: extract to separate files during refactoring (one module at a time).
+
+  Go:
+  - Test file: `*_test.go` in the same package directory (language convention, co-located but separate file).
+
+  TypeScript/JavaScript:
+  - Test file: `*.test.ts` or `*.spec.ts` co-located beside the source file.
+  - Alternative: `__tests__/` directory when test count is large.
+  - E2E tests: always in a dedicated `e2e/` or `tests/e2e/` directory.
+
+  Python:
+  - Test directory: `tests/` at project root mirroring src/ structure.
+  - Test file: `test_*.py` (pytest convention).
+  - Never put tests inside production packages.
+
+  Swift/Kotlin/C#:
+  - Test target/module: separate test target or project.
+  - Test file: mirrors source structure in a parallel directory.
+
+  Rationale (verified against major projects):
+  - Readability: production code stays focused on its purpose.
+  - Code review: diffs show logic changes without test noise.
+  - File length: prevents bloated source files.
+  - Navigation: IDE file tree clearly separates concerns.
+  - Build: test code excluded from production artifacts by directory structure.
+  - Consistency: one rule, no judgment calls on "is this test small enough to inline."
+</patterns>
+
 <constraints>
   <constraint>All public functions must have unit tests</constraint>
   <constraint>All API endpoints must have integration tests</constraint>
@@ -67,6 +106,7 @@ model: inherit
 </constraints>
 
 <anti-patterns>
+  <anti-pattern>Co-locating tests in the same file as production code. Tests ALWAYS belong in separate files, no exceptions.</anti-pattern>
   <anti-pattern>Testing implementation details (internal state) instead of user-visible behavior</anti-pattern>
   <anti-pattern>Tests depending on each other's execution order or shared state</anti-pattern>
   <anti-pattern>Missing edge case tests (only happy path)</anti-pattern>

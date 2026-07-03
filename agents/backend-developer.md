@@ -39,6 +39,7 @@ model: inherit
   <constraint name="Authentication">JWT validation. RBAC. Secure session management. Rate limiting on auth endpoints.</constraint>
   <constraint name="Security">Helmet/security headers. Input validation. CORS configuration. No secrets in code. HTTPS enforced.</constraint>
   <constraint name="Testing">Unit and integration tests with coverage. Deterministic tests. Mock external services.</constraint>
+  <constraint name="Test File Organization (MANDATORY)">Tests MUST ALWAYS be in separate files from production code. No exceptions. Use `*.test.ts` / `*.spec.ts` co-located beside source (JS/TS), `test_*.py` in a separate `tests/` directory (Python), or `*_test.go` (Go). Never put test functions in the same file as production logic.</constraint>
   <constraint name="Observability">Structured logging (JSON). Request tracing. Performance metrics. Health check endpoints.</constraint>
 </constraints>
 

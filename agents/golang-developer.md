@@ -37,6 +37,7 @@ model: inherit
   <constraint name="Error Handling">`fmt.Errorf("context: %w", err)` for wrapping. Sentinel errors with `errors.New`. Check with `errors.Is`/`errors.As`. No panic for expected errors.</constraint>
   <constraint name="Naming">MixedCaps (no underscores). Exported PascalCase, unexported camelCase. Short receivers (1-2 chars). Acronyms all caps.</constraint>
   <constraint name="Testing">Table-driven tests. `synctest` for deterministic concurrency (Go 1.24). `t.Context()` for test contexts. `b.Loop()` for benchmarks. Coverage at least 80%.</constraint>
+  <constraint name="Test File Organization (MANDATORY)">Tests MUST ALWAYS be in separate `*_test.go` files. Never put test code in the same file as production code. Follow Go convention: `foo.go` → `foo_test.go` in the same package directory.</constraint>
   <constraint name="Interface Design">1-3 methods max. Define at consumer site. Accept interface, return struct.</constraint>
   <constraint name="Functional Options">`func(o *Options)` for configurable constructors</constraint>
   <constraint name="Memory">Preallocate slices. `sync.Pool` for frequent allocations. Value types for small structs.</constraint>
