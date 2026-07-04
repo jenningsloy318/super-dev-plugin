@@ -57,6 +57,7 @@ timeout_mins: 120
   <!-- ===== FLOW CONTROL ===== -->
   <constraint-group name="Flow Control">
     <constraint name="Per-Phase Commit">Before spawning Step 9.1 for each phase, capture `base_sha = HEAD`. After gate-build PASS, Team Lead commits ALL worktree changes (code + tests + implementation summary) with message format: `feat(<phase-name>): <short description>`. The post-commit HEAD becomes `base_sha` for the next phase. This gives impl-summary-writer and reviewers clean diffs per phase.</constraint>
+    <constraint name="Commit Spec Docs Immediately (MANDATORY)">Spec documents MUST be committed at the end of EACH phase group — NOT deferred to Stage 13. If spec docs remain uncommitted when a session ends, they are LOST. Commit schedule: (1) After Stage 2 gates PASS → `git add docs/specifications/ && git commit -m "docs(spec): requirements + bdd scenarios"`. (2) After Stage 3 → commit research report. (3) After Stages 4-6.5 → commit analysis + design docs. (4) After Stage 8 gate PASS → commit specification + plan + tasks + review. All commits happen inside the worktree using cd $WORKTREE_PATH.</constraint>
     <constraint name="Iteration Rules">Stage 7/8: on rejection, spawn spec-writer + doc-validator — never edit specs directly. Stage 9/10: TDD per phase (tdd-guide → domain specialist → impl-summary-writer → visual-verifier → qa-agent → e2e-runner [non-blocking]), then review. On rejection: STOP → extract findings → fix tests (tdd-guide) → fix code (domain specialist) → verify (qa-agent) → re-review. Never fix code directly. Max 3 iterations per loop, escalate to user after 3. E2E failures are logged as warnings but do NOT trigger re-iteration or block progression.</constraint>
     <constraint name="Implementation Completeness">Do NOT proceed Stage 10 → 11 until doc-validator (gate-implementation-complete) signals PASS. Spawn doc-validator with gate_profile=gate-implementation-complete after all phases complete — it verifies plan/tracking alignment. Partial implementation is a CRITICAL violation.</constraint>
     <constraint name="Stage 11-13 Sequence">EXECUTE IN ORDER: Stage 11 (docs-executor → WAIT for signal → spawn doc-validator (gate-docs-drift) → WAIT for PASS → handoff-writer → WAIT → spawn doc-validator (gate-handoff, conditional) → WAIT for PASS) → Stage 12 (terminate all, build-cleaner, user confirmation) → Stage 13 (commit + merge). Each MUST complete before next begins. Skipping is a CRITICAL violation.</constraint>
@@ -106,17 +107,21 @@ timeout_mins: 120
   </phase>
   <phase n="2" name="Requirements & Research">
     Stage 2: IF stage 2 is in skip_stages → mark 'skipped' in tracking JSON, do NOT spawn requirements-clarifier or bdd-scenario-writer, proceed to Stage 3. ELSE → spawn requirements-clarifier + doc-validator (gate-requirements) in parallel → WAIT for doc-validator to signal PASS → then spawn bdd-scenario-writer + doc-validator (gate-bdd) in parallel → WAIT for doc-validator to signal PASS.
+    Commit: After Stage 2 gates PASS, commit all new spec docs: `git add docs/specifications/{spec_identifier}/ && git commit -m "docs(spec): requirements + bdd scenarios"`.
     Stage 3: IF stage 3 is in skip_stages → mark 'skipped' in tracking JSON, proceed to Stage 4. ELSE → research-agent (Firecrawl first; deep-research iterations if issues flagged).
+    Commit: After Stage 3 completes, commit research report: `git add docs/specifications/{spec_identifier}/ && git commit -m "docs(spec): research report"`.
   </phase>
   <phase n="3" name="Analysis & Design">
     Stage 4: IF stage 4 is in skip_stages → mark 'skipped', proceed to Stage 5. ELSE → debug-analyzer (bug fixes only; already skipped for features).
     Stage 5: IF stage 5 is in skip_stages → mark 'skipped', proceed to Stage 6. ELSE → code-assessor (FIRST codebase exploration).
     Stage 6: IF stage 6 is in skip_stages → mark 'skipped', proceed to Stage 6.5/7. ELSE → architecture-designer (new) / architecture-improver (refactor) / product-designer (UI+arch) / ui-ux-designer (UI only).
     Stage 6.5 (CONDITIONAL): IF stage 6.5 is in skip_stages → mark 'skipped'. ELSE → If design output contains numeric design constants, spawn prototype-runner + doc-validator(gate-prototype). On no-constants detected, mark 'skipped' and proceed.
+    Commit: After Stages 4-6.5 complete, commit all analysis/design docs: `git add docs/specifications/{spec_identifier}/ && git commit -m "docs(spec): analysis + design"`.
   </phase>
   <phase n="4" name="Specification">
     Stage 7: IF stage 7 is in skip_stages → mark 'skipped', proceed to Stage 8. ELSE → spec-writer + doc-validator → specification, plan, tasks (gate-spec-trace).
     Stage 8: IF stage 8 is in skip_stages → mark 'skipped', proceed to Stage 9. ELSE → spec-reviewer + doc-validator → review (gate-spec-review). On failure: Spec Iteration Loop (max 3, escalate after 3).
+    Commit: After Stage 8 gate PASS, commit specification suite: `git add docs/specifications/{spec_identifier}/ && git commit -m "docs(spec): specification + plan + tasks + review"`.
   </phase>
   <phase n="5" name="Implementation">
     Stage 9: IF stage 9 is in skip_stages → mark 'skipped', proceed to Stage 10. ELSE → Sequential per-phase TDD loop across ALL plan phases:

@@ -516,6 +516,7 @@ license: MIT
   <constraint name="MANDATORY Stage 11-13 Transition">Execute in strict order: Stage 11 (docs-executor → doc-validator (gate-docs-drift) → handoff-writer) → Stage 12 (cleanup + user confirmation) → Stage 13 (commit + merge). Skipping is a CRITICAL violation.</constraint>
   <constraint name="No Pause">NEVER pause during execution to ask "Continue?". ALWAYS fix errors before proceeding. Complete ALL stages 11-13 before signaling done. Only exception: Bug Fix Verification Pause (see protocol below).</constraint>
   <constraint name="Version Bump">Every modification to super-dev-plugin files requires patch version bump in plugin.json and marketplace.json.</constraint>
+  <constraint name="Commit Spec Docs Immediately (MANDATORY)">Spec documents MUST be committed at the end of EACH phase group — NOT deferred to Stage 13. Commit schedule: (1) After Stage 2 gates PASS → commit requirements + BDD. (2) After Stage 3 → commit research report. (3) After Stages 4-6.5 complete → commit analysis + design docs. (4) After Stage 8 gate PASS → commit specification + plan + tasks + review. This prevents document loss on session crash and provides incremental history. Commit format: `docs(spec): <stage description>`. All commits happen inside the worktree branch.</constraint>
 
   <!-- ===== LIFECYCLE ===== -->
   <constraint name="Terminate After Completion">Teammates MUST be terminated after completing their stage work. Never leave idle teammates running.</constraint>
