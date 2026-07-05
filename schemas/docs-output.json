@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "super-dev/schemas/docs-output.json",
   "title": "DocsOutput",
-  "description": "Structured return from docs-executor agent (Stage 11).",
+  "description": "Structured return from docs-executor agent (Stage 12).",
   "type": "object",
   "required": ["docs_updated"],
   "additionalProperties": false,

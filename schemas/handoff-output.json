@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "super-dev/schemas/handoff-output.json",
   "title": "HandoffOutput",
-  "description": "Structured return from handoff-writer agent (Stage 11, optional).",
+  "description": "Structured return from handoff-writer agent (Stage 12, optional).",
   "type": "object",
   "required": ["doc_path", "lines"],
   "additionalProperties": false,

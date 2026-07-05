@@ -88,7 +88,7 @@
 
   "implementationPhases": {
     "$type": "array of ImplementationPhase objects",
-    "$description": "Tracks completion of each phase defined in the implementation-plan.md. Populated at Stage 9 entry by reading the plan. Even single-phase plans MUST have one entry. Team Lead verifies ALL entries are 'complete' before proceeding to Stage 11. MUST be a JSON array, NOT an object.",
+    "$description": "Tracks completion of each phase defined in the implementation-plan.md. Populated at Stage 9 entry by reading the plan. Even single-phase plans MUST have one entry. Team Lead verifies ALL entries are 'complete' before proceeding to Stage 12. MUST be a JSON array, NOT an object.",
     "$example": [
       { "phaseNumber": 1, "name": "Database Layer", "status": "complete", "startedAt": "2026-05-04T13:30:00Z", "completedAt": "2026-05-04T14:15:30Z", "reviewIterations": 1 },
       { "phaseNumber": 2, "name": "API Endpoints", "status": "in_progress", "startedAt": "2026-05-04T14:16:00Z", "completedAt": null, "reviewIterations": 0 },
@@ -229,18 +229,18 @@
 
   "status": {
     "$type": "object",
-    "$description": "Top-level workflow completion flags. Team Lead sets these during Stage 12-13 transition.",
+    "$description": "Top-level workflow completion flags. Team Lead sets these during Stage 13-13 transition.",
     "allStagesComplete": {
       "$type": "boolean",
-      "$description": "True when all required stages (including 11, 12, 13) have status 'complete' or 'skipped'. Set during Stage 12."
+      "$description": "True when all required stages (including 11, 12, 13) have status 'complete' or 'skipped'. Set during Stage 13."
     },
     "allTasksComplete": {
       "$type": "boolean",
-      "$description": "True when every task in the tasks array has status 'complete'. Set during Stage 12."
+      "$description": "True when every task in the tasks array has status 'complete'. Set during Stage 13."
     },
     "workflowDone": {
       "$type": "boolean",
-      "$description": "True after Stage 13 commit succeeds. Final flag indicating the workflow is fully finished."
+      "$description": "True after Stage 14 commit succeeds. Final flag indicating the workflow is fully finished."
     }
   }
 }

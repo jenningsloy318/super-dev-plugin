@@ -18,9 +18,10 @@
 //   Stage 8   — Spec review (spec-reviewer + gate-spec-review) with iteration loop (max 3)
 //   Stage 9   — Per-phase TDD pipeline with per-phase commits + gate-build
 //   Stage 10  — Code review + adversarial review (parallel) with iteration loop + pivot trigger
-//   Stage 11  — Docs (docs-executor -> gate-docs-drift) + optional handoff-writer
-//   Stage 12  — build-cleaner (artifacts + sensitive-data scan; blocking on findings)
-//   Stage 13  — Trailing commit + manual merge instructions
+//   Stage 11  — Integration Testing: API tests (backend) + E2E/BDD tests (frontend) with fix→review→test outer loop
+//   Stage 12  — Docs (docs-executor -> gate-docs-drift) + optional handoff-writer
+//   Stage 13  — build-cleaner (artifacts + sensitive-data scan; blocking on findings)
+//   Stage 14  — Trailing commit + manual merge instructions
 //
 // Phase A constraints honored:
 //   - preflight-env.mjs runs FIRST (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 +
@@ -48,8 +49,8 @@
 // ---------------------------------------------------------------------------
 export const meta = {
   name: 'super-dev-workflow',
-  description: 'Dynamic Workflow variant: 13-stage feature/bug/refactor pipeline with per-stage gates, structured-output verdicts, and capped iteration loops. Invoked by super-dev:team-lead-workflow.',
-  whenToUse: 'Explicitly requested via super-dev:workflow skill or --workflow flag. Runs the full Stage 1-13 super-dev pipeline autonomously (requirements → BDD → research → assessment → design → spec → review → TDD implementation → code review → docs → handoff → cleanup → merge).',
+  description: 'Dynamic Workflow variant: 14-stage feature/bug/refactor pipeline with per-stage gates, structured-output verdicts, and capped iteration loops. Invoked by super-dev:team-lead-workflow.',
+  whenToUse: 'Explicitly requested via super-dev:workflow skill or --workflow flag. Runs the full Stage 1-14 super-dev pipeline autonomously (requirements → BDD → research → assessment → design → spec → review → TDD implementation → code review → integration testing → docs → cleanup → merge).',
   phases: [
     { title: 'Stage 1 — Setup' },
     { title: 'Stage 2 — Requirements + BDD' },
@@ -62,9 +63,10 @@ export const meta = {
     { title: 'Stage 8 — Spec Review' },
     { title: 'Stage 9 — Implementation' },
     { title: 'Stage 10 — Code Review' },
-    { title: 'Stage 11 — Documentation' },
-    { title: 'Stage 12 — Cleanup' },
-    { title: 'Stage 13 — Merge' },
+    { title: 'Stage 11 — Integration Testing' },
+    { title: 'Stage 12 — Documentation' },
+    { title: 'Stage 13 — Cleanup' },
+    { title: 'Stage 14 — Merge' },
   ],
 };
 
@@ -2779,17 +2781,270 @@ await updateTracking({
 });
 
 // ---------------------------------------------------------------------------
-// Stage 11 — Documentation
+// Stage 11 — Integration Testing
+//   OUTER LOOP wrapping Stage 10 + 11: if tests fail, fix → re-review → re-test.
+//   11A: API tests (backend) — BLOCKING (pass_rate must be 100%)
+//   11B: E2E tests (frontend) — BLOCKING (all BDD scenarios must pass)
+//   Fix loop: classify failure → specialist fix → back to Stage 10 → Stage 11
+//   Same error across iterations → ask user to intervene
+//   Max 3 outer iterations → ask user to intervene
+// ---------------------------------------------------------------------------
+phase('Stage 11 — Integration Testing');
+
+// Determine what types of integration tests to run
+const HAS_BACKEND = ['rust', 'go', 'python', 'node', 'java', 'csharp'].includes(LANGUAGE) ||
+  /\b(?:REST|API|HTTP|endpoint|gRPC|GraphQL)\b/i.test(REQUEST);
+const HAS_FRONTEND = IS_WEB_UI;
+const SKIP_STAGE_11 = SKIP_STAGES.has(11) || (!HAS_BACKEND && !HAS_FRONTEND);
+
+if (SKIP_STAGE_11) {
+  log(`Stage 11 SKIPPED (${SKIP_STAGES.has(11) ? '--skip includes 11' : 'no backend or frontend detected'})`);
+  await updateTracking({ stage: 11, status: 'skipped', currentPhase: 'Stage 11 — Integration Testing' });
+} else {
+await updateTracking({ stage: 11, status: 'in_progress', currentPhase: 'Stage 11 — Integration Testing' });
+
+const MAX_OUTER_ITERS = 3;
+let outerIter = 0;
+let prevTestErrors = null;
+
+while (outerIter < MAX_OUTER_ITERS) {
+  outerIter++;
+  log(`Stage 11 outer iteration ${outerIter}/${MAX_OUTER_ITERS}`);
+
+  let apiTestResult = null;
+  let e2eTestResult = null;
+  let allTestsPass = true;
+
+  // --- 11A: API Testing (backend) ---
+  if (HAS_BACKEND) {
+    log(`Stage 11A: api-tester + gate-api-tests (iteration ${outerIter})`);
+    const apiReportName = docName('api-test-report.md');
+
+    apiTestResult = await agentWithRetry(
+      `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
+      `Inputs to read yourself:\n` +
+      `  - specification: ${spec.specification_path}\n` +
+      `  - bdd: ${bdd.doc_path}\n` +
+      `  - requirements: ${req.doc_path}\n\n` +
+      `TASK: Run comprehensive API integration tests against the implemented server.\n\n` +
+      `Environment setup: Ensure TEST_API_TOKEN is set in .env (create .env.test if needed).\n` +
+      `Test ALL endpoints across 4 mandatory categories:\n` +
+      `  - CRUD: create, read, update, delete, list with pagination\n` +
+      `  - Validation: missing fields, invalid types, boundaries, malformed JSON\n` +
+      `  - Auth: valid/expired/missing tokens, insufficient scope, API keys\n` +
+      `  - Error/Edge: 404, 409, 422, 429, 500, empty collections, unicode, max payload\n\n` +
+      `Write results JSON to ${shellQuote(SPEC_DIRECTORY + '/.render/api-test-report.json')} ` +
+      `conforming to ${shellQuote(PLUGIN_ROOT + '/templates/schemas/api-test-report.schema.json')}.\n` +
+      `Then render: node ${shellQuote(PLUGIN_ROOT + '/scripts/render.mjs')} ` +
+      `--template ${shellQuote(PLUGIN_ROOT + '/templates/api-test-report.md.njk')} ` +
+      `--schema ${shellQuote(PLUGIN_ROOT + '/templates/schemas/api-test-report.schema.json')} ` +
+      `--data ${shellQuote(SPEC_DIRECTORY + '/.render/api-test-report.json')} ` +
+      `--output ${shellQuote(SPEC_DIRECTORY + '/' + apiReportName)}`,
+      {
+        label: `api-tester:${outerIter}`,
+        phase: 'Stage 11 — Integration Testing',
+        agentType: 'super-dev:api-tester',
+        schema: {
+          type: 'object',
+          required: ['doc_path', 'verdict', 'pass_rate', 'total', 'failed'],
+          properties: {
+            doc_path: { type: 'string' },
+            verdict: { type: 'string', enum: ['PASS', 'FAIL', 'BLOCKED'] },
+            pass_rate: { type: 'number' },
+            total: { type: 'integer' },
+            failed: { type: 'integer' },
+            failed_tests: { type: 'array', items: { type: 'string' } },
+            summary: { type: 'string' },
+          },
+        },
+      },
+    );
+
+    if (apiTestResult?.verdict !== 'PASS') {
+      allTestsPass = false;
+      log(`Stage 11A: API tests FAIL (${apiTestResult?.failed ?? '?'} failures, pass_rate=${apiTestResult?.pass_rate ?? 0}%)`);
+    } else {
+      log(`Stage 11A: API tests PASS (${apiTestResult.total} tests, 100%)`);
+    }
+  }
+
+  // --- 11B: E2E Testing (frontend) ---
+  if (HAS_FRONTEND) {
+    log(`Stage 11B: e2e-runner + gate-e2e-report (iteration ${outerIter})`);
+    const e2eReportName = docName('e2e-report.md');
+
+    e2eTestResult = await agentWithRetry(
+      `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
+      `Inputs to read yourself:\n` +
+      `  - bdd: ${bdd.doc_path}\n` +
+      `  - specification: ${spec.specification_path}\n` +
+      `  - requirements: ${req.doc_path}\n\n` +
+      `TASK: Run E2E tests for ALL BDD scenarios with cross-browser coverage.\n\n` +
+      `Map EVERY SCENARIO-NNN from ${bdd.doc_path} to a Playwright test.\n` +
+      `Run across: chromium, firefox, webkit.\n` +
+      `Check performance budgets: LCP<2.5s, CLS<0.1, FCP<1.8s, TTI<3.8s.\n` +
+      `Run accessibility scan: axe-core, zero critical violations.\n\n` +
+      `Write results JSON to ${shellQuote(SPEC_DIRECTORY + '/.render/e2e-report.json')} ` +
+      `conforming to ${shellQuote(PLUGIN_ROOT + '/templates/schemas/e2e-report.schema.json')}.\n` +
+      `Then render: node ${shellQuote(PLUGIN_ROOT + '/scripts/render.mjs')} ` +
+      `--template ${shellQuote(PLUGIN_ROOT + '/templates/e2e-report.md.njk')} ` +
+      `--schema ${shellQuote(PLUGIN_ROOT + '/templates/schemas/e2e-report.schema.json')} ` +
+      `--data ${shellQuote(SPEC_DIRECTORY + '/.render/e2e-report.json')} ` +
+      `--output ${shellQuote(SPEC_DIRECTORY + '/' + e2eReportName)}`,
+      {
+        label: `e2e-runner:${outerIter}`,
+        phase: 'Stage 11 — Integration Testing',
+        agentType: 'super-dev:e2e-runner',
+        schema: {
+          type: 'object',
+          required: ['doc_path', 'verdict', 'pass_rate', 'scenarios_tested', 'failed'],
+          properties: {
+            doc_path: { type: 'string' },
+            verdict: { type: 'string', enum: ['PASS', 'FAIL', 'BLOCKED'] },
+            pass_rate: { type: 'number' },
+            scenarios_tested: { type: 'integer' },
+            failed: { type: 'integer' },
+            failed_scenarios: { type: 'array', items: { type: 'string' } },
+            summary: { type: 'string' },
+          },
+        },
+      },
+    );
+
+    if (e2eTestResult?.verdict !== 'PASS') {
+      allTestsPass = false;
+      log(`Stage 11B: E2E tests FAIL (${e2eTestResult?.failed ?? '?'} failures, pass_rate=${e2eTestResult?.pass_rate ?? 0}%)`);
+    } else {
+      log(`Stage 11B: E2E tests PASS (${e2eTestResult.scenarios_tested} scenarios, 100%)`);
+    }
+  }
+
+  // --- Check: all tests pass? ---
+  if (allTestsPass) {
+    log(`Stage 11 PASS on outer iteration ${outerIter}.`);
+    break;
+  }
+
+  // --- Same error detection ---
+  const currentErrors = [
+    ...(apiTestResult?.failed_tests ?? []),
+    ...(e2eTestResult?.failed_scenarios ?? []),
+  ].sort().join('|');
+
+  if (prevTestErrors && currentErrors === prevTestErrors) {
+    throw new Error(
+      `Stage 11: SAME test failures persist across iterations ${outerIter - 1} and ${outerIter}. ` +
+      `User intervention needed.\n` +
+      `Failing tests: ${currentErrors.split('|').slice(0, 10).join(', ')}` +
+      (currentErrors.split('|').length > 10 ? ` ... and ${currentErrors.split('|').length - 10} more` : '')
+    );
+  }
+  prevTestErrors = currentErrors;
+
+  // --- Max iterations check ---
+  if (outerIter >= MAX_OUTER_ITERS) {
+    throw new Error(
+      `Stage 11: Integration tests still failing after ${MAX_OUTER_ITERS} outer iterations ` +
+      `(fix→review→test). User intervention needed.\n` +
+      `API verdict: ${apiTestResult?.verdict ?? 'n/a'}, E2E verdict: ${e2eTestResult?.verdict ?? 'n/a'}\n` +
+      `Failures: ${currentErrors.split('|').slice(0, 5).join(', ')}`
+    );
+  }
+
+  // --- Fix Loop: classify + fix + back to Stage 10 → Stage 11 ---
+  log(`Stage 11 iteration ${outerIter}: tests failed — fixing then back to Stage 10 re-review`);
+
+  const failureSummary = [
+    apiTestResult?.verdict === 'FAIL' ? `API failures: ${(apiTestResult.failed_tests ?? []).join(', ')}` : null,
+    e2eTestResult?.verdict === 'FAIL' ? `E2E failures: ${(e2eTestResult.failed_scenarios ?? []).join(', ')}` : null,
+  ].filter(Boolean).join('\n');
+
+  // Fix: spawn domain specialist with failure report
+  await agentWithRetry(
+    `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
+    `Inputs to read yourself: ${spec.specification_path}, ${spec.plan_path}, ${spec.tasks_path}.\n\n` +
+    `INTEGRATION TESTS FAILED (outer iteration ${outerIter}):\n${failureSummary}\n\n` +
+    `Read the test reports in ${SPEC_DIRECTORY} for full error details.\n` +
+    `Fix the implementation to make ALL failing tests pass. ` +
+    `Do NOT modify test files — only fix production code.\n` +
+    `After fixing, run the build command to verify compilation: ${JSON.stringify(phaseResults[phaseResults.length - 1]?.build_command ?? 'cargo test')}`,
+    {
+      label: `fix-from-tests:${outerIter}`,
+      phase: 'Stage 11 — Integration Testing',
+      agentType: specialistAgent,
+      schema: IMPL_OUTPUT,
+    },
+  );
+
+  // Back to Stage 10: re-review the fix
+  log(`Stage 11 fix applied — re-running Stage 10 (code review) before re-testing`);
+  phase('Stage 10 — Code Review');
+  await updateTracking({ stage: 10, status: 'in_progress', currentPhase: 'Stage 10 — Code Review (re-review after test fix)' });
+
+  const reReviewName = codeReviewDoc(reviewIter + outerIter);
+  const reAdvName = advReviewDoc(reviewIter + outerIter);
+
+  const [reCr, reAr] = await parallel([
+    () => agentWithRetry(
+      `${reviewerBase}\n\nRe-review after integration test fix (iteration ${outerIter}). ` +
+      `Focus on the FIX ONLY — verify it doesn't introduce new issues.\n\n` +
+      `TASK: Produce code review as JSON, then render.\n` +
+      `Write JSON to ${shellQuote(SPEC_DIRECTORY + '/.render/code-review.json')}. ` +
+      `Then render via render.mjs to ${shellQuote(SPEC_DIRECTORY + '/' + reReviewName)}.`,
+      {
+        label: `code-reviewer:re-review:${outerIter}`,
+        phase: 'Stage 10 — Code Review',
+        agentType: 'super-dev:code-reviewer',
+        schema: CODE_REVIEW_OUTPUT,
+      },
+    ),
+    () => agentWithRetry(
+      `${reviewerBase}\n\nRe-review after integration test fix (iteration ${outerIter}). ` +
+      `Focus on the FIX ONLY — verify no destructive changes.\n\n` +
+      `TASK: Produce adversarial review as JSON, then render.\n` +
+      `Write JSON to ${shellQuote(SPEC_DIRECTORY + '/.render/adversarial-review.json')}. ` +
+      `Then render via render.mjs to ${shellQuote(SPEC_DIRECTORY + '/' + reAdvName)}.`,
+      {
+        label: `adversarial-reviewer:re-review:${outerIter}`,
+        phase: 'Stage 10 — Code Review',
+        agentType: 'super-dev:adversarial-reviewer',
+        schema: ADVERSARIAL_REVIEW_OUTPUT,
+      },
+    ),
+  ]);
+
+  // Check re-review passed (simplified — just check verdicts)
+  const reReviewApproved = reCr?.verdict && /approved/i.test(reCr.verdict);
+  const reAdvPassed = reAr?.verdict === 'PASS';
+
+  if (!reReviewApproved || !reAdvPassed) {
+    throw new Error(
+      `Stage 11 outer loop: re-review FAILED after test fix (iteration ${outerIter}). ` +
+      `Code review: ${reCr?.verdict ?? 'null'}, Adversarial: ${reAr?.verdict ?? 'null'}. ` +
+      `User intervention needed — fix introduced new issues.`
+    );
+  }
+
+  log(`Stage 10 re-review PASS — looping back to Stage 11 for re-test`);
+  await updateTracking({ stage: 10, status: 'complete', currentPhase: 'Stage 10 — Code Review' });
+  phase('Stage 11 — Integration Testing');
+}
+
+await updateTracking({ stage: 11, status: 'complete', currentPhase: 'Stage 11 — Integration Testing' });
+} // end Stage 11
+
+// ---------------------------------------------------------------------------
+// Stage 12 — Documentation
 //   Sequential: docs-executor -> doc-validator(gate-docs-drift) -> handoff-writer.
 // ---------------------------------------------------------------------------
-phase('Stage 11 — Documentation');
-await updateTracking({ stage: 11, status: 'in_progress', currentPhase: 'Stage 11 — Documentation' });
+phase('Stage 12 — Documentation');
+await updateTracking({ stage: 12, status: 'in_progress', currentPhase: 'Stage 12 — Documentation' });
 
-// Stage 11 uses _gatedLoop: docs-executor + gate-docs-drift in parallel per iteration.
+// Stage 12 uses _gatedLoop: docs-executor + gate-docs-drift in parallel per iteration.
 // Same pattern as Stages 2/6.5/7 — writer produces doc, gate validates, FAIL feeds errors back.
-log('Stage 11: docs-executor + gate-docs-drift');
+log('Stage 12: docs-executor + gate-docs-drift');
 const docsGateLoop = await _gatedLoop({
-  stage: 'Stage 11',
+  stage: 'Stage 12',
   gateName: 'gate-docs-drift',
   writerLabel: 'docs-executor',
   maxIters: 3,
@@ -2810,7 +3065,7 @@ const docsGateLoop = await _gatedLoop({
     `if they reference behavior the implementation changed.` + guidance,
     {
       label: iter === 1 ? 'docs-executor' : `docs-executor:fix:${iter}`,
-      phase: 'Stage 11 — Documentation',
+      phase: 'Stage 12 — Documentation',
       agentType: 'super-dev:docs-executor',
       schema: DOCS_OUTPUT,
     },
@@ -2820,16 +3075,16 @@ const docsGateLoop = await _gatedLoop({
     `This gate verifies docs do not lag behind the implementation diff. Return the gate verdict.`,
     {
       label: 'doc-validator:gate-docs-drift',
-      phase: 'Stage 11 — Documentation',
+      phase: 'Stage 12 — Documentation',
       agentType: 'super-dev:doc-validator',
       schema: GATE_VERDICT,
     },
   ),
 });
-log(`Stage 11 docs: gate-docs-drift PASS (${docsGateLoop.iterations} iteration${docsGateLoop.iterations === 1 ? '' : 's'}).`);
+log(`Stage 12 docs: gate-docs-drift PASS (${docsGateLoop.iterations} iteration${docsGateLoop.iterations === 1 ? '' : 's'}).`);
 
 let handoff = null;
-log('Stage 11: handoff-writer');
+log('Stage 12: handoff-writer');
 const handoffName = docName('handoff.md');
 handoff = await agentWithRetry(
   `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}. Plugin root: ${PLUGIN_ROOT}.\n` +
@@ -2840,24 +3095,24 @@ handoff = await agentWithRetry(
   `be 100% self-contained and actionable.`,
   {
     label: 'handoff-writer',
-    phase: 'Stage 11 — Documentation',
+    phase: 'Stage 12 — Documentation',
     agentType: 'super-dev:handoff-writer',
     schema: HANDOFF_OUTPUT,
   },
 );
 log(`handoff-writer: ${handoff.lines} lines, ${(handoff.unfinished_items ?? []).length} unfinished item(s).`);
 await updateTracking({
-  stage: 11, status: 'complete', currentPhase: 'Stage 11 — Documentation',
+  stage: 12, status: 'complete', currentPhase: 'Stage 12 — Documentation',
   files: { created: [], modified: docsGateLoop.writer?.docs_updated || [], deleted: [] },
 });
 
 // ---------------------------------------------------------------------------
-// Stage 12 — Cleanup
+// Stage 13 — Cleanup
 //   build-cleaner detects project type, scans for sensitive data (BLOCKING
 //   on any finding), then removes build artifacts and dependency caches.
 // ---------------------------------------------------------------------------
-phase('Stage 12 — Cleanup');
-await updateTracking({ stage: 12, status: 'in_progress', currentPhase: 'Stage 12 — Cleanup' });
+phase('Stage 13 — Cleanup');
+await updateTracking({ stage: 13, status: 'in_progress', currentPhase: 'Stage 13 — Cleanup' });
 
 log('Stage 12: build-cleaner (sensitive-data scan + artifact cleanup)');
 const cleanup = await agentWithRetry(
@@ -2869,7 +3124,7 @@ const cleanup = await agentWithRetry(
   `execute cleanup. Otherwise run the appropriate clean commands and remove artifact dirs.`,
   {
     label: 'build-cleaner',
-    phase: 'Stage 12 — Cleanup',
+    phase: 'Stage 13 — Cleanup',
     agentType: 'super-dev:build-cleaner',
     schema: CLEANUP_OUTPUT,
   },
@@ -2887,7 +3142,7 @@ if (cleanup.blocked) {
 }
 log(`Stage 12 complete: cleaned ${cleanup.directories_removed.length} dir(s); reclaimed ${cleanup.disk_reclaimed_bytes} bytes.`);
 await updateTracking({
-  stage: 12, status: 'complete', currentPhase: 'Stage 12 — Cleanup',
+  stage: 13, status: 'complete', currentPhase: 'Stage 13 — Cleanup',
   files: { created: [], modified: [], deleted: cleanup.directories_removed || [] },
 });
 
@@ -2898,16 +3153,16 @@ await updateTracking({
 //        single chore() commit).
 //   13.2 print the manual merge command for the user to run.
 // ---------------------------------------------------------------------------
-phase('Stage 13 — Merge');
-await updateTracking({ stage: 13, status: 'in_progress', currentPhase: 'Stage 13 — Merge' });
+phase('Stage 14 — Merge');
+await updateTracking({ stage: 14, status: 'in_progress', currentPhase: 'Stage 14 — Merge' });
 
-log('Stage 13.1: trailing commit (docs/handoff/cleanup)');
+log('Stage 14.1: trailing commit (docs/handoff/cleanup)');
 const trailingCommit = await agentWithRetry(
   `Run exactly:\n${commitTrailingSnippet(WORKTREE_PATH, `chore(${specMeta.spec_name}): finalise docs, handoff, cleanup`)}\n` +
   `Return JSON: {"new_sha": string, "skipped": boolean}.`,
   {
     label: 'stage-13:trailing-commit',
-    phase: 'Stage 13 — Merge',
+    phase: 'Stage 14 — Merge',
     agentType: 'general-purpose',
     schema: {
       type: 'object',
@@ -2916,13 +3171,13 @@ const trailingCommit = await agentWithRetry(
     },
   },
 );
-log(`Stage 13.1: HEAD now ${trailingCommit.new_sha}${trailingCommit.skipped ? ' (no trailing changes)' : ''}`);
+log(`Stage 14.1: HEAD now ${trailingCommit.new_sha}${trailingCommit.skipped ? ' (no trailing changes)' : ''}`);
 
 const mergeMessage = `Merge spec ${specMeta.spec_identifier}: ${req.feature_name}`;
-log(`Stage 13.2: To merge manually, run:`);
+log(`Stage 14.2: To merge manually, run:`);
 log(`  cd ${REPO_PATH} && git checkout ${DEFAULT_BRANCH} && git pull --ff-only && \\`);
 log(`    git merge --no-ff ${specMeta.spec_identifier} -m ${JSON.stringify(mergeMessage)}`);
-await updateTracking({ stage: 13, status: 'complete', currentPhase: 'Stage 13 — Merge' });
+await updateTracking({ stage: 14, status: 'complete', currentPhase: 'Stage 14 — Merge' });
 
 return {
   worktree_path: WORKTREE_PATH,
@@ -3173,7 +3428,7 @@ git fetch origin
 # routinely has scratch files, logs, IDE caches, and build outputs that
 # are .gitignore-d but show as untracked. Those do not block an ff-only
 # pull (git happily fast-forwards over them) and refusing on their
-# account is a usability footgun. Stage 13's merge check (in
+# account is a usability footgun. Stage 14's merge check (in
 # mergeSpecBranchSnippet) keeps the stricter rule because the merge
 # resolution itself can interact badly with stray untracked files.
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then

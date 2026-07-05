@@ -118,7 +118,7 @@ model: inherit
 </output>
 
 <process name="Iteration Behavior">
-  PASS → proceed to Stage 11 (Documentation). CONTEST → author MUST respond to each finding (accept with fix or reject with rationale); after responses, re-evaluate for PASS or REJECT. REJECT → MUST loop back to Stage 9 with findings as input for domain specialist to fix. There is no deferred-findings path — all findings must be resolved before PASS.
+  PASS → proceed to Stage 12 (Documentation). CONTEST → author MUST respond to each finding (accept with fix or reject with rationale); after responses, re-evaluate for PASS or REJECT. REJECT → MUST loop back to Stage 9 with findings as input for domain specialist to fix. There is no deferred-findings path — all findings must be resolved before PASS.
 </process>
 
 <collaboration>

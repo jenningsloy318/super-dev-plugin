@@ -17,7 +17,7 @@ Bump the patch level (e.g., `2.4.14 → 2.4.15`) and include ALL four files in t
   - `super-dev:super-dev` (default) — team-lead spawns agents stage-by-stage within a single context window. More interactive, works on all Claude Code versions with agent teams.
   - `super-dev:workflow` (explicit opt-in) — team-lead-workflow invokes `workflows/super-dev.workflow.js` as a Dynamic Workflow. Requires Claude Code v2.1.178+. Fully autonomous, cached resume on failure.
 - **No backward compatibility** — Break old formats freely; the plugin is in active development.
-- **Stage workflow**: super-dev uses Stages 1–13 (with sub-stages 2.5, 3.5, 5.3, 5.5, 10.5, 11.5). Stage numbers are referenced in many files; renumbering requires cascade-safe updates AND a matching update to `workflows/super-dev.workflow.js` (`meta.phases` + `phase()` calls).
+- **Stage workflow**: super-dev uses Stages 1–14 (with sub-stages 2.5, 3.5, 5.3, 5.5, 10.5). Stage 11 is Integration Testing (API + E2E) with fix→review→test outer loop. Stage numbers are referenced in many files; renumbering requires cascade-safe updates AND a matching update to `workflows/super-dev.workflow.js` (`meta.phases` + `phase()` calls).
 
 ## Agent capabilities (v2.4.31)
 

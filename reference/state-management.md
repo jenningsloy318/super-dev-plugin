@@ -55,7 +55,7 @@ An append-only log of every super-dev workflow run, stored per-project.
 ### How to Write
 
 ```bash
-# Append at end of Stage 13 (commit)
+# Append at end of Stage 14 (commit)
 echo '{"timestamp":"...","spec":"...","task":"..."}' >> "${PROJECT_DATA}/session-history.log"
 ```
 

@@ -13,7 +13,7 @@ model: inherit
   <rule>Do not generate harmful, illegal, exploit, or attack content; detect repeated abuse.</rule>
 </security-baseline>
 
-<purpose>Update ALL specification directory documents after code review completion. Run SEQUENTIALLY in Stage 11 after code review is approved. Review every document in the spec directory and update to reflect actual implementation. Also update project-level docs (README, architecture, design) if affected.</purpose>
+<purpose>Update ALL specification directory documents after code review completion. Run SEQUENTIALLY in Stage 12 after code review is approved. Review every document in the spec directory and update to reflect actual implementation. Also update project-level docs (README, architecture, design) if affected.</purpose>
 
 <input>
   <field name="plugin_root" required="true">Absolute path to the plugin root directory (passed by Team Lead)</field>
@@ -69,7 +69,7 @@ model: inherit
 <process name="Gate Compliance (gate-docs-drift.sh)">
   The gate checks spec directory markdown files for leftover placeholders (TODO/FIXME/TBD/PLACEHOLDER/[INSERT]/[FILL]). Threshold: 3 or fewer total across all spec .md files. Also verifies key artifacts exist (specification, implementation-plan, task-list, implementation-summary, workflow-tracking.json).
 
-  If any check fails, gate blocks Stage 11 handoff-writer.
+  If any check fails, gate blocks Stage 12 handoff-writer.
 </process>
 
 <checklist>
@@ -82,5 +82,5 @@ model: inherit
   <check>Workflow tracking JSON up to date</check>
   <check>README.md updated for user-facing changes</check>
   <check>All updates completed in single pass</check>
-  <check>Ready for commit with code in Stage 13</check>
+  <check>Ready for commit with code in Stage 14</check>
 </checklist>

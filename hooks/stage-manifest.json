@@ -118,20 +118,28 @@
       "gate": "prototype"
     },
     "super-dev:docs-executor": {
-      "stage": "11",
-      "description": "Documentation (Stage 11) requires specification, all implementation phases complete, and gate-implementation-complete.sh PASS",
-      "previousStages": [10],
+      "stage": "12",
+      "description": "Documentation (Stage 12) requires specification, all implementation phases complete, and gate-implementation-complete.sh PASS",
+      "previousStages": [11],
       "requires": ["[doc-index]-specification.md", "[doc-index]-workflow-tracking.json"],
       "sections": {},
       "gate": "implementation-complete"
     },
     "super-dev:handoff-writer": {
-      "stage": "11",
-      "description": "Handoff (Stage 11, after docs-executor) requires specification directory with all artifacts. When implementationPhases > 1 OR iteration.loops > 0 OR pivot artifacts present, gate-handoff.sh enforces the AC Coverage Assessment section.",
-      "previousStages": [10],
+      "stage": "12",
+      "description": "Handoff (Stage 12, after docs-executor) requires specification directory with all artifacts. When implementationPhases > 1 OR iteration.loops > 0 OR pivot artifacts present, gate-handoff.sh enforces the AC Coverage Assessment section.",
+      "previousStages": [11],
       "requires": ["[doc-index]-specification.md"],
       "sections": {},
       "gate": "handoff"
+    },
+    "super-dev:api-tester": {
+      "stage": "11",
+      "description": "API Integration Testing (Stage 11A) requires specification, BDD scenarios, and completed code review",
+      "previousStages": [10],
+      "requires": ["[doc-index]-specification.md", "[doc-index]-bdd-scenarios.md"],
+      "sections": {},
+      "gate": "api-tests"
     }
   }
 }

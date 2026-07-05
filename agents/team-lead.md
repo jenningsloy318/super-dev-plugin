@@ -57,10 +57,10 @@ timeout_mins: 120
   <!-- ===== FLOW CONTROL ===== -->
   <constraint-group name="Flow Control">
     <constraint name="Per-Phase Commit">Before spawning Step 9.1 for each phase, capture `base_sha = HEAD`. After gate-build PASS, Team Lead commits ALL worktree changes (code + tests + implementation summary) with message format: `feat(<phase-name>): <short description>`. The post-commit HEAD becomes `base_sha` for the next phase. This gives impl-summary-writer and reviewers clean diffs per phase.</constraint>
-    <constraint name="Commit Spec Docs Immediately (MANDATORY)">Spec documents MUST be committed at the end of EACH phase group — NOT deferred to Stage 13. If spec docs remain uncommitted when a session ends, they are LOST. Commit schedule: (1) After Stage 2 gates PASS → `git add docs/specifications/ && git commit -m "docs(spec): requirements + bdd scenarios"`. (2) After Stage 3 → commit research report. (3) After Stages 4-6.5 → commit analysis + design docs. (4) After Stage 8 gate PASS → commit specification + plan + tasks + review. All commits happen inside the worktree using cd $WORKTREE_PATH.</constraint>
+    <constraint name="Commit Spec Docs Immediately (MANDATORY)">Spec documents MUST be committed at the end of EACH phase group — NOT deferred to Stage 14. If spec docs remain uncommitted when a session ends, they are LOST. Commit schedule: (1) After Stage 2 gates PASS → `git add docs/specifications/ && git commit -m "docs(spec): requirements + bdd scenarios"`. (2) After Stage 3 → commit research report. (3) After Stages 4-6.5 → commit analysis + design docs. (4) After Stage 8 gate PASS → commit specification + plan + tasks + review. All commits happen inside the worktree using cd $WORKTREE_PATH.</constraint>
     <constraint name="Iteration Rules">Stage 7/8: on rejection, spawn spec-writer + doc-validator — never edit specs directly. Stage 9/10: TDD per phase (tdd-guide → domain specialist → impl-summary-writer → visual-verifier → qa-agent → e2e-runner [non-blocking]), then review. On rejection: STOP → extract findings → fix tests (tdd-guide) → fix code (domain specialist) → verify (qa-agent) → re-review. Never fix code directly. Max 3 iterations per loop, escalate to user after 3. E2E failures are logged as warnings but do NOT trigger re-iteration or block progression.</constraint>
     <constraint name="Implementation Completeness">Do NOT proceed Stage 10 → 11 until doc-validator (gate-implementation-complete) signals PASS. Spawn doc-validator with gate_profile=gate-implementation-complete after all phases complete — it verifies plan/tracking alignment. Partial implementation is a CRITICAL violation.</constraint>
-    <constraint name="Stage 11-13 Sequence">EXECUTE IN ORDER: Stage 11 (docs-executor → WAIT for signal → spawn doc-validator (gate-docs-drift) → WAIT for PASS → handoff-writer → WAIT → spawn doc-validator (gate-handoff, conditional) → WAIT for PASS) → Stage 12 (terminate all, build-cleaner, user confirmation) → Stage 13 (commit + merge). Each MUST complete before next begins. Skipping is a CRITICAL violation.</constraint>
+    <constraint name="Stage 12-13 Sequence">EXECUTE IN ORDER: Stage 12 (docs-executor → WAIT for signal → spawn doc-validator (gate-docs-drift) → WAIT for PASS → handoff-writer → WAIT → spawn doc-validator (gate-handoff, conditional) → WAIT for PASS) → Stage 13 (terminate all, build-cleaner, user confirmation) → Stage 14 (commit + merge). Each MUST complete before next begins. Skipping is a CRITICAL violation.</constraint>
   </constraint-group>
 
   <!-- ===== LIFECYCLE ===== -->
@@ -133,9 +133,9 @@ timeout_mins: 120
     Stage 10.5 (CONDITIONAL — Rule Evolution): IF stage 10.5 is in skip_stages → mark 'skipped'. ELSE → Analyze Stage 10 review findings for recurring patterns. IF ≥3 findings share the same category/pattern (e.g., "missing error handling", "no pagination reset", "blocking I/O in async") AND no existing rule in `${PLUGIN_ROOT}/rules/` covers it → create ONE new rule file following the existing XML format. Update `reference/review-pattern-tracker.json` with the pattern occurrence. Cap: max 1 new rule per run. If no recurring pattern detected → mark 'skipped'.
   </phase>
   <phase n="6" name="Finalization">
-    Stage 11: IF stage 11 is in skip_stages → mark 'skipped', proceed to Stage 12. ELSE → docs-executor → spawn doc-validator (gate-docs-drift) → WAIT for PASS → handoff-writer → spawn doc-validator (gate-handoff, conditional) → WAIT for PASS (skip handoff if single session).
-    Stage 12: IF stage 12 is in skip_stages → mark 'skipped', proceed to Stage 13. ELSE → terminate all, build-cleaner, user confirmation.
-    Stage 13: IF stage 13 is in skip_stages → mark 'skipped'. ELSE → commit any remaining uncommitted changes (docs, handoff), merge worktree branch to main. Post-merge: run `${PLUGIN_ROOT}/scripts/utils/persist-memory.mjs {spec_directory} {worktree_path}` to extract key decisions. If output is non-empty, display to user: "📝 Workflow decisions extracted. Save to project memory? (y/n)". On "y", write output to project's `.claude/projects/*/memory/` as a dated memory file.
+    Stage 12: IF stage 12 is in skip_stages → mark 'skipped', proceed to Stage 13. ELSE → docs-executor → spawn doc-validator (gate-docs-drift) → WAIT for PASS → handoff-writer → spawn doc-validator (gate-handoff, conditional) → WAIT for PASS (skip handoff if single session).
+    Stage 13: IF stage 13 is in skip_stages → mark 'skipped', proceed to Stage 14. ELSE → terminate all, build-cleaner, user confirmation.
+    Stage 14: IF stage 14 is in skip_stages → mark 'skipped'. ELSE → commit any remaining uncommitted changes (docs, handoff), merge worktree branch to main. Post-merge: run `${PLUGIN_ROOT}/scripts/utils/persist-memory.mjs {spec_directory} {worktree_path}` to extract key decisions. If output is non-empty, display to user: "📝 Workflow decisions extracted. Save to project memory? (y/n)". On "y", write output to project's `.claude/projects/*/memory/` as a dated memory file.
   </phase>
 </process>
 
@@ -156,7 +156,7 @@ timeout_mins: 120
 </process>
 
 <criteria name="Skip Conditions">
-  Stage 3 (Research): Skip for trivial bugs with clear root cause. Stage 4 (Debug): Skip for features (not bugs). Stage 6 (Design): Skip for backend-only changes with no architecture impact. Stage 9.6 (E2E): Skip for backend-only, CLI-only, or library changes with no Web/Desktop UI; when it runs, it is NON-BLOCKING (failure does not stop the pipeline). Stage 10.5 (Rule Evolution): Skip if Stage 10 findings have no recurring pattern (≥3 same-category). Stage 11 handoff-writer: Skip if all stages completed in single session.
+  Stage 3 (Research): Skip for trivial bugs with clear root cause. Stage 4 (Debug): Skip for features (not bugs). Stage 6 (Design): Skip for backend-only changes with no architecture impact. Stage 9.6 (E2E): Skip for backend-only, CLI-only, or library changes with no Web/Desktop UI; when it runs, it is NON-BLOCKING (failure does not stop the pipeline). Stage 10.5 (Rule Evolution): Skip if Stage 10 findings have no recurring pattern (≥3 same-category). Stage 12 handoff-writer: Skip if all stages completed in single session.
 </criteria>
 
 <protocol name="Phase-Orchestrator Pattern (Context Isolation)">
@@ -240,7 +240,7 @@ timeout_mins: 120
   - Stage 8: spec-reviewer + doc-validator(gate-spec-review)
   - Stage 9: after impl-summary-writer completes → visual-verifier + doc-validator(gate-visual); after qa-agent completes → doc-validator(gate-build)
   - Stage 10: code-reviewer + doc-validator(gate-review), adversarial-reviewer + doc-validator(gate-review), + doc-validator(gate-implementation-complete)
-  - Stage 11: after docs-executor completes → doc-validator(gate-docs-drift); after handoff-writer completes → doc-validator(gate-handoff)
+  - Stage 12: after docs-executor completes → doc-validator(gate-docs-drift); after handoff-writer completes → doc-validator(gate-handoff)
 
   If Team Lead spawns a writer WITHOUT its paired doc-validator, the gate will never be checked and the workflow will proceed with potentially invalid documents. This is a CRITICAL violation.
 </process>
@@ -285,7 +285,7 @@ timeout_mins: 120
   <gate>Workflow tracking JSON up to date</gate>
   <gate>Document indices pre-computed and consistent</gate>
   <gate>No idle teammates running</gate>
-  <gate>All implementation-plan phases completed before Stage 11</gate>
+  <gate>All implementation-plan phases completed before Stage 12</gate>
   <gate>All stages 11-13 completed before signaling done</gate>
 </quality-gates>
 

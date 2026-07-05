@@ -62,5 +62,5 @@ model: inherit
 
   gate-implementation-complete (Stage 10→11): IC1 Implementation plan exists, IC2 Plan has phases, IC3 Tracking JSON has implementationPhases, IC4 Phase counts match, IC5 ALL phases status=complete, IC6 Implementation summary exists.
 
-  gate-docs-drift (Stage 11): DD1 Specification exists, DD2 Implementation plan exists, DD3 Task list exists, DD4 Implementation summary exists, DD5 No excessive placeholders (≤3 TODO/FIXME/TBD total), DD6 Workflow tracking JSON exists and valid.
+  gate-docs-drift (Stage 12): DD1 Specification exists, DD2 Implementation plan exists, DD3 Task list exists, DD4 Implementation summary exists, DD5 No excessive placeholders (≤3 TODO/FIXME/TBD total), DD6 Workflow tracking JSON exists and valid.
 </reference>

@@ -98,7 +98,7 @@ Reset `iteration.loops` to 0 (this is a fresh start). Re-spawn tdd-guide for Pha
 
 ### Step 9 — Plan-vs-actual reconciliation in handoff (per Phase 5 of this spec)
 
-When Stage 11 handoff-writer runs, the `## AC Coverage Assessment` section MUST list:
+When Stage 12 handoff-writer runs, the `## AC Coverage Assessment` section MUST list:
 - ACs **met as planned** (referencing the revised spec).
 - ACs **met by alternative mechanism** (e.g., AC was originally about findContentBounds, met by crystal-dock pattern instead).
 - ACs **superseded** (referencing both original and revised spec).

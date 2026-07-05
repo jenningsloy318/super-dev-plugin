@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "super-dev/schemas/cleanup-output.json",
   "title": "CleanupOutput",
-  "description": "Structured return from build-cleaner agent (Stage 12).",
+  "description": "Structured return from build-cleaner agent (Stage 13).",
   "type": "object",
   "required": ["languages_detected", "sensitive_data_findings", "blocked"],
   "additionalProperties": false,

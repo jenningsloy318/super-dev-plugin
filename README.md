@@ -12,7 +12,7 @@ v2.4.31 — Enhanced Research and Stage Capabilities:
 
 v2.3.52 — Stage-Based Workflow with Implementation Completeness:
 - Terminology Clarity: Workflow steps renamed from "Phase" to "Stage" (Stage 1–13). "Phase" now exclusively refers to implementation-plan phases (Phase 1, 2, 3…)
-- Implementation Completeness Loop: Stage 9/10 now iterates through ALL implementation-plan phases before proceeding to Stage 11
+- Implementation Completeness Loop: Stage 9/10 now iterates through ALL implementation-plan phases before proceeding to Stage 12
 - Continuous Verification Gates: Programmatic quality checks between every stage handoff (6 gate scripts in `scripts/gates/`)
 - Real Browser Testing: QA agent now runs browser smoke tests using chrome-devtools MCP for web apps
 - Autoresearch Skill: Auto-improve agent prompts using Karpathy's iterative test-measure-improve method
@@ -141,8 +141,8 @@ Key properties:
 - **Structured-output verdicts** — every gate result is a `GateVerdict` object validated against `schemas/gate-verdict.json`. Stage transitions read `verdict.pass` from data, not from chat signals.
 - **Per-phase commits** — Stage 9 captures `base_sha` before each phase, then commits the phase under `feat(<phase-name>): <summary>` once `gate-build` passes. The next phase's `base_sha` is the new HEAD.
 - **Pivot detection** — Stage 10's adversarial reviewer can set `spec_faithful_but_wrong=true`; combined with finding-signature stagnation at iteration ≥ 2, the workflow throws `PIVOT_REQUIRED` so the caller can re-run from Stage 6 with a revised design instead of looping forever.
-- **Sensitive-data gate** — Stage 12 scans the worktree for accidentally committed secrets before any merge; findings are BLOCKING.
-- **Manual merge** — Stage 13 logs the merge command for the user to run manually (never auto-merges).
+- **Sensitive-data gate** — Stage 13 scans the worktree for accidentally committed secrets before any merge; findings are BLOCKING.
+- **Manual merge** — Stage 14 logs the merge command for the user to run manually (never auto-merges).
 - **Resumable** — the Workflow runtime persists each agent result; an interrupted run replays the cached prefix and resumes from the first incomplete stage.
 
 ## Usage
@@ -416,8 +416,8 @@ Stage 5    (Assessment)  → requires [doc-index]-research-report.md
 Stage 7    (Spec)        → requires [doc-index]-code-assessment.md
 Stage 9    (Execution)   → requires [doc-index]-specification.md + [doc-index]-implementation-plan.md + [doc-index]-task-list.md + [doc-index]-spec-review.md
 Stage 10   (Review)      → requires [doc-index]-specification.md + [doc-index]-implementation-summary.md
-Stage 11   (Docs)        → requires [doc-index]-specification.md + gate-implementation-complete.sh PASS
-Stage 11   (Handoff)     → requires [doc-index]-specification.md
+Stage 12   (Docs)        → requires [doc-index]-specification.md + gate-implementation-complete.sh PASS
+Stage 12   (Handoff)     → requires [doc-index]-specification.md
 ```
 
 The gate also validates required sections within files (e.g., requirements.md must contain "Acceptance Criteria").
