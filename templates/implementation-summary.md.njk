@@ -1,0 +1,69 @@
+{# Implementation Summary — Renderable Jinja2 template.
+   Input: JSON validated against templates/schemas/implementation-summary.schema.json.
+   Output: Markdown that passes gate-docs-drift checks (exists, non-empty, no
+   excessive placeholders). This template uses NO placeholder markers (TODO/FIXME/TBD).
+#}
+# Implementation Summary: {{ feature_name }}
+
+- **Date**: {{ date }}
+- **Author**: super-dev:impl-summary-writer
+- **Phase**: {{ phase_number }} — {{ phase_name }}
+- **Status**: {{ status }}
+
+---
+
+## Overview
+
+{{ overview }}
+
+## Files Changed
+{% for f in files_changed %}
+- `{{ f.path }}` — {{ f.action }}, +{{ f.added }}/-{{ f.removed }}
+  - Purpose: {{ f.purpose }}
+{% endfor %}
+
+## Key Decisions
+{% for d in decisions %}
+
+### {{ loop.index }}. {{ d.title }}
+
+- **Context**: {{ d.context }}
+- **Decision**: {{ d.decision }}
+- **Rationale**: {{ d.rationale }}
+{% if d.reference %}
+- **Reference**: `{{ d.reference }}`
+{% endif %}
+{% endfor %}
+
+## Deviations from Spec
+{% if deviations %}
+{% for dev in deviations %}
+
+### {{ dev.title }}
+
+- **Spec said**: {{ dev.spec_said }}
+- **Actual**: {{ dev.actual }}
+- **Reason**: {{ dev.reason }}
+{% endfor %}
+{% else %}
+
+No deviations from specification.
+{% endif %}
+
+## Test Results
+
+- **Unit Tests**: {{ tests.unit_pass }}/{{ tests.unit_total }} passing
+- **Integration Tests**: {{ tests.integration_pass }}/{{ tests.integration_total }} passing
+{% if tests.e2e_total %}
+- **E2E Tests**: {{ tests.e2e_pass }}/{{ tests.e2e_total }} passing
+{% endif %}
+
+## Next Steps
+{% if next_steps %}
+{% for step in next_steps %}
+{{ loop.index }}. {{ step }}
+{% endfor %}
+{% else %}
+
+Phase complete. No remaining items.
+{% endif %}

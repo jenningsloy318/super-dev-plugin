@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Adversarial Review Content",
+  "description": "Input data for rendering adversarial-review.md.njk. SAFETY: When verdict is PASS, the template guarantees REJECT/HALT never appear in output. Agent must NOT include those words in any text field.",
+  "type": "object",
+  "required": ["feature_name", "date", "verdict", "rationale", "skeptic", "architect", "minimalist", "conclusion"],
+  "properties": {
+    "feature_name": { "type": "string", "minLength": 1 },
+    "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+    "verdict": {
+      "type": "string",
+      "enum": ["PASS", "CONTEST", "REJECT"],
+      "description": "Review verdict — if PASS, do NOT use REJECT/HALT in any text fields"
+    },
+    "rationale": { "type": "string", "minLength": 10 },
+    "destructive_actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["category", "pattern", "safeguard", "status"],
+        "properties": {
+          "category": { "type": "string", "enum": ["DAT", "IRR", "PRD", "PRM", "SEC"] },
+          "pattern": { "type": "string" },
+          "safeguard": { "type": "string" },
+          "status": { "type": "string", "enum": ["safe", "unsafe"] }
+        }
+      },
+      "description": "Destructive actions detected (empty array = none found)"
+    },
+    "skeptic": {
+      "type": "object",
+      "required": ["assessment"],
+      "properties": {
+        "assessment": { "type": "string", "minLength": 20 },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "severity", "description", "vector", "mitigation"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^\\d{2}$" },
+              "severity": { "type": "string", "enum": ["High", "Medium", "Low"] },
+              "description": { "type": "string" },
+              "vector": { "type": "string" },
+              "mitigation": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "architect": {
+      "type": "object",
+      "required": ["assessment"],
+      "properties": {
+        "assessment": { "type": "string", "minLength": 20 },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "severity", "description", "vector", "mitigation"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^\\d{2}$" },
+              "severity": { "type": "string", "enum": ["High", "Medium", "Low"] },
+              "description": { "type": "string" },
+              "vector": { "type": "string" },
+              "mitigation": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "minimalist": {
+      "type": "object",
+      "required": ["assessment"],
+      "properties": {
+        "assessment": { "type": "string", "minLength": 20 },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "severity", "description", "mitigation"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^\\d{2}$" },
+              "severity": { "type": "string", "enum": ["High", "Medium", "Low"] },
+              "description": { "type": "string" },
+              "mitigation": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "all_findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "lens", "severity", "vector", "status"],
+        "properties": {
+          "id": { "type": "string" },
+          "lens": { "type": "string", "enum": ["Skeptic", "Architect", "Minimalist"] },
+          "severity": { "type": "string", "enum": ["High", "Medium", "Low"] },
+          "vector": { "type": "string" },
+          "status": { "type": "string", "enum": ["open", "resolved"] }
+        }
+      },
+      "description": "Flat list of all findings from all lenses (empty = clean)"
+    },
+    "conclusion": {
+      "type": "string",
+      "minLength": 20,
+      "description": "Final assessment (NEVER use REJECT/HALT words when verdict is PASS)"
+    }
+  }
+}

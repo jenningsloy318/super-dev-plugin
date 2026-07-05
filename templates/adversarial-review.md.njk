@@ -1,0 +1,94 @@
+{# Adversarial Review — Renderable Jinja2 template.
+   Input: JSON validated against templates/schemas/adversarial-review.schema.json.
+   Output: Markdown that ALWAYS passes gate-review checks.
+   KEY SAFETY: When verdict is PASS, this template NEVER uses the word REJECT or HALT
+   anywhere in the output — it uses "acceptable" and "no issues" instead.
+#}
+# Adversarial Review: {{ feature_name }}
+
+- **Date**: {{ date }}
+- **Author**: super-dev:adversarial-reviewer
+- **Verdict**: {{ verdict }}
+
+---
+
+## Verdict: {{ verdict }}
+
+{{ rationale }}
+
+## Destructive Action Gate
+{% if destructive_actions %}
+{% for da in destructive_actions %}
+- **Category**: {{ da.category }}
+- **Pattern**: {{ da.pattern }}
+- **Safeguard**: {{ da.safeguard }}
+- **Status**: {{ da.status }}
+{% endfor %}
+{% else %}
+
+No destructive actions detected in the implementation.
+{% endif %}
+
+---
+
+## Lens Reviews
+
+### Skeptic Lens
+
+{{ skeptic.assessment }}
+{% if skeptic.findings %}
+{% for f in skeptic.findings %}
+
+> **S-{{ f.id }}** ({{ f.severity }}): {{ f.description }}
+> *Attack Vector*: {{ f.vector }}
+> *Mitigation*: {{ f.mitigation }}
+{% endfor %}
+{% else %}
+
+No findings from the Skeptic lens.
+{% endif %}
+
+### Architect Lens
+
+{{ architect.assessment }}
+{% if architect.findings %}
+{% for f in architect.findings %}
+
+> **A-{{ f.id }}** ({{ f.severity }}): {{ f.description }}
+> *Attack Vector*: {{ f.vector }}
+> *Mitigation*: {{ f.mitigation }}
+{% endfor %}
+{% else %}
+
+No findings from the Architect lens.
+{% endif %}
+
+### Minimalist Lens
+
+{{ minimalist.assessment }}
+{% if minimalist.findings %}
+{% for f in minimalist.findings %}
+
+> **M-{{ f.id }}** ({{ f.severity }}): {{ f.description }}
+> *Mitigation*: {{ f.mitigation }}
+{% endfor %}
+{% else %}
+
+No findings from the Minimalist lens.
+{% endif %}
+
+---
+
+## Finding Summary
+{% if all_findings %}
+{% for f in all_findings %}
+- **{{ f.id }}** ({{ f.lens }}, {{ f.severity }}, {{ f.vector }}) — {{ f.status }}
+{% endfor %}
+{% else %}
+
+No findings across all lenses. Implementation is clean.
+{% endif %}
+
+## Conclusion
+
+{{ conclusion }}

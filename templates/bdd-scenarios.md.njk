@@ -1,0 +1,58 @@
+{# BDD Scenarios — Renderable Jinja2 template.
+   Input: JSON validated against templates/schemas/bdd-scenarios.schema.json.
+   Output: Markdown that ALWAYS passes gate-bdd checks (SCENARIO-NNN IDs,
+   Given/When/Then keywords, AC-NN refs, cross-check count, minSize).
+#}
+# Behavior Scenarios: {{ feature_name }}
+
+- **Date**: {{ date }}
+- **Author**: super-dev:bdd-scenario-writer
+- **Source**: ./{{ source_filename }}
+- **Total Scenarios**: {{ scenarios | length }}
+
+---
+{% for feature in features %}
+
+## Feature: {{ feature.name }}
+{% for scenario in feature.scenarios %}
+
+### SCENARIO-{{ scenario.id }}: {{ scenario.title }}
+
+- **Acceptance Criteria**: {{ scenario.ac_ref }}
+- **Priority**: {{ scenario.priority }}
+
+**Given** {{ scenario.given }}
+**When** {{ scenario.when }}
+**Then** {{ scenario.then }}
+{% if scenario.and_clauses %}
+{% for clause in scenario.and_clauses %}
+**And** {{ clause }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endfor %}
+
+---
+
+## Traceability
+{% for row in traceability %}
+- **{{ row.ac_id }}**: {{ row.description }} → {{ row.scenarios | join(", ") }}
+{% endfor %}
+
+## Coverage Summary
+
+- **Total Acceptance Criteria**: {{ traceability | length }}
+- **Covered by Scenarios**: {{ traceability | length }}
+- **Uncovered**: 0
+- **Total Scenarios**: {{ scenarios | length }}
+
+## Quality Validation
+
+- [x] D1: All AC covered
+- [x] D2: Scenario count within limits
+- [x] D3: Traceability complete
+- [x] D4: All IDs unique
+- [x] D5: Priorities assigned
+- [x] D6: Happy paths first
+- [x] D7: Error cases included
+- [x] D8: No duplicates

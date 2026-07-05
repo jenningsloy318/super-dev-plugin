@@ -1,0 +1,97 @@
+{# Requirements — Renderable Jinja2 template.
+   Input: JSON validated against templates/schemas/requirements.schema.json.
+   Output: Markdown that ALWAYS passes gate-requirements checks (AC-NN items ≥2,
+   "acceptance criteria" section, NFR keywords, summary keyword, minSize >500).
+#}
+# Requirements: {{ title }}
+
+- **Date**: {{ date }}
+- **Author**: super-dev:requirements-clarifier
+- **Type**: {{ type }}
+- **Priority**: {{ priority }}
+- **Status**: {{ status | default("draft") }}
+
+---
+
+## Executive Summary
+
+{{ executive_summary }}
+
+## The Real Need (Root Cause Analysis)
+
+### Surface Request
+
+{{ surface_request }}
+
+### 5 Whys Analysis
+{% for why in five_whys %}
+{{ loop.index }}. **Why**: {{ why }}
+{% endfor %}
+
+### Job to Be Done
+
+When {{ jtbd.situation }}
+I want to {{ jtbd.motivation }}
+So I can {{ jtbd.outcome }}
+
+- **Functional**: {{ jtbd.functional }}
+- **Emotional**: {{ jtbd.emotional }}
+- **Social**: {{ jtbd.social }}
+
+## Stakeholders
+{% for s in stakeholders %}
+- **{{ s.role }}**: {{ s.impact }}
+{% endfor %}
+
+## Workflow Context
+
+### Before (Current State)
+
+{{ workflow_before }}
+
+### After (Desired State)
+
+{{ workflow_after }}
+{% if options %}
+
+## Solution Options
+{% for opt in options %}
+
+### Option {{ loop.index }}: {{ opt.name }}
+
+{{ opt.description }}
+
+- **Pros**: {{ opt.pros | join("; ") }}
+- **Cons**: {{ opt.cons | join("; ") }}
+- **Effort**: {{ opt.effort }}
+{% endfor %}
+{% endif %}
+
+## Acceptance Criteria
+{% for ac in acceptance_criteria %}
+- **{{ ac.id }}**: {{ ac.description }}
+{% endfor %}
+
+## Non-Functional Requirements
+{% for nfr in non_functional_requirements %}
+- **{{ nfr.category }}** ({{ nfr.priority }}): {{ nfr.description }}
+{% endfor %}
+{% if open_questions %}
+
+## Open Questions
+{% for q in open_questions %}
+- {{ q }}
+{% endfor %}
+{% endif %}
+
+## Recommendations
+{% for rec in recommendations %}
+{{ loop.index }}. **{{ rec.name }}**: {{ rec.description }}
+{% endfor %}
+{% if assumptions %}
+
+## Assumptions
+{% for a in assumptions %}
+- {{ a }}
+{% endfor %}
+{% endif %}

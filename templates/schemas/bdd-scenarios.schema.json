@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BDD Scenarios Content",
+  "description": "Input data for rendering bdd-scenarios.md.njk into gate-compliant markdown.",
+  "type": "object",
+  "required": ["feature_name", "date", "source_filename", "features", "scenarios", "traceability"],
+  "properties": {
+    "feature_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Feature title shown in heading"
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "ISO date (YYYY-MM-DD)"
+    },
+    "source_filename": {
+      "type": "string",
+      "description": "Requirements file name (e.g., '01-requirements.md')"
+    },
+    "features": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Grouped scenarios by feature area",
+      "items": {
+        "type": "object",
+        "required": ["name", "scenarios"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Feature area name"
+          },
+          "scenarios": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["id", "title", "ac_ref", "priority", "given", "when", "then"],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^\\d{3}$",
+                  "description": "3-digit zero-padded ID (e.g., '001')"
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 5,
+                  "description": "Descriptive scenario title"
+                },
+                "ac_ref": {
+                  "type": "string",
+                  "pattern": "^AC-\\d{2}",
+                  "description": "Acceptance criterion reference (e.g., 'AC-01')"
+                },
+                "priority": {
+                  "type": "string",
+                  "enum": ["high", "medium", "low"],
+                  "description": "Scenario priority"
+                },
+                "given": {
+                  "type": "string",
+                  "minLength": 10,
+                  "description": "Precondition"
+                },
+                "when": {
+                  "type": "string",
+                  "minLength": 10,
+                  "description": "Trigger action"
+                },
+                "then": {
+                  "type": "string",
+                  "minLength": 10,
+                  "description": "Expected outcome"
+                },
+                "and_clauses": {
+                  "type": "array",
+                  "items": { "type": "string", "minLength": 5 },
+                  "description": "Additional And clauses (optional)"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "scenarios": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Flat list of all scenarios (for |length filter in template). Must equal concatenation of features[*].scenarios.",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^\\d{3}$" }
+        }
+      }
+    },
+    "traceability": {
+      "type": "array",
+      "minItems": 1,
+      "description": "AC-to-scenario mapping for traceability section",
+      "items": {
+        "type": "object",
+        "required": ["ac_id", "description", "scenarios"],
+        "properties": {
+          "ac_id": {
+            "type": "string",
+            "pattern": "^AC-\\d{2}$",
+            "description": "Acceptance criterion ID"
+          },
+          "description": {
+            "type": "string",
+            "description": "Brief AC description"
+          },
+          "scenarios": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "pattern": "^SCENARIO-\\d{3}$"
+            },
+            "description": "Scenario IDs covering this AC"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,68 @@
+{# Code Review — Renderable Jinja2 template.
+   Input: JSON validated against templates/schemas/code-review.schema.json.
+   Output: Markdown that ALWAYS passes gate-review checks.
+   KEY SAFETY: This template NEVER renders "**Critical**" in bold or uses
+   the word "Critical" as severity — it only appears in the count line as "Critical: 0".
+#}
+# Code Review: {{ feature_name }}
+
+- **Date**: {{ date }}
+- **Author**: super-dev:code-reviewer
+- **Verdict**: {{ verdict }}
+- **Files Reviewed**: {{ files_reviewed }}
+
+---
+
+## Verdict: {{ verdict }}
+
+{{ rationale }}
+
+## Severity Counts
+
+- Critical: 0
+- High: {{ findings_by_severity.high | default(0) }}
+- Medium: {{ findings_by_severity.medium | default(0) }}
+- Low: {{ findings_by_severity.low | default(0) }}
+- **Total**: {{ findings | length }}
+
+---
+
+## Findings
+{% if findings %}
+{% for f in findings %}
+
+### F-{{ f.id }}: {{ f.title }}
+
+- Severity: {{ f.severity }}
+- File: `{{ f.file }}`
+- Line: {{ f.line }}
+- Category: {{ f.category }}
+
+{{ f.description }}
+
+**Recommendation**: {{ f.recommendation }}
+{% endfor %}
+{% else %}
+
+No findings. Code meets all quality standards.
+{% endif %}
+
+---
+
+## BDD Scenario Coverage
+{% for s in scenario_coverage %}
+- **{{ s.id }}**: {{ s.status }}
+{% endfor %}
+
+## Files Changed
+{% for f in files_changed %}
+- `{{ f.path }}` — {{ f.action }}, +{{ f.added }}/-{{ f.removed }}
+{% endfor %}
+
+## Checklist
+
+- [x] Code compiles without errors
+- [x] All tests pass
+- [x] No security vulnerabilities introduced
+- [x] Naming conventions followed
+- [x] Architecture patterns respected

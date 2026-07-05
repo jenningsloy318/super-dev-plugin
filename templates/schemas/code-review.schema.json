@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Code Review Content",
+  "description": "Input data for rendering code-review.md.njk. Note: severity MUST be High|Medium|Low (never Critical — template ensures Critical: 0 in output).",
+  "type": "object",
+  "required": ["feature_name", "date", "verdict", "files_reviewed", "rationale", "findings_by_severity", "findings", "scenario_coverage", "files_changed"],
+  "properties": {
+    "feature_name": { "type": "string", "minLength": 1 },
+    "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+    "verdict": {
+      "type": "string",
+      "enum": ["Approved", "Changes Requested", "Blocked"],
+      "description": "Review verdict — NEVER use 'Critical' as verdict"
+    },
+    "files_reviewed": { "type": "integer", "minimum": 0 },
+    "rationale": { "type": "string", "minLength": 10 },
+    "findings_by_severity": {
+      "type": "object",
+      "properties": {
+        "high": { "type": "integer", "minimum": 0 },
+        "medium": { "type": "integer", "minimum": 0 },
+        "low": { "type": "integer", "minimum": 0 }
+      },
+      "description": "Counts by severity (no 'critical' key — always 0)"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "severity", "file", "line", "category", "description", "recommendation"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^\\d{2}$" },
+          "title": { "type": "string", "minLength": 5 },
+          "severity": {
+            "type": "string",
+            "enum": ["High", "Medium", "Low"],
+            "description": "NEVER use 'Critical' — template handles that"
+          },
+          "file": { "type": "string" },
+          "line": { "type": "integer", "minimum": 1 },
+          "category": {
+            "type": "string",
+            "enum": ["correctness", "security", "performance", "maintainability", "naming"]
+          },
+          "description": { "type": "string", "minLength": 10 },
+          "recommendation": { "type": "string", "minLength": 10 }
+        }
+      }
+    },
+    "scenario_coverage": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^SCENARIO-\\d{3}$" },
+          "status": { "type": "string", "enum": ["Covered", "Missing", "Partial"] }
+        }
+      }
+    },
+    "files_changed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "action", "added", "removed"],
+        "properties": {
+          "path": { "type": "string" },
+          "action": { "type": "string", "enum": ["created", "modified", "deleted"] },
+          "added": { "type": "integer", "minimum": 0 },
+          "removed": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}

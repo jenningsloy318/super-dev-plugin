@@ -1,0 +1,156 @@
+{# Spec Review — Renderable Jinja2 template.
+   Input: JSON validated against templates/schemas/spec-review.schema.json.
+   Output: Markdown that ALWAYS passes gate-spec-review checks:
+   - Has verdict text (APPROVED|REVISIONS NEEDED|REJECTED)
+   - Has all 8 dimension names (Completeness, Consistency, Feasibility, Testability,
+     Traceability, Grounding, Complexity, Ambiguity)
+   - Has grounding verification keywords (confirmed/not found)
+   - Has finding severity keywords
+#}
+# Specification Review: {{ feature_name }}
+
+- **Date**: {{ date }}
+- **Author**: super-dev:spec-reviewer
+- **Specification**: ./{{ specification_file }}
+- **Status**: {{ verdict }}
+
+---
+
+## Verdict: {{ verdict }}
+
+{{ rationale }}
+
+## Finding Summary
+
+- Critical: {{ severity_counts.critical | default(0) }}
+- High: {{ severity_counts.high | default(0) }}
+- Medium: {{ severity_counts.medium | default(0) }}
+- Low: {{ severity_counts.low | default(0) }}
+- **Total**: {{ findings | length }}
+
+---
+
+## Dimension Reviews
+
+### D1: Completeness
+
+- **Status**: {{ dimensions.completeness.status }}
+
+{{ dimensions.completeness.assessment }}
+{% if dimensions.completeness.findings %}
+{% for f in dimensions.completeness.findings %}
+
+> **{{ f.id }}** ({{ f.severity }}): {{ f.issue }}
+> *Recommendation*: {{ f.recommendation }}
+{% endfor %}
+{% endif %}
+
+### D2: Consistency
+
+- **Status**: {{ dimensions.consistency.status }}
+
+{{ dimensions.consistency.assessment }}
+{% if dimensions.consistency.findings %}
+{% for f in dimensions.consistency.findings %}
+
+> **{{ f.id }}** ({{ f.severity }}): {{ f.issue }}
+> *Recommendation*: {{ f.recommendation }}
+{% endfor %}
+{% endif %}
+
+### D3: Feasibility
+
+- **Status**: {{ dimensions.feasibility.status }}
+
+{{ dimensions.feasibility.assessment }}
+{% if dimensions.feasibility.findings %}
+{% for f in dimensions.feasibility.findings %}
+
+> **{{ f.id }}** ({{ f.severity }}): {{ f.issue }}
+> *Recommendation*: {{ f.recommendation }}
+{% endfor %}
+{% endif %}
+
+### D4: Testability
+
+- **Status**: {{ dimensions.testability.status }}
+
+{{ dimensions.testability.assessment }}
+{% if dimensions.testability.findings %}
+{% for f in dimensions.testability.findings %}
+
+> **{{ f.id }}** ({{ f.severity }}): {{ f.issue }}
+> *Recommendation*: {{ f.recommendation }}
+{% endfor %}
+{% endif %}
+
+### D5: Traceability
+
+- **Status**: {{ dimensions.traceability.status }}
+
+{{ dimensions.traceability.assessment }}
+{% if dimensions.traceability.findings %}
+{% for f in dimensions.traceability.findings %}
+
+> **{{ f.id }}** ({{ f.severity }}): {{ f.issue }}
+> *Recommendation*: {{ f.recommendation }}
+{% endfor %}
+{% endif %}
+
+### D6: Grounding
+
+- **Status**: {{ dimensions.grounding.status }}
+
+{{ dimensions.grounding.assessment }}
+
+Grounding verification:
+{% for v in dimensions.grounding.verifications %}
+- `{{ v.reference }}` — {{ v.result }}
+{% endfor %}
+{% if dimensions.grounding.findings %}
+{% for f in dimensions.grounding.findings %}
+
+> **{{ f.id }}** ({{ f.severity }}): {{ f.issue }}
+> *Recommendation*: {{ f.recommendation }}
+{% endfor %}
+{% endif %}
+
+### D7: Complexity
+
+- **Status**: {{ dimensions.complexity.status }}
+
+{{ dimensions.complexity.assessment }}
+{% if dimensions.complexity.findings %}
+{% for f in dimensions.complexity.findings %}
+
+> **{{ f.id }}** ({{ f.severity }}): {{ f.issue }}
+> *Recommendation*: {{ f.recommendation }}
+{% endfor %}
+{% endif %}
+
+### D8: Ambiguity
+
+- **Status**: {{ dimensions.ambiguity.status }}
+
+{{ dimensions.ambiguity.assessment }}
+{% if dimensions.ambiguity.findings %}
+{% for f in dimensions.ambiguity.findings %}
+
+> **{{ f.id }}** ({{ f.severity }}): {{ f.issue }}
+> *Recommendation*: {{ f.recommendation }}
+{% endfor %}
+{% endif %}
+
+---
+
+## Coverage Matrix
+{% for ac in coverage_matrix %}
+- {{ ac.id }} → {{ ac.spec_section }} — {{ ac.status }}
+{% endfor %}
+
+## Verdict Logic
+
+- Critical findings: {{ severity_counts.critical | default(0) }}
+- High findings: {{ severity_counts.high | default(0) }}
+- Dimensions at 0%: {{ dimensions_at_zero | default(0) }}
+- Determination: {{ verdict }}
