@@ -1209,8 +1209,17 @@ const reqLoop = await gatedStage2WriterLoop({
   maxIters: MAX_REQ_ITERS,
   spawnWriter: (iter, guidance) => agentWithRetry(
     `User request: ${JSON.stringify(REQUEST)}\n\n` +
-    `Write the requirements document to ${shellQuote(SPEC_DIRECTORY + '/' + requirementsName)}. ` +
-    `Capture acceptance criteria, scope, non-goals, constraints, and open questions. ` +
+    `TASK: Produce requirements content as JSON, then render to markdown.\n\n` +
+    `STEP 1: Write a JSON file to ${shellQuote(SPEC_DIRECTORY + '/.render/requirements.json')} ` +
+    `that conforms to the schema at ${shellQuote(PLUGIN_ROOT + '/templates/schemas/requirements.schema.json')}. ` +
+    `Read that schema file first to understand the exact structure. ` +
+    `Capture acceptance criteria, scope, non-goals, constraints, and open questions.\n\n` +
+    `STEP 2: Run: node ${shellQuote(PLUGIN_ROOT + '/scripts/render.mjs')} ` +
+    `--template ${shellQuote(PLUGIN_ROOT + '/templates/requirements.md.njk')} ` +
+    `--schema ${shellQuote(PLUGIN_ROOT + '/templates/schemas/requirements.schema.json')} ` +
+    `--data ${shellQuote(SPEC_DIRECTORY + '/.render/requirements.json')} ` +
+    `--output ${shellQuote(SPEC_DIRECTORY + '/' + requirementsName)}\n\n` +
+    `If render.mjs fails with VALIDATION ERRORS, fix the JSON and re-run render.mjs.\n\n` +
     `Worktree: ${WORKTREE_PATH}. Plugin root: ${PLUGIN_ROOT}.` + guidance,
     {
       label: `requirements-clarifier:${iter}`,
@@ -1242,8 +1251,18 @@ const bddLoop = await gatedStage2WriterLoop({
   writerLabel: 'bdd-scenario-writer',
   maxIters: MAX_BDD_ITERS,
   spawnWriter: (iter, guidance) => agentWithRetry(
-    `Read ${shellQuote(req.doc_path)} from the spec directory. Produce BDD Given/When/Then scenarios at ` +
-    `${shellQuote(SPEC_DIRECTORY + '/' + bddName)} covering every acceptance criterion. ` +
+    `Read ${shellQuote(req.doc_path)} from the spec directory for acceptance criteria.\n\n` +
+    `TASK: Produce BDD scenario content as JSON, then render to markdown.\n\n` +
+    `STEP 1: Write a JSON file to ${shellQuote(SPEC_DIRECTORY + '/.render/bdd-scenarios.json')} ` +
+    `that conforms to the schema at ${shellQuote(PLUGIN_ROOT + '/templates/schemas/bdd-scenarios.schema.json')}. ` +
+    `Read that schema file first to understand the exact structure. ` +
+    `Cover every acceptance criterion with Given/When/Then scenarios.\n\n` +
+    `STEP 2: Run: node ${shellQuote(PLUGIN_ROOT + '/scripts/render.mjs')} ` +
+    `--template ${shellQuote(PLUGIN_ROOT + '/templates/bdd-scenarios.md.njk')} ` +
+    `--schema ${shellQuote(PLUGIN_ROOT + '/templates/schemas/bdd-scenarios.schema.json')} ` +
+    `--data ${shellQuote(SPEC_DIRECTORY + '/.render/bdd-scenarios.json')} ` +
+    `--output ${shellQuote(SPEC_DIRECTORY + '/' + bddName)}\n\n` +
+    `If render.mjs fails with VALIDATION ERRORS, fix the JSON and re-run render.mjs.\n\n` +
     `Feature name: ${req.feature_name}. Worktree: ${WORKTREE_PATH}.` + guidance,
     {
       label: `bdd-scenario-writer:${iter}`,
@@ -1878,13 +1897,22 @@ while (specIter < MAX_SPEC_ITERS) {
 
   const [review, reviewVerdict] = await parallel([
     () => agentWithRetry(
-      `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
-      `Review the spec authored at ${spec.specification_path}, ${spec.plan_path}, ${spec.tasks_path}. ` +
+      `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n\n` +
+      `TASK: Review spec and produce structured JSON, then render to markdown.\n\n` +
+      `STEP 1: Review the spec at ${spec.specification_path}, ${spec.plan_path}, ${spec.tasks_path}. ` +
       `Apply Fagan-style inspection across all 8 quality dimensions. Verify every reference ` +
       `(files, APIs, dependencies) against the actual codebase rooted at ${WORKTREE_PATH}. ` +
-      `Produce ${shellQuote(SPEC_DIRECTORY + '/' + reviewName)} with verdict ` +
-      `'APPROVED' | 'REVISIONS NEEDED' | 'REJECTED' and itemised findings. ` +
-      `Do NOT rewrite the spec.`,
+      `Do NOT rewrite the spec.\n\n` +
+      `STEP 2: Write review results as JSON to ${shellQuote(SPEC_DIRECTORY + '/.render/spec-review.json')} ` +
+      `conforming to ${shellQuote(PLUGIN_ROOT + '/templates/schemas/spec-review.schema.json')}. ` +
+      `Read that schema first. Ensure all 8 dimensions are present and grounding verifications ` +
+      `use 'confirmed' or 'not found' as result values.\n\n` +
+      `STEP 3: Run: node ${shellQuote(PLUGIN_ROOT + '/scripts/render.mjs')} ` +
+      `--template ${shellQuote(PLUGIN_ROOT + '/templates/spec-review.md.njk')} ` +
+      `--schema ${shellQuote(PLUGIN_ROOT + '/templates/schemas/spec-review.schema.json')} ` +
+      `--data ${shellQuote(SPEC_DIRECTORY + '/.render/spec-review.json')} ` +
+      `--output ${shellQuote(SPEC_DIRECTORY + '/' + reviewName)}\n\n` +
+      `If render.mjs fails with VALIDATION ERRORS, fix the JSON and re-run.`,
       {
         label: `spec-reviewer:${specIter}`,
         phase: 'Stage 8 — Spec Review',
@@ -2483,12 +2511,22 @@ while (reviewIter < MAX_REVIEW_ITERS) {
   const [cr, ar, gateRevCode, gateRevAdv, gateImplComplete] = await parallel([
     () => agentWithRetry(
       `${reviewerBase}\n\n` +
-      `Produce ${shellQuote(SPEC_DIRECTORY + '/' + codeReviewName)}. Cover ALL dimensions ` +
-      `(correctness, security, performance, maintainability, style). Report EVERY finding ` +
-      `including UNCERTAIN ones (confidence < 0.5); never suppress.\n` +
-      `Verdict rules: 'Approved' when zero Critical + zero High + zero Medium findings ` +
-      `(Low/Info findings are acceptable). 'Changes Requested' when any Medium+ finding ` +
-      `exists. 'Blocked' when any Critical finding exists.`,
+      `TASK: Produce code review as JSON, then render to markdown.\n\n` +
+      `STEP 1: Write a JSON file to ${shellQuote(SPEC_DIRECTORY + '/.render/code-review.json')} ` +
+      `that conforms to the schema at ${shellQuote(PLUGIN_ROOT + '/templates/schemas/code-review.schema.json')}. ` +
+      `Read that schema first. Cover ALL dimensions (correctness, security, performance, ` +
+      `maintainability, style). Report EVERY finding including UNCERTAIN ones; never suppress.\n` +
+      `IMPORTANT: severity enum is High|Medium|Low only. Never use Critical as severity ` +
+      `(the template handles the Critical:0 count line automatically).\n` +
+      `Verdict rules: 'Approved' when zero High + zero Medium findings (Low findings are ` +
+      `acceptable). 'Changes Requested' when any Medium+ finding exists. 'Blocked' when ` +
+      `safety/data-loss risk.\n\n` +
+      `STEP 2: Run: node ${shellQuote(PLUGIN_ROOT + '/scripts/render.mjs')} ` +
+      `--template ${shellQuote(PLUGIN_ROOT + '/templates/code-review.md.njk')} ` +
+      `--schema ${shellQuote(PLUGIN_ROOT + '/templates/schemas/code-review.schema.json')} ` +
+      `--data ${shellQuote(SPEC_DIRECTORY + '/.render/code-review.json')} ` +
+      `--output ${shellQuote(SPEC_DIRECTORY + '/' + codeReviewName)}\n\n` +
+      `If render.mjs fails with VALIDATION ERRORS, fix the JSON and re-run.`,
       {
         label: `code-reviewer:${reviewIter}`,
         phase: 'Stage 10 — Code Review',
@@ -2498,11 +2536,21 @@ while (reviewIter < MAX_REVIEW_ITERS) {
     ),
     () => agentWithRetry(
       `${reviewerBase}\n\n` +
-      `Produce ${shellQuote(SPEC_DIRECTORY + '/' + advReviewName)}. Run all three lenses ` +
-      `(Skeptic / Architect / Minimalist). PASS only when zero high-severity findings remain. ` +
-      `REJECT only for production-failure / data-loss / security-breach risks. ` +
+      `TASK: Produce adversarial review as JSON, then render to markdown.\n\n` +
+      `STEP 1: Write a JSON file to ${shellQuote(SPEC_DIRECTORY + '/.render/adversarial-review.json')} ` +
+      `that conforms to the schema at ${shellQuote(PLUGIN_ROOT + '/templates/schemas/adversarial-review.schema.json')}. ` +
+      `Read that schema first. Run all three lenses (Skeptic / Architect / Minimalist). ` +
+      `PASS only when zero high-severity findings remain. ` +
+      `IMPORTANT: When verdict is PASS, do NOT use the words REJECT or HALT anywhere in ` +
+      `any text field (rationale, assessment, conclusion). Use "acceptable" or "no issues" instead.\n` +
       `If the implementation faithfully follows the spec but the spec itself produces the ` +
-      `wrong outcome, set spec_faithful_but_wrong=true so Stage 10 can route to pivot-protocol.`,
+      `wrong outcome, set spec_faithful_but_wrong=true so Stage 10 can route to pivot-protocol.\n\n` +
+      `STEP 2: Run: node ${shellQuote(PLUGIN_ROOT + '/scripts/render.mjs')} ` +
+      `--template ${shellQuote(PLUGIN_ROOT + '/templates/adversarial-review.md.njk')} ` +
+      `--schema ${shellQuote(PLUGIN_ROOT + '/templates/schemas/adversarial-review.schema.json')} ` +
+      `--data ${shellQuote(SPEC_DIRECTORY + '/.render/adversarial-review.json')} ` +
+      `--output ${shellQuote(SPEC_DIRECTORY + '/' + advReviewName)}\n\n` +
+      `If render.mjs fails with VALIDATION ERRORS, fix the JSON and re-run.`,
       {
         label: `adversarial-reviewer:${reviewIter}`,
         phase: 'Stage 10 — Code Review',
