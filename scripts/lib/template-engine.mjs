@@ -293,20 +293,33 @@ function parse(template) {
 function tokenize(template) {
   const tokens = [];
   // Match: {# comment #}, {% tag %}, {{ expr }}
-  const regex = /(\{#[\s\S]*?#\}|\{%[\s\S]*?%\}|\{\{[\s\S]*?\}\})/;
+  // Also match whitespace-trim variants: {%- -%}, {{- -}}
+  const regex = /(\{#[\s\S]*?#\}|\{%-?[\s\S]*?-?%\}|\{\{-?[\s\S]*?-?\}\})/;
   const parts = template.split(regex);
 
-  for (const part of parts) {
+  for (let idx = 0; idx < parts.length; idx++) {
+    const part = parts[idx];
     if (!part) continue;
     if (part.startsWith('{#') && part.endsWith('#}')) {
-      // Comment — skip entirely
+      // Comment — strip the following newline (trim_blocks behavior)
+      if (idx + 1 < parts.length && parts[idx + 1]?.startsWith('\n')) {
+        parts[idx + 1] = parts[idx + 1].slice(1);
+      }
       continue;
     } else if (part.startsWith('{%') && part.endsWith('%}')) {
-      const inner = part.slice(2, -2).trim();
-      tokens.push({ type: 'tag', value: inner });
+      const trimLeft = part.startsWith('{%-');
+      const trimRight = part.endsWith('-%}');
+      const inner = part.slice(trimLeft ? 3 : 2, trimRight ? -3 : -2).trim();
+      tokens.push({ type: 'tag', value: inner, trimLeft, trimRight });
+      // trim_blocks: strip the newline immediately after a block tag
+      if (idx + 1 < parts.length && parts[idx + 1]?.startsWith('\n')) {
+        parts[idx + 1] = parts[idx + 1].slice(1);
+      }
     } else if (part.startsWith('{{') && part.endsWith('}}')) {
-      const inner = part.slice(2, -2).trim();
-      tokens.push({ type: 'expr', value: inner });
+      const trimLeft = part.startsWith('{{-');
+      const trimRight = part.endsWith('-}}');
+      const inner = part.slice(trimLeft ? 3 : 2, trimRight ? -3 : -2).trim();
+      tokens.push({ type: 'expr', value: inner, trimLeft, trimRight });
     } else {
       tokens.push({ type: 'text', value: part });
     }
