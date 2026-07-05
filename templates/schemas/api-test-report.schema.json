@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "API Test Report Content",
+  "description": "Input data for rendering api-test-report.md.njk. Comprehensive API integration test results.",
+  "type": "object",
+  "required": ["feature_name", "date", "verdict", "summary", "categories", "results", "gate_criteria"],
+  "properties": {
+    "feature_name": { "type": "string", "minLength": 1 },
+    "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+    "verdict": {
+      "type": "string",
+      "enum": ["PASS", "FAIL"],
+      "description": "Overall test verdict"
+    },
+    "summary": {
+      "type": "object",
+      "required": ["total", "passed", "failed", "skipped", "pass_rate", "duration_ms", "endpoints_tested", "endpoints_total"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 1 },
+        "passed": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "pass_rate": { "type": "number", "minimum": 0, "maximum": 100 },
+        "duration_ms": { "type": "integer", "minimum": 0 },
+        "endpoints_tested": { "type": "integer", "minimum": 0 },
+        "endpoints_total": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "categories": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "total", "passed", "failed"],
+        "properties": {
+          "name": { "type": "string", "enum": ["CRUD", "Validation", "Auth", "Error/Edge"] },
+          "total": { "type": "integer", "minimum": 0 },
+          "passed": { "type": "integer", "minimum": 0 },
+          "failed": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "results": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "endpoint", "category", "status", "duration_ms"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^API-\\d{3}$" },
+          "endpoint": { "type": "string", "description": "e.g., POST /v1/users" },
+          "category": { "type": "string", "enum": ["crud", "validation", "auth", "error", "edge"] },
+          "scenario_ref": { "type": "string", "pattern": "^SCENARIO-\\d{3}$" },
+          "status": { "type": "string", "enum": ["pass", "fail", "skip"] },
+          "duration_ms": { "type": "integer", "minimum": 0 },
+          "error": { "type": "string" }
+        }
+      }
+    },
+    "defects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "severity", "test_id", "endpoint", "description", "expected", "actual", "status"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^DEF-\\d{3}$" },
+          "severity": { "type": "string", "enum": ["critical", "high", "medium", "low"] },
+          "test_id": { "type": "string", "pattern": "^API-\\d{3}$" },
+          "endpoint": { "type": "string" },
+          "description": { "type": "string", "minLength": 10 },
+          "expected": { "type": "string" },
+          "actual": { "type": "string" },
+          "status": { "type": "string", "enum": ["open", "fixed", "quarantined"] }
+        }
+      }
+    },
+    "gate_criteria": {
+      "type": "object",
+      "required": ["all_tests_pass", "coverage_above_threshold", "no_critical_defects", "no_security_failures"],
+      "properties": {
+        "all_tests_pass": { "type": "boolean" },
+        "coverage_above_threshold": { "type": "boolean" },
+        "no_critical_defects": { "type": "boolean" },
+        "no_security_failures": { "type": "boolean" }
+      }
+    }
+  }
+}

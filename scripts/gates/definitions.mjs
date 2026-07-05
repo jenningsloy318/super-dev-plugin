@@ -582,6 +582,93 @@ export const review = {
 };
 
 // ============================================================================
+// GATE: API Test Report
+// Template: templates/api-test-report.md.njk
+// ============================================================================
+export const apiTests = {
+  name: 'API Test Report',
+  file: '*api-test-report*.md',
+  checks: [
+    {
+      // Template uses: "- **Verdict**: {{ verdict }}"
+      // and heading "## Summary" with pass/fail counts
+      desc: 'Has verdict text',
+      pattern: /\b(?:PASS|FAIL)\b/,
+      min: 1,
+    },
+    {
+      // Template uses: "| Pass Rate | {{ summary.pass_rate }}% |"
+      desc: 'Has pass rate metric',
+      pattern: /pass\s*rate/i,
+      min: 1,
+    },
+    {
+      // Template uses: API-NNN IDs in "### API-001: POST /v1/users"
+      desc: 'Has API test IDs',
+      pattern: /API-\d{3}/g,
+      min: 1,
+    },
+    {
+      // Template uses: "| CRUD | N | N | N |" etc.
+      desc: 'Has category breakdown',
+      pattern: /\b(?:CRUD|Validation|Auth|Error|Edge)\b/i,
+      min: 1,
+    },
+    {
+      // Template has "## Gate Criteria" with checkboxes
+      desc: 'Has gate criteria section',
+      pattern: /gate\s*criteria/i,
+      min: 1,
+    },
+    {
+      // Must be substantial
+      desc: 'Report has substance',
+      minSize: 300,
+    },
+  ],
+};
+
+// ============================================================================
+// GATE: E2E Test Report
+// Template: templates/e2e-report.md.njk
+// ============================================================================
+export const e2eReport = {
+  name: 'E2E Test Report',
+  file: '*e2e-report*.md',
+  checks: [
+    {
+      // Template uses: "- **Verdict**: {{ verdict }}"
+      desc: 'Has verdict text',
+      pattern: /\b(?:PASS|FAIL|BLOCKED)\b/,
+      min: 1,
+    },
+    {
+      // Template uses SCENARIO-NNN IDs in results table
+      desc: 'Has BDD scenario references',
+      pattern: /SCENARIO-\d{3}/g,
+      min: 1,
+    },
+    {
+      // Template uses browser names in summary and results
+      desc: 'Has browser results',
+      pattern: /\b(?:chromium|firefox|webkit)\b/i,
+      min: 1,
+    },
+    {
+      // Template has "## Gate Criteria" with checkboxes
+      desc: 'Has gate criteria section',
+      pattern: /gate\s*criteria/i,
+      min: 1,
+    },
+    {
+      // Must be substantial
+      desc: 'Report has substance',
+      minSize: 300,
+    },
+  ],
+};
+
+// ============================================================================
 // Export all gates as a map for the runner
 // ============================================================================
 export const gates = {
@@ -600,4 +687,6 @@ export const gates = {
   handoff,
   prototype,
   visual,
+  'api-tests': apiTests,
+  'e2e-report': e2eReport,
 };

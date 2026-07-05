@@ -1,0 +1,77 @@
+{# API Test Report — Renderable template.
+   Input: JSON validated against templates/schemas/api-test-report.schema.json.
+   Output: Markdown that passes gate-api-tests checks.
+   Guarantees: verdict field, pass_rate numeric, category breakdown, test IDs.
+#}
+# API Test Report: {{ feature_name }}
+
+- **Date**: {{ date }}
+- **Author**: super-dev:api-tester
+- **Verdict**: {{ verdict }}
+- **Duration**: {{ summary.duration_ms }}ms
+
+---
+
+## Summary
+
+| Metric | Value |
+|--------|-------|
+| Total Tests | {{ summary.total }} |
+| Passed | {{ summary.passed }} |
+| Failed | {{ summary.failed }} |
+| Skipped | {{ summary.skipped }} |
+| Pass Rate | {{ summary.pass_rate }}% |
+| Endpoints Tested | {{ summary.endpoints_tested }}/{{ summary.endpoints_total }} |
+
+## Category Breakdown
+
+| Category | Total | Passed | Failed |
+|----------|-------|--------|--------|
+{% for cat in categories %}
+| {{ cat.name }} | {{ cat.total }} | {{ cat.passed }} | {{ cat.failed }} |
+{% endfor %}
+
+---
+
+## Test Results
+{% for r in results %}
+
+### {{ r.id }}: {{ r.endpoint }}
+
+- **Category**: {{ r.category }}
+- **Status**: {{ r.status }}
+- **Duration**: {{ r.duration_ms }}ms
+{% if r.scenario_ref %}
+- **BDD Reference**: {{ r.scenario_ref }}
+{% endif %}
+{% if r.error %}
+
+**Error**: {{ r.error }}
+{% endif %}
+{% endfor %}
+{% if defects %}
+
+---
+
+## Defects
+{% for d in defects %}
+
+### {{ d.id }}: {{ d.description }}
+
+- **Severity**: {{ d.severity }}
+- **Test**: {{ d.test_id }}
+- **Endpoint**: {{ d.endpoint }}
+- **Expected**: {{ d.expected }}
+- **Actual**: {{ d.actual }}
+- **Status**: {{ d.status }}
+{% endfor %}
+{% endif %}
+
+---
+
+## Gate Criteria
+
+- [{{ "x" if gate_criteria.all_tests_pass else " " }}] All tests pass
+- [{{ "x" if gate_criteria.coverage_above_threshold else " " }}] Endpoint coverage above threshold
+- [{{ "x" if gate_criteria.no_critical_defects else " " }}] No critical defects
+- [{{ "x" if gate_criteria.no_security_failures else " " }}] No security test failures

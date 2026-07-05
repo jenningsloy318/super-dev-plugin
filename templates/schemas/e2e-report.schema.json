@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "E2E Test Report Content",
+  "description": "Input data for rendering e2e-report.md.njk. BDD-driven E2E test results with cross-browser, performance, and accessibility.",
+  "type": "object",
+  "required": ["feature_name", "date", "verdict", "summary", "scenario_results", "gate_criteria"],
+  "properties": {
+    "feature_name": { "type": "string", "minLength": 1 },
+    "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+    "verdict": {
+      "type": "string",
+      "enum": ["PASS", "FAIL", "BLOCKED"],
+      "description": "BLOCKED when env/infra prevents testing"
+    },
+    "summary": {
+      "type": "object",
+      "required": ["scenarios_tested", "scenarios_total", "passed", "failed", "flaky", "pass_rate", "duration_ms", "browsers"],
+      "properties": {
+        "scenarios_tested": { "type": "integer", "minimum": 0 },
+        "scenarios_total": { "type": "integer", "minimum": 1 },
+        "passed": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "flaky": { "type": "integer", "minimum": 0 },
+        "pass_rate": { "type": "number", "minimum": 0, "maximum": 100 },
+        "duration_ms": { "type": "integer", "minimum": 0 },
+        "browsers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "enum": ["chromium", "firefox", "webkit"] }
+        }
+      }
+    },
+    "scenario_results": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "priority", "browsers", "duration_ms"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^SCENARIO-\\d{3}$" },
+          "title": { "type": "string", "minLength": 5 },
+          "priority": { "type": "string", "enum": ["high", "medium", "low"] },
+          "browsers": {
+            "type": "object",
+            "additionalProperties": { "type": "string", "enum": ["pass", "fail", "skip", "flaky"] }
+          },
+          "duration_ms": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "performance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["route", "lcp_ms", "cls", "fcp_ms", "tti_ms", "verdict"],
+        "properties": {
+          "route": { "type": "string" },
+          "lcp_ms": { "type": "number", "minimum": 0 },
+          "cls": { "type": "number", "minimum": 0 },
+          "fcp_ms": { "type": "number", "minimum": 0 },
+          "tti_ms": { "type": "number", "minimum": 0 },
+          "verdict": { "type": "string", "enum": ["pass", "fail"] }
+        }
+      }
+    },
+    "accessibility": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["route", "violations"],
+        "properties": {
+          "route": { "type": "string" },
+          "violations": {
+            "type": "object",
+            "required": ["critical", "serious", "moderate", "minor"],
+            "properties": {
+              "critical": { "type": "integer", "minimum": 0 },
+              "serious": { "type": "integer", "minimum": 0 },
+              "moderate": { "type": "integer", "minimum": 0 },
+              "minor": { "type": "integer", "minimum": 0 }
+            }
+          }
+        }
+      }
+    },
+    "defects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "description", "scenario_ref", "browser", "severity", "status"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^DEF-\\d{3}$" },
+          "description": { "type": "string" },
+          "scenario_ref": { "type": "string", "pattern": "^SCENARIO-\\d{3}$" },
+          "browser": { "type": "string" },
+          "severity": { "type": "string", "enum": ["critical", "high", "medium", "low"] },
+          "status": { "type": "string", "enum": ["open", "fixed", "quarantined"] },
+          "screenshot": { "type": "string" }
+        }
+      }
+    },
+    "gate_criteria": {
+      "type": "object",
+      "required": ["all_scenarios_pass", "cross_browser_pass", "performance_budgets_met", "zero_critical_a11y"],
+      "properties": {
+        "all_scenarios_pass": { "type": "boolean" },
+        "cross_browser_pass": { "type": "boolean" },
+        "performance_budgets_met": { "type": "boolean" },
+        "zero_critical_a11y": { "type": "boolean" }
+      }
+    }
+  }
+}

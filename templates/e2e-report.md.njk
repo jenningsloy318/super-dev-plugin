@@ -1,0 +1,83 @@
+{# E2E Test Report — Renderable template.
+   Input: JSON validated against templates/schemas/e2e-report.schema.json.
+   Output: Markdown that passes gate-e2e checks.
+   Guarantees: verdict, SCENARIO-NNN IDs, browser results, perf/a11y sections.
+#}
+# E2E Test Report: {{ feature_name }}
+
+- **Date**: {{ date }}
+- **Author**: super-dev:e2e-runner
+- **Verdict**: {{ verdict }}
+- **Browsers**: {{ summary.browsers | join(", ") }}
+
+---
+
+## Summary
+
+| Metric | Value |
+|--------|-------|
+| Scenarios Tested | {{ summary.scenarios_tested }}/{{ summary.scenarios_total }} |
+| Passed | {{ summary.passed }} |
+| Failed | {{ summary.failed }} |
+| Flaky | {{ summary.flaky }} |
+| Pass Rate | {{ summary.pass_rate }}% |
+| Duration | {{ summary.duration_ms }}ms |
+
+---
+
+## Scenario Results
+
+| Scenario | Title | Priority | {% for b in summary.browsers %}{{ b }} | {% endfor %}Duration |
+|----------|-------|----------|{% for b in summary.browsers %}--------|{% endfor %}----------|
+{% for s in scenario_results %}
+| {{ s.id }} | {{ s.title }} | {{ s.priority }} | {% for b in summary.browsers %}{{ s.browsers[b] }} | {% endfor %}{{ s.duration_ms }}ms |
+{% endfor %}
+
+---
+{% if performance %}
+
+## Performance Budgets
+
+| Route | LCP | CLS | FCP | TTI | Verdict |
+|-------|-----|-----|-----|-----|---------|
+{% for p in performance %}
+| {{ p.route }} | {{ p.lcp_ms }}ms | {{ p.cls }} | {{ p.fcp_ms }}ms | {{ p.tti_ms }}ms | {{ p.verdict }} |
+{% endfor %}
+{% endif %}
+{% if accessibility %}
+
+## Accessibility
+
+| Route | Critical | Serious | Moderate | Minor |
+|-------|----------|---------|----------|-------|
+{% for a in accessibility %}
+| {{ a.route }} | {{ a.violations.critical }} | {{ a.violations.serious }} | {{ a.violations.moderate }} | {{ a.violations.minor }} |
+{% endfor %}
+{% endif %}
+{% if defects %}
+
+---
+
+## Defects
+{% for d in defects %}
+
+### {{ d.id }}: {{ d.description }}
+
+- **Scenario**: {{ d.scenario_ref }}
+- **Browser**: {{ d.browser }}
+- **Severity**: {{ d.severity }}
+- **Status**: {{ d.status }}
+{% if d.screenshot %}
+- **Screenshot**: {{ d.screenshot }}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+---
+
+## Gate Criteria
+
+- [{{ "x" if gate_criteria.all_scenarios_pass else " " }}] All BDD scenarios pass
+- [{{ "x" if gate_criteria.cross_browser_pass else " " }}] Cross-browser pass (all browsers)
+- [{{ "x" if gate_criteria.performance_budgets_met else " " }}] Performance budgets met
+- [{{ "x" if gate_criteria.zero_critical_a11y else " " }}] Zero critical accessibility violations
