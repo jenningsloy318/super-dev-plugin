@@ -21,13 +21,34 @@ import { join, dirname } from 'node:path';
 // PATHS
 // =============================================================================
 
-const DEFAULT_LEARNINGS_ROOT = join(
-  process.env.HOME || process.env.USERPROFILE || '/tmp',
-  '.claude/plugins/super-dev/learnings'
-);
-
+/**
+ * Resolve the learnings root directory. Priority:
+ *   1. Explicit pluginDataPath argument (from workflow args.plugin_root + '/data')
+ *   2. CLAUDE_PLUGIN_DATA env var (if harness resolves it)
+ *   3. ~/.claude/plugins/marketplaces/super-dev/data/ (installed plugin)
+ *   4. Fallback: ~/.local/share/super-dev/learnings/
+ *
+ * The 'data/' subdirectory persists across plugin updates because it's
+ * inside the marketplace working copy (not the versioned cache).
+ */
 export function getLearningsRoot(pluginDataPath) {
-  return pluginDataPath || DEFAULT_LEARNINGS_ROOT;
+  if (pluginDataPath) return join(pluginDataPath, 'learnings');
+
+  const home = process.env.HOME || process.env.USERPROFILE || '/tmp';
+
+  // Check CLAUDE_PLUGIN_DATA (harness-resolved)
+  if (process.env.CLAUDE_PLUGIN_DATA) {
+    return join(process.env.CLAUDE_PLUGIN_DATA, 'learnings');
+  }
+
+  // Marketplace install path (persists across plugin updates)
+  const marketplacePath = join(home, '.claude/plugins/marketplaces/super-dev/data/learnings');
+  if (existsSync(join(home, '.claude/plugins/marketplaces/super-dev'))) {
+    return marketplacePath;
+  }
+
+  // Fallback: XDG-style local data
+  return join(home, '.local/share/super-dev/learnings');
 }
 
 function ensureDir(dir) {
