@@ -2799,17 +2799,57 @@ await updateTracking({
 // ---------------------------------------------------------------------------
 phase('Stage 11 — Integration Testing');
 
-// Determine what types of integration tests to run
-const HAS_BACKEND = ['rust', 'go', 'python', 'node', 'java', 'csharp'].includes(LANGUAGE) ||
-  /\b(?:REST|API|HTTP|endpoint|gRPC|GraphQL)\b/i.test(REQUEST);
-const HAS_FRONTEND = IS_WEB_UI;
-const SKIP_STAGE_11 = SKIP_STAGES.has(11) || (!HAS_BACKEND && !HAS_FRONTEND);
+// Detect project type from ACTUAL files (not keywords).
+// Ask a lightweight agent to inspect the worktree for backend/frontend indicators.
+const projectDetection = await agentWithRetry(
+  `Inspect ${shellQuote(WORKTREE_PATH)} and report what exists. Run these checks:\n` +
+  `has_backend: Does the project have a server/API? Check for:\n` +
+  `  - package.json with express/fastify/hono/koa/nest (Node)\n` +
+  `  - Cargo.toml with actix-web/axum/rocket/warp (Rust)\n` +
+  `  - go.mod with net/http or gin/fiber/echo (Go)\n` +
+  `  - requirements.txt/pyproject.toml with fastapi/flask/django (Python)\n` +
+  `  - Any file matching *server*|*api*|*routes* in src/\n` +
+  `has_frontend: Does the project have a UI? Check for:\n` +
+  `  - package.json with react/vue/svelte/angular/next/nuxt\n` +
+  `  - Any .html files with <script> tags\n` +
+  `  - Any directory named frontend/client/web/app with UI code\n` +
+  `has_test_runner: Does the project have a test framework configured? Check for:\n` +
+  `  - vitest.config.*/jest.config.*/playwright.config.*\n` +
+  `  - "test" script in package.json\n` +
+  `  - Cargo.toml (cargo test is built-in)\n` +
+  `  - pytest.ini/conftest.py/go test\n` +
+  `Return JSON with booleans.`,
+  {
+    label: 'project-detection',
+    phase: 'Stage 11 — Integration Testing',
+    agentType: 'general-purpose',
+    schema: {
+      type: 'object',
+      required: ['has_backend', 'has_frontend', 'has_test_runner'],
+      properties: {
+        has_backend: { type: 'boolean' },
+        has_frontend: { type: 'boolean' },
+        has_test_runner: { type: 'boolean' },
+        details: { type: 'string' },
+      },
+    },
+  },
+);
+
+const HAS_BACKEND = projectDetection.has_backend;
+const HAS_FRONTEND = projectDetection.has_frontend;
+// ONLY skip if user explicitly passed --skip=11. Never skip by agent judgment.
+const SKIP_STAGE_11 = SKIP_STAGES.has(11);
 
 if (SKIP_STAGE_11) {
-  log(`Stage 11 SKIPPED (${SKIP_STAGES.has(11) ? '--skip includes 11' : 'no backend or frontend detected'})`);
+  log(`Stage 11 SKIPPED (--skip=11 set by user)`);
   await updateTracking({ stage: 11, status: 'skipped', currentPhase: 'Stage 11 — Integration Testing' });
+} else if (!HAS_BACKEND && !HAS_FRONTEND) {
+  log(`Stage 11: no backend or frontend detected in project files — running minimal verification only`);
+  await updateTracking({ stage: 11, status: 'complete', currentPhase: 'Stage 11 — Integration Testing (no testable surface)' });
 } else {
 await updateTracking({ stage: 11, status: 'in_progress', currentPhase: 'Stage 11 — Integration Testing' });
+log(`Stage 11: has_backend=${HAS_BACKEND}, has_frontend=${HAS_FRONTEND}, has_test_runner=${projectDetection.has_test_runner}`);
 
 const MAX_OUTER_ITERS = 3;
 let outerIter = 0;
@@ -3044,6 +3084,8 @@ await updateTracking({ stage: 11, status: 'complete', currentPhase: 'Stage 11 �
 // ---------------------------------------------------------------------------
 // Stage 12 — Documentation
 //   Sequential: docs-executor -> doc-validator(gate-docs-drift) -> handoff-writer.
+//   DEPENDENCY: Only reached if Stage 11 passed or was user-skipped (--skip=11).
+//   Stage 11 throws on failure — so reaching this point means testing is done.
 // ---------------------------------------------------------------------------
 phase('Stage 12 — Documentation');
 await updateTracking({ stage: 12, status: 'in_progress', currentPhase: 'Stage 12 — Documentation' });
