@@ -3400,37 +3400,39 @@ async function _recoverSpecFromDisk(specDirectory, specName, planName, tasksName
 
 // ----- Git shell-snippet helpers ---------------------------------------------
 
-/** Detect the repo's default branch from origin/HEAD (never hard-codes `main`). */
+/** Detect the repo's default branch. Tries origin/HEAD first, falls back to local HEAD. */
 function detectDefaultBranchSnippet(repoPath) {
   return `set -e
 cd ${shellQuote(repoPath)}
 ref="$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null || true)"
 if [ -z "$ref" ]; then
-  git fetch origin --quiet
+  git fetch origin --quiet 2>/dev/null || true
   ref="$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null || true)"
 fi
 if [ -z "$ref" ]; then
-  echo "ERROR: cannot detect default branch (origin/HEAD missing)" >&2
-  exit 2
+  # No remote configured — use current local branch as default
+  ref="$(git symbolic-ref HEAD 2>/dev/null || true)"
+  if [ -z "$ref" ]; then
+    echo "ERROR: cannot detect default branch (no remote, no local HEAD)" >&2
+    exit 2
+  fi
+  printf '%s\\n' "\${ref#refs/heads/}"
+else
+  printf '%s\\n' "\${ref#refs/remotes/origin/}"
 fi
-printf '%s\\n' "\${ref#refs/remotes/origin/}"
 `;
 }
 
-/** Fetch + fast-forward the default branch. Aborts on divergence/dirty/detached. */
+/** Fetch + fast-forward the default branch. Skips gracefully when no remote configured. */
 function pullLatestSnippet(repoPath, defaultBranch) {
   return `set -e
 cd ${shellQuote(repoPath)}
-# Fetch without --quiet so network errors surface verbatim in the captured
-# stderr. Same reason --quiet is dropped from checkout/pull below.
+# Check if origin remote exists; skip fetch/pull if not
+if ! git remote get-url origin >/dev/null 2>&1; then
+  echo "No remote 'origin' configured — skipping fetch/pull (local-only repo)"
+  exit 0
+fi
 git fetch origin
-# Stage 1's dirty-tree check ignores untracked files: the user's repo
-# routinely has scratch files, logs, IDE caches, and build outputs that
-# are .gitignore-d but show as untracked. Those do not block an ff-only
-# pull (git happily fast-forwards over them) and refusing on their
-# account is a usability footgun. Stage 14's merge check (in
-# mergeSpecBranchSnippet) keeps the stricter rule because the merge
-# resolution itself can interact badly with stray untracked files.
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
   echo "ERROR: working tree has uncommitted changes — refusing to pull" >&2
   echo "Resolve manually: stash, commit, or discard before retrying." >&2
@@ -3441,9 +3443,6 @@ if ! git symbolic-ref -q HEAD >/dev/null; then
   exit 2
 fi
 git checkout ${shellQuote(defaultBranch)}
-# --ff-only fails loudly on local divergence; the caller captures both
-# stdout and stderr from this shell so the rejection message reaches the
-# error path regardless of which channel git uses.
 git pull --ff-only origin ${shellQuote(defaultBranch)}
 `;
 }
