@@ -526,6 +526,21 @@ license: MIT
   <constraint name="User Confirmation Is NOT Stage Skip">When the user says "yes", "proceed", "looks good", "merge" — that is confirmation to CONTINUE the pipeline, NOT permission to skip stages. Only the explicit --skip=N flag skips a stage. User saying "merge" means "finish all remaining stages then merge", not "skip to merge".</constraint>
   <constraint name="Pre-Merge Gate (HARD BLOCK)">Before Stage 14 merge operations, run: `node ${PLUGIN_ROOT}/scripts/gates/pre-merge-check.mjs <tracking-json-path>`. If it returns exit 1, REFUSE to merge and report which stages are incomplete. This is a CODE-ENFORCED gate — no rationalization can bypass it.</constraint>
   <constraint name="Stage 11 Never Auto-Skip">Stage 11 (Integration Testing) can ONLY be skipped if the user passed --skip=11. Agent judgment ("frontend only", "simple project", "tests already passed in Stage 9") is NOT valid. If the project has ANY code (backend OR frontend), Stage 11 MUST run.</constraint>
+  <constraint name="Runtime Knowledge (.knowledge.json)">
+    Maintain {spec_directory}/.knowledge.json as a structured JSON accumulator.
+    - At Stage 1: create with header {"feature_name", "created", "spec_identifier", "stages": {}}.
+    - After EACH stage completes: append the stage's structured output to stages[stageKey].
+    - Team-lead appends centrally (NOT sub-agents). After parallel agents return, team-lead combines and writes.
+    - When spawning agents, inject relevant upstream data from .knowledge.json into the prompt directly (extract ACs, scenario IDs, module names, phase structure). Do NOT tell agents to "read .knowledge.json" — inject the fields yourself.
+  </constraint>
+  <constraint name="Learnings Integration">
+    At Stage 1 (after worktree setup):
+    1. Read ${PLUGIN_ROOT}/data/learnings/index.json (if exists).
+    2. Extract top-5 patterns by score from hot_patterns.
+    3. Include as "Known issues from prior runs:" in EVERY agent spawn prompt.
+    At each gate FAIL: query index by stage + category, inject matching mitigation.
+    At Stage 14 (after merge): run `node ${PLUGIN_ROOT}/scripts/utils/consolidate-run.mjs <journal>` (fire-and-forget).
+  </constraint>
 </constraints>
 
 <rules>

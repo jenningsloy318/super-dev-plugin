@@ -2307,7 +2307,8 @@ for (const ph of phases) {
       `  - tasks: ${spec.tasks_path}\n` +
       `  - assessment patterns: ${assessment.doc_path}\n` +
       `  - failing tests: ${tdd.test_files.join(', ')}\n` +
-      `phase_scope: ${ph.number} ("${ph.name}").\n\n` +
+      `phase_scope: ${ph.number} ("${ph.name}").` +
+      upstreamStructured(9) + `\n\n` +
       `Implement the smallest code necessary to make ALL phase tests pass. Follow the ` +
       `patterns from the assessment. Do NOT touch files outside this phase's scope. ` +
       `Return ImplOutput with the exact build_command used.` + reviewGuidance,
@@ -2629,7 +2630,8 @@ while (reviewIter < MAX_REVIEW_ITERS) {
     `files_changed (${filesChanged.length}):` +
     (filesChanged.length <= 30
       ? `\n${filesChanged.map(f => '  ' + f).join('\n')}`
-      : `\n${filesChanged.slice(0, 30).map(f => '  ' + f).join('\n')}\n  ... and ${filesChanged.length - 30} more (read impl summaries for full list)`);
+      : `\n${filesChanged.slice(0, 30).map(f => '  ' + f).join('\n')}\n  ... and ${filesChanged.length - 30} more (read impl summaries for full list)`) +
+    upstreamStructured(10);
 
   const [cr, ar, gateRevCode, gateRevAdv, gateImplComplete] = await parallel([
     () => agentWithRetry(
@@ -2988,7 +2990,8 @@ while (outerIter < MAX_OUTER_ITERS) {
       `Inputs to read yourself:\n` +
       `  - specification: ${spec.specification_path}\n` +
       `  - bdd: ${bdd.doc_path}\n` +
-      `  - requirements: ${req.doc_path}\n\n` +
+      `  - requirements: ${req.doc_path}\n` +
+      upstreamStructured(11) + `\n\n` +
       `TASK: Run comprehensive API integration tests against the implemented server.\n\n` +
       `Environment setup: Ensure TEST_API_TOKEN is set in .env (create .env.test if needed).\n` +
       `Test ALL endpoints across 4 mandatory categories:\n` +
@@ -3041,7 +3044,8 @@ while (outerIter < MAX_OUTER_ITERS) {
       `Inputs to read yourself:\n` +
       `  - bdd: ${bdd.doc_path}\n` +
       `  - specification: ${spec.specification_path}\n` +
-      `  - requirements: ${req.doc_path}\n\n` +
+      `  - requirements: ${req.doc_path}\n` +
+      upstreamStructured(11) + `\n\n` +
       `TASK: Run E2E tests for ALL BDD scenarios with cross-browser coverage.\n\n` +
       `Map EVERY SCENARIO-NNN from ${bdd.doc_path} to a Playwright test.\n` +
       `Run across: chromium, firefox, webkit.\n` +
