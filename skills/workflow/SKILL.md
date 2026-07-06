@@ -12,30 +12,27 @@ license: MIT
   **Call Workflow() DIRECTLY.** Do NOT spawn any agent.
 
   Steps:
-  1. Resolve PLUGIN_ROOT by running:
-     ```bash
-     find ~/.claude/plugins/super-dev -name "super-dev.workflow.js" -path "*/workflows/*" 2>/dev/null | head -1 | sed 's|/workflows/super-dev.workflow.js||'
-     ```
-  2. Get REPO_PATH by running: `pwd`
-  3. Extract flags from the user's message:
+  1. Get REPO_PATH by running: `pwd`
+  2. Extract flags from the user's message:
      - `--skip-worktree` → set skip_worktree=true, strip from message
      - `--skip=N,N,N` → set skip_stages="N,N,N", strip from message
      Remaining text = REQUEST.
-  4. Call Workflow:
+  3. Call Workflow:
      ```
      Workflow({
-       scriptPath: "<PLUGIN_ROOT>/workflows/super-dev.workflow.js",
+       scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/super-dev.workflow.js",
        args: {
          request: "<REQUEST>",
-         plugin_root: "<PLUGIN_ROOT>",
+         plugin_root: "${CLAUDE_PLUGIN_ROOT}",
          repo_path: "<REPO_PATH>",
          skip_worktree: false,
          skip_stages: ""
        }
      })
      ```
-     Replace `<PLUGIN_ROOT>` and `<REPO_PATH>` with the ACTUAL resolved values.
-  5. When the workflow completes, relay the result to the user.
+     Replace `<REPO_PATH>` with the actual pwd result. Replace `<REQUEST>` with the user's message (flags stripped).
+     `${CLAUDE_PLUGIN_ROOT}` is resolved by the harness automatically — use it as-is.
+  4. When the workflow completes, relay the result to the user.
 </dispatch>
 
 <constraints>
