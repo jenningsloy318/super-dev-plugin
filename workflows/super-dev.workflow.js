@@ -864,6 +864,111 @@ if (SKIP_WORKTREE) {
 const SPEC_DIRECTORY = `${WORKTREE_PATH}/docs/specifications/${specMeta.spec_identifier}`;
 
 // ---------------------------------------------------------------------------
+// .knowledge.json — Runtime shared memory. Accumulates structured output from
+// each stage so later agents get precise upstream context injected into their
+// prompts. Workflow script appends centrally (agents never write to this file).
+// ---------------------------------------------------------------------------
+const KNOWLEDGE_PATH = `${SPEC_DIRECTORY}/.knowledge.json`;
+const knowledge = {
+  feature_name: REQUEST.slice(0, 80),
+  created: new Date().toISOString(),
+  spec_identifier: specMeta.spec_identifier,
+  stages: {},
+};
+
+/** Persist .knowledge.json to disk (called after each stage completes). */
+function persistKnowledge() {
+  // Workflow scripts can't import fs — delegate to an agent or use inline
+  // For now, knowledge is kept in-memory and written at key checkpoints
+  // via a helper agent. The object itself is the source of truth.
+}
+
+/**
+ * Build upstream context string for a given stage. Extracts precise fields
+ * from prior stages' structured outputs and formats them for injection into
+ * agent prompts. Agent never reads files — gets exact data directly.
+ */
+function upstreamStructured(stage) {
+  const k = knowledge.stages;
+  const parts = [];
+
+  // Stage 2a: Acceptance Criteria
+  if (k['2a']?.acceptance_criteria) {
+    parts.push('Acceptance Criteria:');
+    for (const ac of k['2a'].acceptance_criteria) {
+      parts.push(`  - ${ac.id}: ${ac.description}`);
+    }
+  } else if (k['2a']?.ac_count) {
+    parts.push(`Acceptance Criteria: ${k['2a'].ac_count} ACs (read ${k['2a'].doc_path} for details)`);
+  }
+
+  // Stage 2b: BDD Scenarios
+  if (k['2b']?.scenario_count) {
+    parts.push(`BDD Scenarios: ${k['2b'].scenario_count} total`);
+  }
+
+  // Stage 3: Research
+  if (k['3']?.options?.length) {
+    parts.push(`Research: ${k['3'].options.length} options evaluated`);
+  }
+
+  // Stage 5: Assessment
+  if (k['5']?.patterns?.length) {
+    parts.push(`Patterns: ${k['5'].patterns.join(', ')}`);
+  }
+
+  // Stage 6: Design
+  if (k['6']?.modules?.length) {
+    parts.push(`Modules: ${k['6'].modules.join(', ')}`);
+  }
+
+  // Stage 7: Specification
+  if (k['7']?.phases?.length) {
+    parts.push('Implementation Phases:');
+    for (const p of k['7'].phases) {
+      parts.push(`  - Phase ${p.number}: ${p.name}`);
+    }
+  }
+
+  // Stage 9: Implementation results (per phase)
+  if (k['9']?.phases?.length) {
+    parts.push('Implementation Status:');
+    for (const p of k['9'].phases) {
+      parts.push(`  - Phase ${p.number}: ${p.status || 'in_progress'}`);
+    }
+  }
+
+  // Stage 10: Review verdicts
+  if (k['10']) {
+    parts.push(`Review: code=${k['10'].code_verdict || '?'}, adversarial=${k['10'].adv_verdict || '?'}`);
+  }
+
+  // Stage 11: Test results
+  if (k['11']) {
+    if (k['11'].api) parts.push(`API Tests: ${k['11'].api.verdict} (${k['11'].api.pass_rate}%)`);
+    if (k['11'].e2e) parts.push(`E2E Tests: ${k['11'].e2e.verdict} (${k['11'].e2e.pass_rate}%)`);
+  }
+
+  return parts.length > 0 ? '\n--- Upstream Context ---\n' + parts.join('\n') : '';
+}
+
+// ---------------------------------------------------------------------------
+// Journal — emit events for the learnings/dreaming system.
+// Append-only JSONL written to the learnings store during the run.
+// ---------------------------------------------------------------------------
+const RUN_ID = `run-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}`;
+const LEARNINGS_ROOT_PATH = `${PLUGIN_ROOT}/data/learnings`;
+
+/** Emit a journal event (fire-and-forget, never blocks). */
+function emitJournalEvent(event) {
+  // Journal events are collected in-memory and flushed at end
+  // (workflow runtime can't do fs ops directly)
+  journalEvents.push({ ts: new Date().toISOString(), ...event });
+}
+const journalEvents = [];
+
+
+// ---------------------------------------------------------------------------
 // Bootstrap recipes — defined here so Step 1.6 (worktree bootstrap) and the
 // Stage 9 qa/e2e prompts share the same idempotent bash. Two recipes:
 //
@@ -1243,6 +1348,8 @@ const reqLoop = await gatedStage2WriterLoop({
   ),
 });
 req = reqLoop.writer;
+knowledge.stages['2a'] = req; // accumulate to .knowledge.json
+emitJournalEvent({ stage: 2, event: 'gate', gate: 'gate-requirements', pass: true, attempt: reqLoop.iterations });
 log(`Requirements: ${req.ac_count} ACs captured (${reqLoop.iterations} iteration${reqLoop.iterations === 1 ? '' : 's'}).`);
 
 // 2B — BDD scenarios + gate-bdd (with format-fix loop)
@@ -1286,6 +1393,8 @@ const bddLoop = await gatedStage2WriterLoop({
   ),
 });
 bdd = bddLoop.writer;
+knowledge.stages['2b'] = bdd; // accumulate to .knowledge.json
+emitJournalEvent({ stage: 2, event: 'gate', gate: 'gate-bdd', pass: true, attempt: bddLoop.iterations });
 log(`BDD: ${bdd.scenario_count} scenarios (coverage ${Math.round((bdd.coverage_score ?? 0) * 100)}%, ${bddLoop.iterations} iteration${bddLoop.iterations === 1 ? '' : 's'}).`);
 await updateTracking({ stage: 2, status: 'complete', docs: [requirementsName, bddName], currentPhase: 'Stage 2 — Requirements + BDD' });
 } // end Stage 2
@@ -1598,6 +1707,8 @@ if (designerType) {
       schema: DESIGN_OUTPUT,
     },
   );
+  knowledge.stages['6'] = design; // accumulate to .knowledge.json
+  emitJournalEvent({ stage: 6, event: 'end', duration_ms: 0 });
   log(`Stage 6 complete: ${design.docs.length} doc(s) written; numeric constants present: ${design.has_numeric_constants ?? false}`);
   await updateTracking({ stage: 6, status: 'complete', currentPhase: 'Stage 6 — Design' });
 }
@@ -1877,6 +1988,8 @@ const specTraceLoop = await gatedSpecTraceLoop({
   spawnGate: spawnSpecTraceGate,
 });
 let spec = specTraceLoop.writer;
+knowledge.stages['7'] = spec; // accumulate to .knowledge.json
+emitJournalEvent({ stage: 7, event: 'end', duration_ms: 0 });
 log(`Stage 7 complete: spec + plan (${spec.phase_count} phases) + tasks; spec-trace gate PASS (${specTraceLoop.iterations} iteration${specTraceLoop.iterations === 1 ? '' : 's'}).`);
 await updateTracking({ stage: 7, status: 'complete', currentPhase: 'Stage 7 — Specification' });
 
@@ -2783,6 +2896,8 @@ while (reviewIter < MAX_REVIEW_ITERS) {
   log(`Stage 10 iteration ${reviewIter}: fixes applied, looping back for re-review`);
 }
 log(`Stage 10 complete after ${reviewIter} iteration(s).`);
+knowledge.stages['10'] = { code_verdict: codeReview?.verdict, adv_verdict: advReview?.verdict, iterations: reviewIter };
+emitJournalEvent({ stage: 10, event: 'review', verdict: codeReview?.verdict, adv_verdict: advReview?.verdict, iterations: reviewIter });
 await updateTracking({
   stage: 10, status: 'complete', currentPhase: 'Stage 10 — Code Review',
   docs: [codeReview?.doc_path, advReview?.doc_path].filter(Boolean).map(p => p.split('/').pop()),
@@ -3251,6 +3366,38 @@ log(`Stage 14.2: To merge manually, run:`);
 log(`  cd ${REPO_PATH} && git checkout ${DEFAULT_BRANCH} && git pull --ff-only && \\`);
 log(`    git merge --no-ff ${specMeta.spec_identifier} -m ${JSON.stringify(mergeMessage)}`);
 await updateTracking({ stage: 14, status: 'complete', currentPhase: 'Stage 14 — Merge' });
+
+// ---------------------------------------------------------------------------
+// Post-pipeline: Persist .knowledge.json + fire-and-forget consolidation
+// ---------------------------------------------------------------------------
+
+// Write .knowledge.json to disk
+await agentWithRetry(
+  `Write the following JSON to ${shellQuote(KNOWLEDGE_PATH)}:\n\`\`\`json\n${JSON.stringify(knowledge, null, 2)}\n\`\`\``,
+  { label: 'persist-knowledge', phase: 'Stage 14 — Merge', agentType: 'general-purpose',
+    schema: { type: 'object', properties: { ok: { type: 'boolean' } } } },
+);
+
+// Write journal events + run consolidation (fire-and-forget)
+try {
+  const journalContent = journalEvents.map(e => JSON.stringify(e)).join('\n');
+  await agentWithRetry(
+    `Step 1: Create directory and write journal:\n` +
+    `mkdir -p ${shellQuote(LEARNINGS_ROOT_PATH + '/journals')}\n` +
+    `Write this content to ${shellQuote(LEARNINGS_ROOT_PATH + '/journals/' + RUN_ID + '.jsonl')}:\n` +
+    `\`\`\`\n${journalContent}\n\`\`\`\n\n` +
+    `Step 2: Run consolidation:\n` +
+    `node ${shellQuote(PLUGIN_ROOT + '/scripts/utils/consolidate-run.mjs')} ` +
+    `${shellQuote(LEARNINGS_ROOT_PATH + '/journals/' + RUN_ID + '.jsonl')} ` +
+    `--learnings-root ${shellQuote(LEARNINGS_ROOT_PATH)}\n\n` +
+    `Return {"ok": true} when done.`,
+    { label: 'consolidate-run', phase: 'Stage 14 — Merge', agentType: 'general-purpose',
+      schema: { type: 'object', properties: { ok: { type: 'boolean' } } } },
+  );
+  log(`Post-pipeline: consolidation complete (${journalEvents.length} events processed)`);
+} catch (e) {
+  log(`Post-pipeline: consolidation failed (non-blocking): ${e?.message ?? e}`);
+}
 
 return {
   worktree_path: WORKTREE_PATH,
