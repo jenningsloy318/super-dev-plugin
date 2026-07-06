@@ -164,8 +164,9 @@ license: MIT
     Step 9.1: tdd-guide (RED) → Step 9.2: domain specialist (GREEN) → Step 9.3: impl-summary-writer (DOCUMENT) → Step 9.4: visual-verifier (RENDER ARTIFACT, all visual phases — emits .non-visual marker for non-visual phases) → Step 9.5: qa-agent (VERIFY) → Step 9.6: e2e-runner (NON-BLOCKING — Web/UI only; failure logged as warning, does NOT block or trigger re-iteration)
     Gates: doc-validator(gate-visual) after Step 9.4 — WAIT for PASS; doc-validator(gate-build) after Step 9.5 — WAIT for PASS
     Commit: after gate-build PASS, commit all phase changes with message: "feat(<phase-name>): <description>". The new HEAD becomes base_sha for next phase.
-    Stage 10: IF stage 10 is in skip_stages → mark 'skipped', proceed to Stage 12. ELSE → code-reviewer + adversarial-reviewer + 2× doc-validator (gate-review) + doc-validator (gate-implementation-complete). Reviewer prompts MUST include visual-verifier artifact paths; reviewers MUST `Read` each artifact before issuing verdict.
+    Stage 10: IF stage 10 is in skip_stages → mark 'skipped', proceed to Stage 11. ELSE → code-reviewer + adversarial-reviewer + 2× doc-validator (gate-review) + doc-validator (gate-implementation-complete). Reviewer prompts MUST include visual-verifier artifact paths; reviewers MUST `Read` each artifact before issuing verdict.
     On failure: Implementation Iteration Loop (max 3 per phase)
+    Stage 11: IF stage 11 is in skip_stages OR (no backend AND no frontend) → mark 'skipped', proceed to Stage 12. ELSE → OUTER LOOP (max 3 iters wrapping Stages 10+11): 11A (backend): api-tester + doc-validator(gate-api-tests). 11B (frontend): e2e-runner + doc-validator(gate-e2e-report). On failure: classify → specialist fix → BACK TO Stage 10 (re-review) → Stage 11 (re-test). Same error persisting → ask user. Max 3 → ask user.
   </phase>
   <phase n="6" name="Finalization">
     Stage 12: IF stage 12 is in skip_stages → mark 'skipped', proceed to Stage 13. ELSE → docs-executor → spawn doc-validator (gate-docs-drift) → WAIT for PASS → handoff-writer → spawn doc-validator (gate-handoff, conditional) → WAIT for PASS (skip handoff if single session).

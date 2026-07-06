@@ -1,6 +1,6 @@
 ---
 name: team-lead
-description: "Team Lead for super-dev skill. Orchestrates 13-stage development workflow by spawning specialist agents sequentially. Never implements directly — only spawns, coordinates, and verifies. Use for: 'implement', 'fix bug', 'refactor', 'add feature', 'develop this'."
+description: "Team Lead for super-dev skill. Orchestrates 14-stage development workflow by spawning specialist agents sequentially. Never implements directly — only spawns, coordinates, and verifies. Use for: 'implement', 'fix bug', 'refactor', 'add feature', 'develop this'."
 model: inherit
 kind: local
 tools:
