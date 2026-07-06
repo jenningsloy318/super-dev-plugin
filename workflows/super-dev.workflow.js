@@ -1579,6 +1579,10 @@ if (designerType) {
   design = await agentWithRetry(
     `${designerInputs}\n\n` +
     `Produce ${shellQuote(SPEC_DIRECTORY + '/' + outputFile)}. ` +
+    `IMPORTANT: Keep the architecture document CONCISE — aim for 100-200 lines maximum. ` +
+    `Focus on decisions, not boilerplate. Skip sections that are obvious from the tech stack. ` +
+    `Write the file in ONE pass — do not iterate or refine. If the project is simple ` +
+    `(single backend + frontend), a brief module list + data flow + API contract is sufficient.\n\n` +
     (designerType === 'product-designer'
       ? `As a product designer you also coordinate the architecture and ui-ux sub-documents — ` +
         `co-write ${shellQuote(SPEC_DIRECTORY + '/' + docName('architecture.md'))} and ` +
@@ -1810,7 +1814,11 @@ const spawnSpecWriter = async (extraGuidance = '', iter = 1) => {
     `  2. ${shellQuote(SPEC_DIRECTORY + '/' + planName)} — implementation plan with phases\n` +
     `  3. ${shellQuote(SPEC_DIRECTORY + '/' + tasksName)} — task list (DAG with phase numbers)\n` +
     `Every AC from requirements and every BDD scenario MUST be traced into at least one phase. ` +
-    `Set phase_count to the number of phases in the plan; return SpecOutput.` +
+    `Set phase_count to the number of phases in the plan; return SpecOutput.\n\n` +
+    `CONCISENESS: Write each document in ONE pass without iterating. ` +
+    `Specification: 150-300 lines max. Plan: 50-100 lines. Tasks: 30-80 lines. ` +
+    `For simple projects (1-2 modules), use fewer phases (2-3 max). ` +
+    `Skip boilerplate sections that add no information.` +
     (extraGuidance ? `\n\n--- Targeted revisions from prior review ---\n${extraGuidance}` : ''),
     {
       label: iter === 1 ? 'spec-writer' : `spec-writer:revise-${iter}`,
