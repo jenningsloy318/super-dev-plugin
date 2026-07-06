@@ -523,6 +523,9 @@ license: MIT
   <!-- ===== LIFECYCLE ===== -->
   <constraint name="Terminate After Completion">Teammates MUST be terminated after completing their stage work. Never leave idle teammates running.</constraint>
   <constraint name="Spawn Field Compliance">Before spawning ANY sub-agent, consult `<agent-spawn-fields>` for required fields. Pass EVERY non-optional field in the spawn prompt. Omitted fields cause agent failure.</constraint>
+  <constraint name="User Confirmation Is NOT Stage Skip">When the user says "yes", "proceed", "looks good", "merge" — that is confirmation to CONTINUE the pipeline, NOT permission to skip stages. Only the explicit --skip=N flag skips a stage. User saying "merge" means "finish all remaining stages then merge", not "skip to merge".</constraint>
+  <constraint name="Pre-Merge Gate (HARD BLOCK)">Before Stage 14 merge operations, run: `node ${PLUGIN_ROOT}/scripts/gates/pre-merge-check.mjs <tracking-json-path>`. If it returns exit 1, REFUSE to merge and report which stages are incomplete. This is a CODE-ENFORCED gate — no rationalization can bypass it.</constraint>
+  <constraint name="Stage 11 Never Auto-Skip">Stage 11 (Integration Testing) can ONLY be skipped if the user passed --skip=11. Agent judgment ("frontend only", "simple project", "tests already passed in Stage 9") is NOT valid. If the project has ANY code (backend OR frontend), Stage 11 MUST run.</constraint>
 </constraints>
 
 <rules>

@@ -3206,6 +3206,29 @@ await updateTracking({
 phase('Stage 14 — Merge');
 await updateTracking({ stage: 14, status: 'in_progress', currentPhase: 'Stage 14 — Merge' });
 
+// PRE-MERGE GATE: verify all stages completed before allowing merge
+log('Stage 14.0: pre-merge check (all stages must be complete)');
+const trackingJsonPath = `${SPEC_DIRECTORY}/${specMeta.spec_identifier}-workflow-tracking.json`;
+const preMergeVerdict = await agentWithRetry(
+  `Run: node ${shellQuote(PLUGIN_ROOT + '/scripts/gates/pre-merge-check.mjs')} ` +
+  `${shellQuote(trackingJsonPath)}` +
+  (SKIP_STAGES.size > 0 ? ` --skip-stages=${[...SKIP_STAGES].join(',')}` : '') +
+  `\nReturn the gate verdict.`,
+  {
+    label: 'pre-merge-check',
+    phase: 'Stage 14 — Merge',
+    agentType: 'super-dev:doc-validator',
+    schema: GATE_VERDICT,
+  },
+);
+if (!preMergeVerdict?.pass) {
+  throw new Error(
+    `Stage 14: PRE-MERGE CHECK FAILED. Cannot merge without all stages complete.\n` +
+    `Violations:\n${(preMergeVerdict?.errors || []).map(e => `  - ${e}`).join('\n') || preMergeVerdict?.stdout_tail || '(unknown)'}`
+  );
+}
+log('Stage 14.0: pre-merge check PASS — all stages verified');
+
 log('Stage 14.1: trailing commit (docs/handoff/cleanup)');
 const trailingCommit = await agentWithRetry(
   `Run exactly:\n${commitTrailingSnippet(WORKTREE_PATH, `chore(${specMeta.spec_name}): finalise docs, handoff, cleanup`)}\n` +
