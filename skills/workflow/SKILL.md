@@ -1,52 +1,54 @@
 ---
 name: workflow
-description: "Dynamic Workflow variant of super-dev — runs all 13 stages as a deterministic JS workflow script. Use when you want full autonomous execution with cached resume. Requires Claude Code v2.1.178+."
+description: "Dynamic Workflow variant of super-dev — runs all 14 stages as a deterministic JS workflow script. Use when you want full autonomous execution with cached resume. Requires Claude Code v2.1.178+."
 author: Jennings Liu
-version: 2.5.23
+version: 2.5.36
 license: MIT
 ---
-
-<platform-paths>
-  PLUGIN_ROOT:
-    claude: ${CLAUDE_PLUGIN_ROOT}
-  PLUGIN_DATA:
-    claude: ${CLAUDE_PLUGIN_DATA}
-  Use whichever value resolved to an actual path (not a literal variable name).
-</platform-paths>
 
 <purpose>14-stage development pipeline for features, bug fixes, and refactors. Runs as a Dynamic Workflow (deterministic JS orchestration) on Claude Code v2.1.178+. There is no fallback path — the Workflow tool MUST be available.</purpose>
 
 <dispatch mandatory="true">
-  **YOU MUST spawn the team-lead-workflow agent.** Do NOT call Workflow() directly.
+  **Call Workflow() DIRECTLY.** Do NOT spawn any agent. Do NOT spawn team-lead-workflow. Do NOT spawn team-lead.
 
-  ```
-  Agent({
-    subagent_type: "super-dev:team-lead-workflow",
-    prompt: "<the user's full message>"
-  })
-  ```
-
-  team-lead-workflow resolves `${CLAUDE_PLUGIN_ROOT}`, runs `pwd`, then calls Workflow with the correct structured args. Calling Workflow directly will fail because you cannot resolve the plugin_root path yourself.
+  Steps:
+  1. Resolve PLUGIN_ROOT by running: `find ~/.claude/plugins/super-dev -name "super-dev.workflow.js" -path "*/workflows/*" 2>/dev/null | head -1 | sed 's|/workflows/super-dev.workflow.js||'`
+     Store the output as PLUGIN_ROOT.
+  2. Get REPO_PATH by running: `pwd`
+  3. Extract flags from the user's message:
+     - `--skip-worktree` → set skip_worktree=true, strip from message
+     - `--skip=N,N,N` → set skip_stages="N,N,N", strip from message
+     Remaining text after stripping = REQUEST.
+  4. Call Workflow:
+     ```
+     Workflow({
+       scriptPath: "<PLUGIN_ROOT>/workflows/super-dev.workflow.js",
+       args: {
+         request: "<REQUEST>",
+         plugin_root: "<PLUGIN_ROOT>",
+         repo_path: "<REPO_PATH>",
+         skip_worktree: false,
+         skip_stages: ""
+       }
+     })
+     ```
+     Replace <PLUGIN_ROOT> and <REPO_PATH> with the ACTUAL resolved paths from steps 1-2.
+  5. When the workflow completes, relay the result to the user (status, worktree path, merge command).
 </dispatch>
 
 <orchestration-model>
   **Dynamic Workflows REQUIRED** (Claude Code v2.1.178+). There is no fallback path.
 
-  The team-lead-workflow agent invokes ONE `Workflow` tool call with `scriptPath="${CLAUDE_PLUGIN_ROOT}/workflows/super-dev.workflow.js"` and the args. The workflow runtime executes the script in an isolated environment outside Claude's context window. Intermediate per-stage results stay in JavaScript variables inside the script — they NEVER enter the team-lead-workflow context window. Only the final compressed result returns to team-lead-workflow, which relays it to the user.
+  YOU call Workflow() directly from this context. No intermediate agent. The workflow runtime
+  executes the script in an isolated environment — all per-stage data stays in JavaScript
+  variables inside the script. Only the final compressed result returns to you.
 
   Caps: 16 concurrent subagents / 1000 total agents per workflow run (harness-enforced).
-
-  Benefits:
-  1. Context isolation — team-lead-workflow sees only the final summary, not per-stage data.
-  2. Cached resume — `Workflow({scriptPath, resumeFromRunId})` replays completed `agent()` calls instantly; only failed/new agents re-run live.
-  3. Structured output — `schema:` forces validated JSON from each subagent.
-  4. Built-in concurrency + token-budget management via `budget` global.
-  5. Progress streaming via `/workflows` view + `log()` + `phase()` markers.
 </orchestration-model>
 
 <triggers>Triggers on: "implement", "build", "fix bug", "refactor", "add feature", "develop this", "help me build", "add functionality", "optimize performance", "resolve deprecation", "systematic development". Do NOT trigger on: simple questions, file searches, one-off commands, code explanations, quick edits, non-development tasks.
 
-**Flags** (optional, extracted by team-lead-workflow before workflow invocation):
+**Flags** (optional, extracted before Workflow invocation):
 - `--skip-worktree` → skip worktree/branch creation, work directly on current branch. Use when already on a feature branch.
 - `--skip=N,N,N` → skip specified stages entirely (comma-separated numbers, supports decimals like 6.5). Skipped stages are marked 'skipped' in tracking JSON without spawning agents. Example: `--skip=2,3,4,5` to jump straight to design.
 </triggers>
