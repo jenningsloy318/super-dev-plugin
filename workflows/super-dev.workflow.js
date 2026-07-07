@@ -871,7 +871,7 @@ const SPEC_DIRECTORY = `${WORKTREE_PATH}/docs/specifications/${specMeta.spec_ide
 const KNOWLEDGE_PATH = `${SPEC_DIRECTORY}/.knowledge.json`;
 const knowledge = {
   feature_name: REQUEST.slice(0, 80),
-  created: new Date().toISOString(),
+  created: 'workflow-start',
   spec_identifier: specMeta.spec_identifier,
   stages: {},
 };
@@ -956,14 +956,14 @@ function upstreamStructured(stage) {
 // Journal — emit events for the learnings/dreaming system.
 // Append-only JSONL written to the learnings store during the run.
 // ---------------------------------------------------------------------------
-const RUN_ID = `run-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}`;
+const RUN_ID = 'run-' + (args?.run_id || 'current');
 const LEARNINGS_ROOT_PATH = `${PLUGIN_ROOT}/data/learnings`;
 
 /** Emit a journal event (fire-and-forget, never blocks). */
 function emitJournalEvent(event) {
   // Journal events are collected in-memory and flushed at end
   // (workflow runtime can't do fs ops directly)
-  journalEvents.push({ ts: new Date().toISOString(), ...event });
+  journalEvents.push({ ...event });
 }
 const journalEvents = [];
 
