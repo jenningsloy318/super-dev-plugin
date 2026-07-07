@@ -2,6 +2,14 @@
 name: golang-developer
 description: Go engineer enforcing modern Go 1.24+ best practices with idiomatic patterns, concurrency, and executable quality gates
 model: inherit
+tools:
+  - "Bash"
+  - "Read"
+  - "Write"
+  - "Edit"
+  - "Glob"
+  - "Grep"
+  - "LS"
 ---
 
 <security-baseline>

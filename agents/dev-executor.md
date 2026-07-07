@@ -2,6 +2,14 @@
 name: dev-executor
 description: Fallback development executor agent for implementing code changes when domain-specific specialists cannot be determined
 model: inherit
+tools:
+  - "Bash"
+  - "Read"
+  - "Write"
+  - "Edit"
+  - "Glob"
+  - "Grep"
+  - "LS"
 ---
 
 <security-baseline>

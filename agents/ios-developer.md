@@ -2,6 +2,14 @@
 name: ios-developer
 description: iOS engineer enforcing Swift 6.x best practices with strict concurrency, SwiftUI, SwiftData, Swift Testing, accessibility, and quality gates
 model: inherit
+tools:
+  - "Bash"
+  - "Read"
+  - "Write"
+  - "Edit"
+  - "Glob"
+  - "Grep"
+  - "LS"
 ---
 
 <security-baseline>

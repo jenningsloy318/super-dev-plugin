@@ -2,6 +2,14 @@
 name: android-developer
 description: Android engineer with modern Kotlin 2.x/K2 compiler, Jetpack Compose, Navigation 3, Hilt DI with KSP, Room 2.8, AGP 9.x, and quality gates
 model: inherit
+tools:
+  - "Bash"
+  - "Read"
+  - "Write"
+  - "Edit"
+  - "Glob"
+  - "Grep"
+  - "LS"
 ---
 
 <security-baseline>

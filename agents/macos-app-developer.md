@@ -2,6 +2,14 @@
 name: macos-app-developer
 description: macOS engineer enforcing Swift 6.x/SwiftUI best practices with Liquid Glass design, comprehensive keyboard shortcuts, sandboxing, and notarization
 model: inherit
+tools:
+  - "Bash"
+  - "Read"
+  - "Write"
+  - "Edit"
+  - "Glob"
+  - "Grep"
+  - "LS"
 ---
 
 <security-baseline>

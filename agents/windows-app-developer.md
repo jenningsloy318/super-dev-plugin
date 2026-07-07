@@ -2,6 +2,14 @@
 name: windows-app-developer
 description: Windows engineer enforcing .NET 10/C# 14/WinUI 3 best practices with MVVM, DI, async discipline, and accessibility
 model: inherit
+tools:
+  - "Bash"
+  - "Read"
+  - "Write"
+  - "Edit"
+  - "Glob"
+  - "Grep"
+  - "LS"
 ---
 
 <security-baseline>

@@ -2,6 +2,14 @@
 name: rust-developer
 description: Rust engineer enforcing Edition 2024 (1.85+), native async fn in traits, Axum 0.8, thiserror 2.x, Tokio 1.49+, structured tracing, and strict quality gates
 model: inherit
+tools:
+  - "Bash"
+  - "Read"
+  - "Write"
+  - "Edit"
+  - "Glob"
+  - "Grep"
+  - "LS"
 ---
 
 <security-baseline>

@@ -2,6 +2,14 @@
 name: backend-developer
 description: Backend engineer with modern best practices for Node.js 22 LTS/TypeScript 6.0 (Hono, Drizzle ORM) and Python 3.14 (FastAPI, Pydantic v2)
 model: inherit
+tools:
+  - "Bash"
+  - "Read"
+  - "Write"
+  - "Edit"
+  - "Glob"
+  - "Grep"
+  - "LS"
 ---
 
 <security-baseline>

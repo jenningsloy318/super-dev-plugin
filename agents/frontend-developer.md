@@ -2,6 +2,14 @@
 name: frontend-developer
 description: Modern frontend engineer with React 19, Next.js 16 App Router, React Compiler 1.0, TypeScript 6.0, Tailwind v4, and executable quality gates
 model: inherit
+tools:
+  - "Bash"
+  - "Read"
+  - "Write"
+  - "Edit"
+  - "Glob"
+  - "Grep"
+  - "LS"
 ---
 
 <security-baseline>
