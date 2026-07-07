@@ -528,7 +528,7 @@ phase('Stage 1 — Setup');
 /** Log failure details and throw. All workflow failures go through this. */
 function fail(message) {
   log(`[FAIL] ${message.split('\n')[0]}`);
-  fail(message);
+  throw new Error(message);
 }
 
 const MAX_RETRIES = 10;
