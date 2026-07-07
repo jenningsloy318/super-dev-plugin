@@ -1833,30 +1833,32 @@ if (!needPrototype) {
   const designDoc = (design.docs.find(d => d.kind === 'architecture')?.path)
     ?? design.docs[0].path;
 
+  const protoPrompt =
+    `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
+    `Design document: ${designDoc}\n` +
+    `Input samples (JSON): ${JSON.stringify(samples)}\n` +
+    `Sample source: ${sampleSource}` + (sampleRationale ? ` — ${sampleRationale}` : '') + `\n\n` +
+    `Extract every numeric design constant from the design document (thresholds, ratios, ` +
+    `percentages, alphas, sizes). Build a minimal prototype that exercises each constant ` +
+    `against the supplied samples. Measure the actual value(s) achieved. Compare to the ` +
+    `spec value within the tolerance declared in the design (or 10% if unspecified). ` +
+    `Write ${shellQuote(SPEC_DIRECTORY + '/' + protoName)} with a table of ` +
+    `name | spec | measured | tolerance | within? per constant. ` +
+    `Required document structure: heading "## Constants Under Test" (or include the phrase ` +
+    `"Constants Under Test" in a subheading), heading "## Measurement Results", heading ` +
+    `"## Verdict" with overall PASS/FAIL, heading "## Recommendation" (proceed / caveats / ` +
+    `pivot), and a reference to the prototype source directory under "prototype/". ` +
+    `Set verdict='PROTOTYPE_OK' iff every constant is within tolerance, otherwise ` +
+    `'PROTOTYPE_FAILED' and list failing_constants by name; FAIL verdict must mention ` +
+    `pivot-protocol in the Recommendation section.`;
+
   const protoLoop = await gatedPrototypeLoop({
     stage: 'Stage 6.5',
     gateName: 'gate-prototype',
     writerLabel: 'prototype-runner',
     maxIters: MAX_PROTOTYPE_ITERS,
     spawnWriter: (iter, guidance) => agentWithRetry(
-      `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
-      `Design document: ${designDoc}\n` +
-      `Input samples (JSON): ${JSON.stringify(samples)}\n` +
-      `Sample source: ${sampleSource}` + (sampleRationale ? ` — ${sampleRationale}` : '') + `\n\n` +
-      `Extract every numeric design constant from the design document (thresholds, ratios, ` +
-      `percentages, alphas, sizes). Build a minimal prototype that exercises each constant ` +
-      `against the supplied samples. Measure the actual value(s) achieved. Compare to the ` +
-      `spec value within the tolerance declared in the design (or 10% if unspecified). ` +
-      `Write ${shellQuote(SPEC_DIRECTORY + '/' + protoName)} with a table of ` +
-      `name | spec | measured | tolerance | within? per constant. ` +
-      // Gate-prototype regex requires literal phrasing — bake it in to reduce loop iterations.
-      `Required document structure: heading "## Constants Under Test" (or include the phrase ` +
-      `"Constants Under Test" in a subheading), heading "## Measurement Results", heading ` +
-      `"## Verdict" with overall PASS/FAIL, heading "## Recommendation" (proceed / caveats / ` +
-      `pivot), and a reference to the prototype source directory under "prototype/". ` +
-      `Set verdict='PROTOTYPE_OK' iff every constant is within tolerance, otherwise ` +
-      `'PROTOTYPE_FAILED' and list failing_constants by name; FAIL verdict must mention ` +
-      `pivot-protocol in the Recommendation section.` + guidance,
+      protoPrompt + (guidance || ''),
       {
         label: `prototype-runner:${iter}`,
         phase: 'Stage 6.5 — Prototype',
@@ -1877,19 +1879,81 @@ if (!needPrototype) {
     ),
   });
 
-  // PROTOTYPE_FAILED short-circuit (empirical, not format): throw with the
-  // stage-specific pivot message; the gate may have already passed, but the
-  // measurement itself contradicts the design.
+  // PROTOTYPE_FAILED short-circuit: instead of throwing, loop back to
+  // Stage 6 to fix the constants and re-run prototype (max 1 retry).
   if (protoLoop.pivot) {
-    throw new Error(
-      `Stage 6.5: prototype empirically failed for constants ${JSON.stringify(protoLoop.writer.failing_constants)}. ` +
-      `The spec design is built on wrong numbers — invoke pivot-protocol with these constants ` +
-      `and re-run the workflow from Stage 6 (Design) with corrected values. ` +
-      `Prototype report: ${protoLoop.writer.doc_path}`
+    const failingConstants = protoLoop.writer.failing_constants ?? [];
+    log(`Stage 6.5: PROTOTYPE_FAILED — constants ${JSON.stringify(failingConstants)} outside tolerance. Fixing and retrying.`);
+    emitJournalEvent({ stage: 6.5, event: 'prototype-failed', constants: failingConstants });
+
+    // Spawn a fix agent to correct the design constants
+    const fixResult = await agentWithRetry(
+      `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
+      `The prototype at Stage 6.5 FAILED for these constants: ${JSON.stringify(failingConstants)}.\n` +
+      `Prototype report: ${protoLoop.writer.doc_path}\n` +
+      `Read the prototype report to see measured vs spec values.\n\n` +
+      `FIX: Update the architecture/design document at ${design.docs.map(d => d.path).join(', ')} ` +
+      `to correct the failing constant values based on what was actually measured. ` +
+      `Use the measured values (rounded to sensible units) as the new spec values.\n\n` +
+      `Also check if any constants are ambiguous (e.g., "gap" could mean inter-item or intra-grid). ` +
+      `If ambiguous, clarify in the doc which interpretation to use.\n\n` +
+      `Return the updated design output.`,
+      {
+        label: 'fix-prototype-constants',
+        phase: 'Stage 6.5 — Prototype',
+        agentType: `super-dev:${designerType ?? 'architecture-designer'}`,
+        schema: DESIGN_OUTPUT,
+      },
     );
+
+    // Update design with corrected version
+    if (fixResult) {
+      design = fixResult;
+      knowledge.stages['6'] = design;
+    }
+
+    // Re-run prototype validation with corrected constants
+    log(`Stage 6.5: re-running prototype with corrected constants`);
+    const retryProto = await gatedPrototypeLoop({
+      stage: 'Stage 6.5 (retry)',
+      gateName: 'gate-prototype',
+      writerLabel: 'prototype-runner',
+      maxIters: MAX_PROTOTYPE_ITERS,
+      spawnWriter: (iter, guidance) => agentWithRetry(
+        protoPrompt + (guidance || ''),
+        {
+          label: `prototype-runner:retry:${iter}`,
+          phase: 'Stage 6.5 — Prototype',
+          agentType: 'super-dev:prototype-runner',
+          schema: PROTOTYPE_OUTPUT,
+        },
+      ),
+      spawnGate: () => agentWithRetry(
+        `Wait for the prototype report to appear in ${SPEC_DIRECTORY}, then run ` +
+        `node ${shellQuote(PLUGIN_ROOT + '/scripts/gates/runner.mjs')} prototype ${shellQuote(SPEC_DIRECTORY)}. ` +
+        `Return the gate verdict.`,
+        {
+          label: 'doc-validator:gate-prototype:retry',
+          phase: 'Stage 6.5 — Prototype',
+          agentType: 'super-dev:doc-validator',
+          schema: GATE_VERDICT,
+        },
+      ),
+    });
+
+    if (retryProto.pivot) {
+      // Still failing after fix — escalate to user
+      throw new Error(
+        `Stage 6.5: prototype STILL failing after constant correction for ${JSON.stringify(failingConstants)}. ` +
+        `User intervention needed. Prototype report: ${retryProto.writer?.doc_path ?? protoLoop.writer.doc_path}`
+      );
+    }
+    prototype = retryProto.writer;
+    log(`Stage 6.5 complete (after retry): ${prototype.constants_tested.length} constants validated.`);
+  } else {
+    prototype = protoLoop.writer;
+    log(`Stage 6.5 complete: ${prototype.constants_tested.length} constants validated within tolerance (${protoLoop.iterations} iteration${protoLoop.iterations === 1 ? '' : 's'}).`);
   }
-  prototype = protoLoop.writer;
-  log(`Stage 6.5 complete: ${prototype.constants_tested.length} constants validated within tolerance (${protoLoop.iterations} iteration${protoLoop.iterations === 1 ? '' : 's'}).`);
 }
 
 // ---------------------------------------------------------------------------
