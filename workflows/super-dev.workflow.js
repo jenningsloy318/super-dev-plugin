@@ -525,20 +525,32 @@ phase('Stage 1 — Setup');
 // Retry wrapper — MUST be defined before any usage (const doesn't hoist).
 // Retries agent() calls up to MAX_RETRIES on null returns.
 // ---------------------------------------------------------------------------
+/** Log failure details and throw. All workflow failures go through this. */
+function fail(message) {
+  log(`[FAIL] ${message.split('\n')[0]}`);
+  fail(message);
+}
+
 const MAX_RETRIES = 10;
 const agentWithRetry = async (prompt, opts) => {
+  const label = opts?.label || 'agent';
+  const stagePhase = opts?.phase || '';
+  log(`[spawn] ${label} (${stagePhase})`);
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     const effectivePrompt = attempt === 1
       ? prompt
       : `${prompt}\n\n[RETRY ${attempt}/${MAX_RETRIES}: Prior attempt(s) returned no result ` +
         `(likely API timeout or rate limit). Simplify if possible. Attempt ${attempt}.]`;
     const result = await agent(effectivePrompt, opts);
-    if (result !== null && result !== undefined) return result;
+    if (result !== null && result !== undefined) {
+      log(`[done] ${label} → ${typeof result === 'object' ? JSON.stringify(result).slice(0, 80) + '...' : String(result).slice(0, 80)}`);
+      return result;
+    }
     if (attempt < MAX_RETRIES) {
-      log(`[retry] ${opts?.label || 'agent'} returned null — attempt ${attempt}/${MAX_RETRIES}, retrying with backoff context...`);
+      log(`[retry] ${label} returned null — attempt ${attempt}/${MAX_RETRIES}`);
     }
   }
-  log(`[retry] ${opts?.label || 'agent'} exhausted ${MAX_RETRIES} retries — returning null`);
+  log(`[FAILED] ${label} exhausted ${MAX_RETRIES} retries — returning null`);
   return null;
 };
 
@@ -655,7 +667,7 @@ if (!PLUGIN_ROOT || !REPO_PATH) {
   }
   if (!REPO_PATH) {
     // Cannot proceed without knowing where the repo is
-    throw new Error(
+    fail(
       `super-dev workflow: could not determine repo_path (current working directory).\n` +
       `The auto-discovery agent failed to run. Ensure the workflow is invoked with:\n` +
       `  Workflow({scriptPath: "...", args: {request: "...", plugin_root: "...", repo_path: "..."}})`
@@ -767,7 +779,7 @@ if (SKIP_WORKTREE) {
     },
   );
   if (defaultBranchResult.exit_code !== 0) {
-    throw new Error(
+    fail(
       `Stage 1: cannot detect default branch (exit ${defaultBranchResult.exit_code}).\n` +
       `stdout: ${defaultBranchResult.stdout || '(empty)'}\n` +
       `stderr: ${defaultBranchResult.stderr || '(empty)'}`
@@ -775,7 +787,7 @@ if (SKIP_WORKTREE) {
   }
   DEFAULT_BRANCH = defaultBranchResult.stdout.trim();
   if (!DEFAULT_BRANCH) {
-    throw new Error(
+    fail(
       `Stage 1: default-branch detection returned exit 0 but empty stdout.\n` +
       `stderr: ${defaultBranchResult.stderr || '(empty)'}`
     );
@@ -797,7 +809,7 @@ if (SKIP_WORKTREE) {
     },
   );
   if (pullResult.exit_code !== 0) {
-    throw new Error(
+    fail(
       `Stage 1: 'git pull --ff-only' failed on ${DEFAULT_BRANCH} (exit ${pullResult.exit_code}). ` +
       `Resolve manually (divergence / dirty tree / detached HEAD) and retry.\n` +
       `stdout:\n${pullResult.stdout || '(empty)'}\n` +
@@ -854,7 +866,7 @@ if (SKIP_WORKTREE) {
     },
   );
   if (!worktreeResult.ok) {
-    throw new Error(`Stage 1: 'git worktree add' failed — ${worktreeResult.stderr || 'unknown'}`);
+    fail(`Stage 1: 'git worktree add' failed — ${worktreeResult.stderr || 'unknown'}`);
   }
   WORKTREE_PATH = worktreeResult.worktree_path;
 }
@@ -1525,7 +1537,7 @@ if (SKIP_STAGES.has(4) && SKIP_STAGES.has(5)) {
       },
     );
     if (!assessment) {
-      throw new Error('Stage 5: code-assessor returned null twice — cannot proceed without codebase assessment.');
+      fail('Stage 5: code-assessor returned null twice — cannot proceed without codebase assessment.');
     }
   }
   log(`Stage 5 complete: ${assessment.files_assessed} files assessed, ${assessment.patterns.length} patterns to follow.`);
@@ -1630,7 +1642,7 @@ if (isBug) {
   if (assessment) {
     log(`Stage 5 complete: ${assessment.files_assessed} files assessed, ${assessment.patterns.length} patterns to follow.`);
   } else {
-    throw new Error('Stage 5: code-assessor returned null after retries — cannot proceed without codebase assessment.');
+    fail('Stage 5: code-assessor returned null after retries — cannot proceed without codebase assessment.');
   }
   await updateTracking({ stage: 5, status: 'complete', currentPhase: 'Stage 5 — Code Assessment' });
 
@@ -1671,7 +1683,7 @@ if (isBug) {
       },
     );
     if (!assessment) {
-      throw new Error('Stage 5: code-assessor returned null twice — cannot proceed without codebase assessment.');
+      fail('Stage 5: code-assessor returned null twice — cannot proceed without codebase assessment.');
     }
   }
   log(`Stage 5 complete: ${assessment.files_assessed} files assessed, ${assessment.patterns.length} patterns to follow.`);
@@ -1855,7 +1867,7 @@ if (!needPrototype) {
     sampleSource = finder.source ?? '(unknown)';
     sampleRationale = finder.rationale ?? '';
     if (samples.length === 0) {
-      throw new Error(
+      fail(
         `Stage 6.5.1: sample-finder found no representative samples in the codebase.\n` +
         `Source searched: ${sampleSource}\n` +
         `Rationale: ${sampleRationale}\n\n` +
@@ -1987,7 +1999,7 @@ if (!needPrototype) {
 
     if (retryProto.pivot) {
       // Still failing after fix — escalate to user
-      throw new Error(
+      fail(
         `Stage 6.5: prototype STILL failing after constant correction for ${JSON.stringify(failingConstants)}. ` +
         `User intervention needed. Prototype report: ${retryProto.writer?.doc_path ?? protoLoop.writer.doc_path}`
       );
@@ -2084,7 +2096,7 @@ const spawnSpecWriter = async (extraGuidance = '', iter = 1) => {
     // Final disk recovery attempt after retry
     const recovered2 = await _recoverSpecFromDisk(SPEC_DIRECTORY, specName, planName, tasksName);
     if (recovered2) return recovered2;
-    throw new Error(
+    fail(
       `Stage 7: spec-writer failed twice and disk recovery failed both times. ` +
       `Expected ${specName}, ${planName}, ${tasksName} in ${SPEC_DIRECTORY}.`
     );
@@ -2185,7 +2197,7 @@ while (specIter < MAX_SPEC_ITERS) {
 
   if (!reviewVerdict?.pass) {
     if (specIter >= MAX_SPEC_ITERS) {
-      throw new Error(
+      fail(
         `Stage 8 gate-spec-review still failing after ${MAX_SPEC_ITERS} iteration(s): ` +
         `${(reviewVerdict?.errors || []).join('; ')}`
       );
@@ -2202,7 +2214,7 @@ while (specIter < MAX_SPEC_ITERS) {
   }
   if (review.verdict === 'REJECTED') {
     if (specIter >= MAX_SPEC_ITERS) {
-      throw new Error(
+      fail(
         `Stage 8: spec REJECTED after ${MAX_SPEC_ITERS} iteration(s) — user intervention needed. ` +
         `Review report: ${review.doc_path}\n` +
         `Findings:\n${(review.findings || []).map(f => `  [${f.severity}] ${f.section}: ${f.issue}`).join('\n')}`
@@ -2222,7 +2234,7 @@ while (specIter < MAX_SPEC_ITERS) {
 
   // REVISIONS NEEDED — bail out only if we've used our iteration budget.
   if (specIter >= MAX_SPEC_ITERS) {
-    throw new Error(
+    fail(
       `Stage 8: spec still 'REVISIONS NEEDED' after ${MAX_SPEC_ITERS} iterations — escalating to user. ` +
       `Final review: ${review.doc_path}`
     );
@@ -2253,7 +2265,7 @@ while (specIter < MAX_SPEC_ITERS) {
   );
   if (!reTrace?.pass) {
     if (specIter >= MAX_SPEC_ITERS) {
-      throw new Error(
+      fail(
         `Stage 8: gate-spec-trace still failing after spec rewrite (iteration ${specIter}): ` +
         `${(reTrace.errors || []).join('; ')}`
       );
@@ -2636,7 +2648,7 @@ for (const ph of phases) {
     }
 
     if (phaseIter >= MAX_PHASE_ITERS) {
-      throw new Error(
+      fail(
         `Stage 9 phase ${ph.number} ("${ph.name}") failed after ${MAX_PHASE_ITERS} iteration(s). ` +
         `gate-build: ${buildVerdict?.pass ? 'PASS' : 'FAIL'}; ` +
         `qa.all_green: ${qa?.all_green}; impl.all_tests_green: ${impl?.all_tests_green}; ` +
@@ -2870,7 +2882,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
     .filter(v => !v?.pass);
   if (gateFailures.length > 0) {
     if (reviewIter >= MAX_REVIEW_ITERS) {
-      throw new Error(
+      fail(
         `Stage 10: gate(s) still failing after ${MAX_REVIEW_ITERS} iteration(s). ` +
         `Escalating to user.\n` +
         gateFailures.map(v => `  - ${v?.gate ?? 'unknown'}: ${(v?.errors || []).join('; ')}`).join('\n')
@@ -2895,7 +2907,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
   // Hard pivot signal from adversarial reviewer at iter >= 2.
   if (reviewIter >= 2 && ar?.spec_faithful_but_wrong === true) {
     if (reviewIter >= MAX_REVIEW_ITERS) {
-      throw new Error(
+      fail(
         `Stage 10: PIVOT_REQUIRED after ${MAX_REVIEW_ITERS} iterations — spec itself is wrong. ` +
         `User intervention needed.\n` +
         `code-review: ${cr?.doc_path}\nadversarial-review: ${ar?.doc_path}`
@@ -2908,7 +2920,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
   // Hard REJECT: attempt fix once, then throw if REJECT persists.
   if (ar?.verdict === 'REJECT') {
     if (reviewIter >= MAX_REVIEW_ITERS) {
-      throw new Error(
+      fail(
         `Stage 10: adversarial REJECT persists after ${MAX_REVIEW_ITERS} iterations — ` +
         `security/data-loss class issue unresolved. User intervention needed.\n` +
         `Report: ${ar.doc_path}`
@@ -2928,7 +2940,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
   const stalled = reviewIter >= 2 && findingSig && findingSig === priorFindingSignature;
   if (stalled) {
     if (reviewIter >= MAX_REVIEW_ITERS) {
-      throw new Error(
+      fail(
         `Stage 10: findings unchanged across ${reviewIter} iterations — not converging. ` +
         `User intervention needed.\n` +
         `code-review: ${cr?.doc_path}, adversarial: ${ar?.doc_path}`
@@ -2940,7 +2952,7 @@ while (reviewIter < MAX_REVIEW_ITERS) {
   priorFindingSignature = findingSig;
 
   if (reviewIter >= MAX_REVIEW_ITERS) {
-    throw new Error(
+    fail(
       `Stage 10: exhausted ${MAX_REVIEW_ITERS} review iterations with code-review='${cr?.verdict}' ` +
       `/ adversarial='${ar?.verdict}'. Escalating to user. ` +
       `Reports: ${cr?.doc_path}, ${ar?.doc_path}`
@@ -3245,7 +3257,7 @@ while (outerIter < MAX_OUTER_ITERS) {
   ].sort().join('|');
 
   if (prevTestErrors && currentErrors === prevTestErrors) {
-    throw new Error(
+    fail(
       `Stage 11: SAME test failures persist across iterations ${outerIter - 1} and ${outerIter}. ` +
       `User intervention needed.\n` +
       `Failing tests: ${currentErrors.split('|').slice(0, 10).join(', ')}` +
@@ -3256,7 +3268,7 @@ while (outerIter < MAX_OUTER_ITERS) {
 
   // --- Max iterations check ---
   if (outerIter >= MAX_OUTER_ITERS) {
-    throw new Error(
+    fail(
       `Stage 11: Integration tests still failing after ${MAX_OUTER_ITERS} outer iterations ` +
       `(fix→review→test). User intervention needed.\n` +
       `API verdict: ${apiTestResult?.verdict ?? 'n/a'}, E2E verdict: ${e2eTestResult?.verdict ?? 'n/a'}\n` +
@@ -3332,7 +3344,7 @@ while (outerIter < MAX_OUTER_ITERS) {
 
   if (!reReviewApproved || !reAdvPassed) {
     if (outerIter >= MAX_OUTER_ITERS) {
-      throw new Error(
+      fail(
         `Stage 11 outer loop: re-review FAILED after test fix on final iteration (${outerIter}). ` +
         `Code review: ${reCr?.verdict ?? 'null'}, Adversarial: ${reAr?.verdict ?? 'null'}. ` +
         `User intervention needed.`
@@ -3492,7 +3504,7 @@ const preMergeVerdict = await agentWithRetry(
   },
 );
 if (!preMergeVerdict?.pass) {
-  throw new Error(
+  fail(
     `Stage 14: PRE-MERGE CHECK FAILED. Cannot merge without all stages complete.\n` +
     `Violations:\n${(preMergeVerdict?.errors || []).map(e => `  - ${e}`).join('\n') || preMergeVerdict?.stdout_tail || '(unknown)'}`
   );
@@ -3675,7 +3687,7 @@ async function _gatedLoop({ stage, gateName, writerLabel, maxIters, isPivotFailu
     }
     log(`${stage}: ${gateName} FAIL on iteration ${iter}` + (iter < maxIters ? ' — re-spawning writer with findings' : ''));
   }
-  throw new Error(
+  fail(
     `${stage}: ${gateName} still failing after ${maxIters} iteration(s). Escalating to user.\n` +
     `Last gate errors:\n${(verdict?.errors || []).map(e => `  - ${e}`).join('\n') || '  (none reported)'}`
   );
