@@ -1497,7 +1497,22 @@ if (SKIP_STAGES.has(4) && SKIP_STAGES.has(5)) {
     },
   );
   if (!assessment) {
-    throw new Error('Stage 5: code-assessor returned null after retries — cannot proceed without codebase assessment.');
+    log('Stage 5: code-assessor returned null — retrying with simplified prompt');
+    assessment = await agentWithRetry(
+      `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
+      `Read the project structure (ls, find key files) and return a brief assessment.\n` +
+      `Focus on: what language/framework, what patterns exist, what test setup exists.\n` +
+      `Keep it concise — just the essential patterns for implementation guidance.`,
+      {
+        label: 'code-assessor:retry-simple',
+        phase: 'Stage 5 — Code Assessment',
+        agentType: 'super-dev:code-assessor',
+        schema: ASSESSMENT_OUTPUT,
+      },
+    );
+    if (!assessment) {
+      throw new Error('Stage 5: code-assessor returned null twice — cannot proceed without codebase assessment.');
+    }
   }
   log(`Stage 5 complete: ${assessment.files_assessed} files assessed, ${assessment.patterns.length} patterns to follow.`);
   await updateTracking({ stage: 5, status: 'complete', currentPhase: 'Stage 5 — Code Assessment' });
@@ -1628,7 +1643,22 @@ if (isBug) {
     },
   );
   if (!assessment) {
-    throw new Error('Stage 5: code-assessor returned null after retries — cannot proceed without codebase assessment.');
+    log('Stage 5: code-assessor returned null — retrying with simplified prompt');
+    assessment = await agentWithRetry(
+      `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
+      `Read the project structure (ls, find key files) and return a brief assessment.\n` +
+      `Focus on: what language/framework, what patterns exist, what test setup exists.\n` +
+      `Keep it concise — just the essential patterns for implementation guidance.`,
+      {
+        label: 'code-assessor:retry-simple',
+        phase: 'Stage 5 — Code Assessment',
+        agentType: 'super-dev:code-assessor',
+        schema: ASSESSMENT_OUTPUT,
+      },
+    );
+    if (!assessment) {
+      throw new Error('Stage 5: code-assessor returned null twice — cannot proceed without codebase assessment.');
+    }
   }
   log(`Stage 5 complete: ${assessment.files_assessed} files assessed, ${assessment.patterns.length} patterns to follow.`);
   await updateTracking({ stage: 5, status: 'complete', currentPhase: 'Stage 5 — Code Assessment' });
@@ -2020,10 +2050,29 @@ const spawnSpecWriter = async (extraGuidance = '', iter = 1) => {
   log(`Stage 7: spec-writer iter ${iter} returned ${result === null ? 'null' : 'incomplete object'} — attempting on-disk recovery`);
   const recovered = await _recoverSpecFromDisk(SPEC_DIRECTORY, specName, planName, tasksName);
   if (!recovered) {
+    // Disk recovery failed — retry spec-writer one more time with simplified prompt
+    log(`Stage 7: disk recovery failed — retrying spec-writer with simplified prompt`);
+    const retryResult = await agentWithRetry(
+      `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
+      `RETRY: Your previous attempt failed to produce output. Write these THREE files:\n` +
+      `  1. ${shellQuote(SPEC_DIRECTORY + '/' + specName)} — specification\n` +
+      `  2. ${shellQuote(SPEC_DIRECTORY + '/' + planName)} — implementation plan (2-3 phases)\n` +
+      `  3. ${shellQuote(SPEC_DIRECTORY + '/' + tasksName)} — task list\n` +
+      `Keep each document CONCISE (100-200 lines max). Write all three files, then return SpecOutput.`,
+      {
+        label: `spec-writer:recovery-retry`,
+        phase: 'Stage 7 — Specification',
+        agentType: 'super-dev:spec-writer',
+        schema: SPEC_OUTPUT,
+      },
+    );
+    if (retryResult && retryResult.specification_path) return retryResult;
+    // Final disk recovery attempt after retry
+    const recovered2 = await _recoverSpecFromDisk(SPEC_DIRECTORY, specName, planName, tasksName);
+    if (recovered2) return recovered2;
     throw new Error(
-      `Stage 7: spec-writer iter ${iter} returned no usable result and on-disk recovery failed. ` +
-      `Expected ${specName}, ${planName}, ${tasksName} in ${SPEC_DIRECTORY}. ` +
-      `If the writer was interrupted before writing any file, re-run the workflow.`
+      `Stage 7: spec-writer failed twice and disk recovery failed both times. ` +
+      `Expected ${specName}, ${planName}, ${tasksName} in ${SPEC_DIRECTORY}.`
     );
   }
   log(`Stage 7: recovered SpecOutput from disk (${recovered.phase_count} phases).`);
@@ -2138,12 +2187,23 @@ while (specIter < MAX_SPEC_ITERS) {
     break;
   }
   if (review.verdict === 'REJECTED') {
-    throw new Error(
-      `Stage 8: spec REJECTED on iteration ${specIter}. The design is fundamentally flawed — ` +
-      `invoke pivot-protocol and re-run the workflow from Stage 6 with a corrected design. ` +
-      `Review report: ${review.doc_path}\n` +
-      `Findings:\n${(review.findings || []).map(f => `  [${f.severity}] ${f.section}: ${f.issue}`).join('\n')}`
-    );
+    if (specIter >= MAX_SPEC_ITERS) {
+      throw new Error(
+        `Stage 8: spec REJECTED after ${MAX_SPEC_ITERS} iteration(s) — user intervention needed. ` +
+        `Review report: ${review.doc_path}\n` +
+        `Findings:\n${(review.findings || []).map(f => `  [${f.severity}] ${f.section}: ${f.issue}`).join('\n')}`
+      );
+    }
+    // REJECTED: attempt fix from findings then re-review (treat like REVISIONS NEEDED but more urgent)
+    log(`Stage 8 iteration ${specIter}: REJECTED — attempting fix from findings before retrying`);
+    const rejectFindings = (review.findings || [])
+      .map(f => `[${f.severity}] ${f.section}: ${f.issue} → ${f.recommendation || 'fix required'}`)
+      .join('\n');
+    // Feed findings into next spec-writer iteration (same loop path as REVISIONS NEEDED)
+    const rejectGuidance = `CRITICAL: spec was REJECTED. Fix ALL of these:\n${rejectFindings}`;
+    spec = await spawnSpecWriter(rejectGuidance, specIter + 1);
+    knowledge.stages['7'] = spec;
+    continue; // loop back to re-review
   }
 
   // REVISIONS NEEDED — bail out only if we've used our iteration budget.
@@ -2820,40 +2880,48 @@ while (reviewIter < MAX_REVIEW_ITERS) {
 
   // Hard pivot signal from adversarial reviewer at iter >= 2.
   if (reviewIter >= 2 && ar?.spec_faithful_but_wrong === true) {
-    throw new Error(
-      `Stage 10 iteration ${reviewIter}: PIVOT_REQUIRED — adversarial-reviewer reports the ` +
-      `implementation is faithful to the spec but the spec itself produces the wrong outcome. ` +
-      `Invoke pivot-protocol with these findings and re-run the workflow from Stage 6 with a ` +
-      `revised design.\n` +
-      `code-review: ${cr?.doc_path}\nadversarial-review: ${ar?.doc_path}`
-    );
+    if (reviewIter >= MAX_REVIEW_ITERS) {
+      throw new Error(
+        `Stage 10: PIVOT_REQUIRED after ${MAX_REVIEW_ITERS} iterations — spec itself is wrong. ` +
+        `User intervention needed.\n` +
+        `code-review: ${cr?.doc_path}\nadversarial-review: ${ar?.doc_path}`
+      );
+    }
+    log(`Stage 10 iteration ${reviewIter}: spec_faithful_but_wrong detected — attempting spec-level fix`);
+    // Don't throw — let the fix loop attempt to resolve it
   }
 
-  // Hard REJECT halts the loop — fixing the implementation cannot make a
-  // production-failure / data-loss / security-breach class issue go away.
+  // Hard REJECT: attempt fix once, then throw if REJECT persists.
   if (ar?.verdict === 'REJECT') {
-    throw new Error(
-      `Stage 10 iteration ${reviewIter}: adversarial-reviewer REJECT — ` +
-      `production-failure / data-loss / security-breach class issue. Stop and escalate. ` +
-      `Report: ${ar.doc_path}`
-    );
+    if (reviewIter >= MAX_REVIEW_ITERS) {
+      throw new Error(
+        `Stage 10: adversarial REJECT persists after ${MAX_REVIEW_ITERS} iterations — ` +
+        `security/data-loss class issue unresolved. User intervention needed.\n` +
+        `Report: ${ar.doc_path}`
+      );
+    }
+    log(`Stage 10 iteration ${reviewIter}: adversarial REJECT — attempting fix before escalating`);
+    // Fall through to the fix loop below (don't throw immediately)
   }
 
   // Implementation-pivot detection by signature stagnation: if the SAME
   // set of files+severities is reported on iteration 2 as on iteration 1,
   // the implementation iteration is not converging and a pivot is likely.
-  // We surface this with a clear escalation message rather than auto-pivot.
   const findingSig = [
     ...(cr?.findings ?? []).map(f => `${f.severity}:${f.file}:${f.issue.slice(0, 40)}`),
     ...(ar?.findings ?? []).map(f => `${f.severity}:${f.lens}:${(f.issue || '').slice(0, 40)}`),
   ].sort().join('|');
   const stalled = reviewIter >= 2 && findingSig && findingSig === priorFindingSignature;
   if (stalled) {
-    throw new Error(
-      `Stage 10 iteration ${reviewIter}: findings unchanged since prior iteration — ` +
-      `implementation iteration is not converging. Likely a spec/design issue. ` +
-      `Stop and consider pivot-protocol. code-review: ${cr?.doc_path}, adversarial: ${ar?.doc_path}`
-    );
+    if (reviewIter >= MAX_REVIEW_ITERS) {
+      throw new Error(
+        `Stage 10: findings unchanged across ${reviewIter} iterations — not converging. ` +
+        `User intervention needed.\n` +
+        `code-review: ${cr?.doc_path}, adversarial: ${ar?.doc_path}`
+      );
+    }
+    log(`Stage 10 iteration ${reviewIter}: WARNING — same findings as prior iteration (may not converge)`);
+    // Don't throw yet — give one more fix attempt
   }
   priorFindingSignature = findingSig;
 
@@ -3249,14 +3317,19 @@ while (outerIter < MAX_OUTER_ITERS) {
   const reAdvPassed = reAr?.verdict === 'PASS';
 
   if (!reReviewApproved || !reAdvPassed) {
-    throw new Error(
-      `Stage 11 outer loop: re-review FAILED after test fix (iteration ${outerIter}). ` +
-      `Code review: ${reCr?.verdict ?? 'null'}, Adversarial: ${reAr?.verdict ?? 'null'}. ` +
-      `User intervention needed — fix introduced new issues.`
-    );
+    if (outerIter >= MAX_OUTER_ITERS) {
+      throw new Error(
+        `Stage 11 outer loop: re-review FAILED after test fix on final iteration (${outerIter}). ` +
+        `Code review: ${reCr?.verdict ?? 'null'}, Adversarial: ${reAr?.verdict ?? 'null'}. ` +
+        `User intervention needed.`
+      );
+    }
+    log(`Stage 11 iteration ${outerIter}: re-review not fully approved (code=${reCr?.verdict}, adv=${reAr?.verdict}) — looping back for another fix attempt`);
+    // Don't throw — let the outer loop continue (the fix may need refinement)
+  } else {
+    log(`Stage 10 re-review PASS — looping back to Stage 11 for re-test`);
   }
 
-  log(`Stage 10 re-review PASS — looping back to Stage 11 for re-test`);
   await updateTracking({ stage: 10, status: 'complete', currentPhase: 'Stage 10 — Code Review' });
   phase('Stage 11 — Integration Testing');
 }
