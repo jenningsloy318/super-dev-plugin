@@ -2952,9 +2952,92 @@ while (reviewIter < MAX_REVIEW_ITERS) {
   priorFindingSignature = findingSig;
 
   if (reviewIter >= MAX_REVIEW_ITERS) {
+    // Last resort: spawn research agent to find solutions for persistent findings
+    log(`Stage 10: ${MAX_REVIEW_ITERS} iterations exhausted — spawning research agent for deep analysis`);
+    const persistentFindings = [
+      ...(cr?.findings ?? []).map(f => `[${f.severity}] ${f.file}: ${f.issue}`),
+      ...(ar?.findings ?? []).map(f => `[${f.severity}] ${f.lens}: ${f.issue || f.description}`),
+    ].join('\n');
+
+    const researchFix = await agentWithRetry(
+      `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n\n` +
+      `CODE REVIEW FINDINGS PERSISTED AFTER ${MAX_REVIEW_ITERS} FIX ATTEMPTS:\n${persistentFindings}\n\n` +
+      `The domain specialist tried to fix these ${MAX_REVIEW_ITERS} times but the reviewer still rejects.\n` +
+      `Your job: research the REAL solution. Read the actual code files mentioned, ` +
+      `understand WHY the fix attempts failed, and produce a concrete fix plan.\n\n` +
+      `Common reasons fixes don't work:\n` +
+      `  - The specialist is fixing the symptom, not the root cause\n` +
+      `  - The fix requires architectural change (not just patching)\n` +
+      `  - The reviewer wants a pattern the specialist doesn't know\n` +
+      `  - There's a dependency/import issue the specialist keeps introducing\n\n` +
+      `Read the code-review report at ${cr?.doc_path} for full details.\n` +
+      `Read the actual source files. Then produce a SPECIFIC fix: exact file, exact lines, exact change.`,
+      {
+        label: 'research-fix-persistent',
+        phase: 'Stage 10 — Code Review',
+        agentType: 'super-dev:research-agent',
+        schema: {
+          type: 'object',
+          required: ['fix_plan', 'root_cause'],
+          properties: {
+            root_cause: { type: 'string' },
+            fix_plan: { type: 'array', items: { type: 'object', required: ['file', 'change'], properties: { file: { type: 'string' }, change: { type: 'string' } } } },
+            summary: { type: 'string' },
+          },
+        },
+      },
+    );
+
+    if (researchFix?.fix_plan?.length > 0) {
+      log(`Stage 10: research found root cause: ${researchFix.root_cause?.slice(0, 100)}`);
+      log(`Stage 10: applying research-informed fix (${researchFix.fix_plan.length} changes)`);
+
+      // Apply the research-informed fix via specialist
+      const researchGuidance = `\n\n--- RESEARCH-INFORMED FIX (after ${MAX_REVIEW_ITERS} failed attempts) ---\n` +
+        `Root cause: ${researchFix.root_cause}\n` +
+        `Fix plan:\n${researchFix.fix_plan.map(f => `  ${f.file}: ${f.change}`).join('\n')}\n` +
+        `Apply these EXACT changes. Do not deviate from the research plan.`;
+
+      await agentWithRetry(
+        `Worktree: ${WORKTREE_PATH}. Spec directory: ${SPEC_DIRECTORY}.\n` +
+        `Inputs: ${spec.specification_path}, ${spec.plan_path}, ${spec.tasks_path}.\n` +
+        researchGuidance,
+        {
+          label: `${specialistAgent}:research-fix`,
+          phase: 'Stage 10 — Code Review',
+          agentType: specialistAgent,
+          schema: IMPL_OUTPUT,
+        },
+      );
+
+      // One final review after research-informed fix
+      log(`Stage 10: final review after research-informed fix`);
+      const [finalCr, finalAr] = await parallel([
+        () => agentWithRetry(
+          `${reviewerBase}\n\nFINAL review after research-informed fix. Verdict only.`,
+          { label: 'code-reviewer:final', phase: 'Stage 10 — Code Review', agentType: 'super-dev:code-reviewer', schema: CODE_REVIEW_OUTPUT },
+        ),
+        () => agentWithRetry(
+          `${reviewerBase}\n\nFINAL adversarial review after research-informed fix. Verdict only.`,
+          { label: 'adversarial-reviewer:final', phase: 'Stage 10 — Code Review', agentType: 'super-dev:adversarial-reviewer', schema: ADVERSARIAL_REVIEW_OUTPUT },
+        ),
+      ]);
+
+      const finalPass = /approved/i.test(finalCr?.verdict || '') && finalAr?.verdict === 'PASS';
+      if (finalPass) {
+        log(`Stage 10: PASS after research-informed fix`);
+        codeReview = finalCr;
+        advReview = finalAr;
+        break;
+      }
+    }
+
+    // Research also failed — now truly escalate
     fail(
-      `Stage 10: exhausted ${MAX_REVIEW_ITERS} review iterations with code-review='${cr?.verdict}' ` +
-      `/ adversarial='${ar?.verdict}'. Escalating to user. ` +
+      `Stage 10: exhausted ${MAX_REVIEW_ITERS} review iterations + research-informed fix. ` +
+      `code-review='${cr?.verdict}' / adversarial='${ar?.verdict}'. ` +
+      `Root cause found by research: ${researchFix?.root_cause || 'none'}. ` +
+      `User intervention needed.\n` +
       `Reports: ${cr?.doc_path}, ${ar?.doc_path}`
     );
   }
