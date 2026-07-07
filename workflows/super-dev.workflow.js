@@ -1153,6 +1153,23 @@ if (SKIP_WORKTREE) {
 log(`Stage 1 complete. Worktree: ${WORKTREE_PATH}`);
 log(`Spec dir: ${SPEC_DIRECTORY}`);
 
+// Capture test baseline BEFORE any code changes — so gate-build can distinguish
+// pre-existing failures from regressions introduced by this workflow.
+log('Stage 1.7: capturing test baseline (pre-existing failures)');
+await agentWithRetry(
+  `Run: node ${shellQuote(PLUGIN_ROOT + '/scripts/utils/gate-build.mjs')} ` +
+  `${shellQuote(WORKTREE_PATH)} --capture-baseline\n` +
+  `This captures which tests are already failing BEFORE we make changes. ` +
+  `Return {"ok": true}.`,
+  {
+    label: 'capture-test-baseline',
+    phase: 'Stage 1 — Setup',
+    agentType: 'general-purpose',
+    schema: { type: 'object', properties: { ok: { type: 'boolean' } } },
+  },
+);
+log('Stage 1.7: test baseline captured (pre-existing failures recorded)');
+
 // ---------------------------------------------------------------------------
 // Tracking JSON path — computed once; used by updateTracking() calls below.
 // ---------------------------------------------------------------------------
