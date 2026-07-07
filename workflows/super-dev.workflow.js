@@ -730,15 +730,12 @@ const preflight = await agentWithRetry(
   },
 );
 if (preflight.exit_code !== 0) {
-  throw new Error(
-    `super-dev preflight failed (exit ${preflight.exit_code}): ${preflight.tail}\n` +
-    `Resolve the environment issue, then re-run.`
-  );
+  // Preflight failure is a WARNING, not a hard block — the env var may not
+  // propagate to subagents even when set in settings.json. Log and continue.
+  log(`⚠ Preflight warning (exit ${preflight.exit_code}): ${preflight.tail}. Continuing anyway.`);
+} else {
+  log(`super-dev plugin v${preflight.plugin_version} — preflight OK (${preflight.tail.trim()})`);
 }
-// Surface the plugin version up front so cache staleness is obvious: a run
-// that logs an older version than origin/main means the user needs to
-// refresh the plugin cache (~/.claude/plugins/cache/super-dev/super-dev/).
-log(`super-dev plugin v${preflight.plugin_version} — preflight OK (${preflight.tail.trim()})`);
 
 // Step 1.2 — Pull latest. Detect default branch first; never hard-code 'main'.
 // When SKIP_WORKTREE=true, skip entirely — user is already on their feature branch.
